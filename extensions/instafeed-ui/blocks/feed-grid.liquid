@@ -4,8 +4,14 @@
 {% endcomment %}
 
 <style>
+  .shopify-block.shopify-app-block,
+  .shopify-app-block,
+  .shopify-block,
+  div[class*="shopify-app-block"],
+  div[class*="shopify-block"],
   [data-block-handle="feed-grid"] {
     width: 100% !important;
+    max-width: 100% !important;
   }
   instafeed-grid:not(:defined) {
     display: block;

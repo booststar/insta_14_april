@@ -1,4 +1,14 @@
 {{ 'instafeed-front.css' | asset_url | stylesheet_tag: preload: true }}
+<style>
+  .shopify-block.shopify-app-block,
+  .shopify-app-block,
+  .shopify-block,
+  div[class*="shopify-app-block"],
+  div[class*="shopify-block"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+</style>
 
 {% assign config_meta = app.metafields.ai_instafeed.config.value | default: shop.metafields.ai_instafeed.config.value %}
 {% assign insta_meta = app.metafields.ai_instafeed.insta_data.value | default: shop.metafields.ai_instafeed.insta_data.value %}

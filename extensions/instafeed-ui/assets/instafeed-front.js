@@ -392,6 +392,18 @@
     });
   }
 
+  function ensureParentWidth(element) {
+    if (!element) return;
+    try {
+      const parent = element.closest('.shopify-block, .shopify-app-block, [class*="shopify-app-block"], [class*="shopify-block"]');
+      if (parent) {
+        parent.style.setProperty("width", "100%", "important");
+        parent.style.setProperty("max-width", "100%", "important");
+        parent.style.setProperty("min-width", "0", "important");
+      }
+    } catch (_) {}
+  }
+
   // ── InstafeedGrid Custom Element ───────────────────────────────────────────
   class InstafeedGrid extends HTMLElement {
     constructor() {
@@ -405,6 +417,7 @@
     }
 
     connectedCallback() {
+      ensureParentWidth(this);
       if (cachedConfig && cachedGridMedia) {
         this.render(cachedConfig, cachedGridMedia, cachedInstaData);
       }
@@ -467,6 +480,7 @@
     }
 
     render(config, mediaData, instaData) {
+      ensureParentWidth(this);
       this.config = config;
       this.mediaData = mediaData;
       if (instaData !== undefined) {
@@ -884,6 +898,7 @@
     }
 
     connectedCallback() {
+      ensureParentWidth(this);
       if (cachedConfig && cachedStoryMedia) {
         this.render(cachedConfig, cachedStoryMedia, cachedInstaData);
       }
@@ -936,6 +951,7 @@
     }
 
     render(config, mediaData, instaData) {
+      ensureParentWidth(this);
       if (instaData !== undefined) {
         this.instaData = instaData;
       } else if (!this.instaData && cachedInstaData) {
