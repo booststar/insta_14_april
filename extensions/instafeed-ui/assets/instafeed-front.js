@@ -885,7 +885,7 @@
 
     connectedCallback() {
       if (cachedConfig && cachedStoryMedia) {
-        this.render(cachedConfig, cachedStoryMedia);
+        this.render(cachedConfig, cachedStoryMedia, cachedInstaData);
       }
       this._handleClickBound = this._handleClickBound || this._handleClick.bind(this);
       this.shadowRoot.addEventListener("click", this._handleClickBound);
@@ -1820,7 +1820,7 @@
         });
         document.querySelectorAll("instafeed-story").forEach(story => {
           if (story.config && story.mediaData) {
-            story.render(story.config, story.mediaData);
+            story.render(story.config, story.mediaData, story.instaData);
           }
         });
       }
