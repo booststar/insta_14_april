@@ -5,6 +5,7 @@ import { authenticate } from "../shopify.server";
 import { fetchShopConfig, fetchShopInstaData, fetchAllInstagramMedia } from "../instagramApi.server";
 import { withRateLimit, trackApiResponse } from "../rateLimiter.server";
 import { invalidateResource, cacheGetOrSet } from "../cache.server";
+import { detectProductMatches } from "../utils/productMatcher";
 import {
   Page,
   Layout,
@@ -210,11 +211,28 @@ export const loader = async ({ request }) => {
 
   const isTest = process.env.BILLING_TEST_MODE !== "false";
 
-  const [billingResult, configResult, instaResult, themeRes] = await Promise.allSettled([
+  const [billingResult, configResult, instaResult, themeRes, productsRes] = await Promise.allSettled([
     billing.check({ plans: ["Pro Monthly"], isTest }),
     withRateLimit(shop, () => fetchShopConfig(admin, shop)),
     fetchShopInstaData(admin, shop),
     admin.graphql(`{ themes(first: 25) { nodes { id name role } } }`),
+    admin.graphql(`{
+      products(first: 100, sortKey: UPDATED_AT, reverse: true) {
+        nodes {
+          id
+          title
+          handle
+          tags
+          featuredImage { url }
+          variants(first: 1) {
+            nodes {
+              id
+              price
+            }
+          }
+        }
+      }
+    }`),
   ]);
 
   let subscription = null;
@@ -231,6 +249,25 @@ export const loader = async ({ request }) => {
   const config = configResult.status === "fulfilled" ? configResult.value : null;
   const instaData = instaResult.status === "fulfilled" ? instaResult.value : null;
   if (configResult.status === "rejected") console.error("Config fetch error:", configResult.reason);
+
+  let storeProducts = [];
+  if (productsRes.status === "fulfilled") {
+    try {
+      const prodJson = await productsRes.value.json();
+      const nodes = prodJson.data?.products?.nodes || [];
+      storeProducts = nodes.map((p) => ({
+        id: p.id,
+        title: p.title,
+        handle: p.handle,
+        tags: p.tags || [],
+        image: p.featuredImage?.url || "",
+        variantId: p.variants?.nodes?.[0]?.id ? String(p.variants.nodes[0].id).split("/").pop() : "default",
+        price: p.variants?.nodes?.[0]?.price || "0.00",
+      }));
+    } catch (e) {
+      console.warn("Failed to parse store products", e);
+    }
+  }
 
   trackApiResponse(shop, {});
 
@@ -275,6 +312,7 @@ export const loader = async ({ request }) => {
   return {
     config: config ? JSON.stringify(config) : null,
     instaData: instaData ? JSON.stringify(instaData) : null,
+    storeProducts,
     subscription,
     shop,
     themeId,
@@ -1316,6 +1354,9 @@ function UnifiedConfigurator({
   setIsHideMode,
   isTagMode,
   setIsTagMode,
+  onAutoDetect,
+  totalSuggestionsCount,
+  onApproveAllHighConfidence,
   showStorySection,
   totalPostsCount,
   shopify,
@@ -1953,6 +1994,32 @@ function UnifiedConfigurator({
                           {isHideMode ? "Exit Hide Mode" : "Hide Posts"}
                         </Button>
                       </div>
+
+                      {isTagMode && (
+                        <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                          <BlockStack gap="200">
+                            <Text variant="bodyXs" fontWeight="bold">
+                              ✨ Smart Product Matching
+                            </Text>
+                            <Button
+                              variant="secondary"
+                              onClick={onAutoDetect}
+                              fullWidth
+                            >
+                              ⚡ Auto-Detect Matches {totalSuggestionsCount > 0 ? `(${totalSuggestionsCount} found)` : ""}
+                            </Button>
+                            {totalSuggestionsCount > 0 && (
+                              <Button
+                                variant="plain"
+                                tone="success"
+                                onClick={onApproveAllHighConfidence}
+                              >
+                                ✓ Approve All High Confidence ({totalSuggestionsCount})
+                              </Button>
+                            )}
+                          </BlockStack>
+                        </div>
+                      )}
                     </BlockStack>
                   </Collapsible>
                 </BlockStack>
@@ -2136,6 +2203,8 @@ export default function Index() {
   const [isTagMode, setIsTagMode] = useState(false);
   const [taggingPost, setTaggingPost] = useState(null);
   const [taggingPins, setTaggingPins] = useState([]);
+  const [suggestedTags, setSuggestedTags] = useState({});
+  const [activePlacementSuggestion, setActivePlacementSuggestion] = useState(null);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [previewingTemplate, setPreviewingTemplate] = useState(null);
@@ -2143,6 +2212,23 @@ export default function Index() {
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(true);
   const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
   const [applyingTemplateName, setApplyingTemplateName] = useState("");
+
+  const availableProducts = useMemo(() => {
+    if (loaderData.storeProducts && loaderData.storeProducts.length > 0) {
+      return loaderData.storeProducts;
+    }
+    return [
+      { id: "prod_1", title: "Silk Slip Dress", handle: "silk-slip-dress", tags: ["silk", "dress", "champagne", "silkdress"], price: "89.00", image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=400&fit=crop", variantId: "1" },
+      { id: "prod_2", title: "Linen Shirt", handle: "linen-shirt", tags: ["linen", "shirt", "summercapsule", "linenlove"], price: "55.00", image: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=400&h=400&fit=crop", variantId: "2" },
+      { id: "prod_3", title: "Wide-Leg Pant", handle: "wide-leg-pant", tags: ["tailored", "pants", "capsulewardrobe"], price: "78.00", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=400&h=400&fit=crop", variantId: "3" },
+      { id: "prod_4", title: "Cloud Soft Cardigan", handle: "cloud-soft-cardigan", tags: ["cardigan", "knitwear", "cozy"], price: "95.00", image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=400&fit=crop", variantId: "4" },
+      { id: "prod_5", title: "Antioxidant Glow Duo", handle: "antioxidant-glow-duo", tags: ["skincare", "glow", "duo", "glowingskin"], price: "64.00", image: "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=400&h=400&fit=crop", variantId: "5" },
+    ];
+  }, [loaderData.storeProducts]);
+
+  const totalSuggestionsCount = useMemo(() => {
+    return Object.values(suggestedTags).reduce((acc, curr) => acc + (curr?.length || 0), 0);
+  }, [suggestedTags]);
 
   useEffect(() => {
     // Automatically open Welcome Setup Modal on load if Instagram is not connected
@@ -2541,13 +2627,120 @@ export default function Index() {
     const postId = item.id || item.media_url;
     setTaggingPost(item);
     setTaggingPins(config.taggedProducts?.[postId] || []);
+    setActivePlacementSuggestion(null);
   };
+
+  const handleAutoDetect = useCallback(() => {
+    const matches = detectProductMatches(baseMedia, availableProducts, config.taggedProducts || {});
+    setSuggestedTags(matches);
+    const count = Object.values(matches).reduce((acc, curr) => acc + (curr?.length || 0), 0);
+    if (count > 0) {
+      shopify?.toast?.show(`⚡ Found ${count} product suggestion${count > 1 ? "s" : ""} based on post captions!`);
+    } else {
+      shopify?.toast?.show("No new product matches found in post captions.");
+    }
+  }, [baseMedia, availableProducts, config.taggedProducts, shopify]);
+
+  const handleApproveSuggestion = useCallback((postId, suggestion, customX = null, customY = null) => {
+    const newPin = {
+      id: `pin_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      productId: suggestion.productId,
+      variantId: suggestion.variantId,
+      title: suggestion.title,
+      handle: suggestion.handle,
+      price: suggestion.price,
+      image: suggestion.image,
+      x: customX !== null ? customX : (suggestion.x || 50),
+      y: customY !== null ? customY : (suggestion.y || 50),
+    };
+
+    setConfig((prev) => {
+      const currentPins = prev.taggedProducts?.[postId] || [];
+      return {
+        ...prev,
+        taggedProducts: {
+          ...(prev.taggedProducts || {}),
+          [postId]: [...currentPins, newPin],
+        },
+      };
+    });
+
+    if (taggingPost && (taggingPost.id === postId || taggingPost.media_url === postId)) {
+      setTaggingPins((prev) => [...prev, newPin]);
+    }
+
+    setSuggestedTags((prev) => {
+      const remaining = (prev[postId] || []).filter((s) => s.id !== suggestion.id && s.productId !== suggestion.productId);
+      const next = { ...prev };
+      if (remaining.length > 0) {
+        next[postId] = remaining;
+      } else {
+        delete next[postId];
+      }
+      return next;
+    });
+
+    setHasUnsavedChanges(true);
+    shopify?.toast?.show(`✓ Approved & tagged "${suggestion.title}"!`);
+  }, [taggingPost, shopify]);
+
+  const handleApproveAllHighConfidence = useCallback(() => {
+    let approvedCount = 0;
+    setConfig((prev) => {
+      const nextTagged = { ...(prev.taggedProducts || {}) };
+      Object.entries(suggestedTags).forEach(([postId, list]) => {
+        const highConf = list.filter((s) => s.confidence >= 75);
+        if (highConf.length > 0) {
+          const current = nextTagged[postId] || [];
+          const newPins = highConf.map((s, idx) => ({
+            id: `pin_${Date.now()}_${idx}`,
+            productId: s.productId,
+            variantId: s.variantId,
+            title: s.title,
+            handle: s.handle,
+            price: s.price,
+            image: s.image,
+            x: s.x || 50,
+            y: s.y || 50,
+          }));
+          nextTagged[postId] = [...current, ...newPins];
+          approvedCount += newPins.length;
+        }
+      });
+      return { ...prev, taggedProducts: nextTagged };
+    });
+
+    setSuggestedTags({});
+    setHasUnsavedChanges(true);
+    shopify?.toast?.show(`✓ Approved ${approvedCount} product tags across all posts!`);
+  }, [suggestedTags, shopify]);
+
+  const handleDismissSuggestion = useCallback((postId, suggestionId) => {
+    setSuggestedTags((prev) => {
+      const remaining = (prev[postId] || []).filter((s) => s.id !== suggestionId);
+      const next = { ...prev };
+      if (remaining.length > 0) {
+        next[postId] = remaining;
+      } else {
+        delete next[postId];
+      }
+      return next;
+    });
+    shopify?.toast?.show("Suggestion dismissed");
+  }, [shopify]);
 
   const handleCanvasClick = async (e) => {
     if (!taggingPost) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const xPercent = parseFloat((((e.clientX - rect.left) / rect.width) * 100).toFixed(1));
     const yPercent = parseFloat((((e.clientY - rect.top) / rect.height) * 100).toFixed(1));
+
+    if (activePlacementSuggestion) {
+      const postId = taggingPost.id || taggingPost.media_url;
+      handleApproveSuggestion(postId, activePlacementSuggestion, xPercent, yPercent);
+      setActivePlacementSuggestion(null);
+      return;
+    }
 
     try {
       if (shopify?.resourcePicker) {
@@ -2672,6 +2865,7 @@ export default function Index() {
     const isAlbum = rawType === "CAROUSEL_ALBUM" || rawType === "ALBUM";
 
     const itemTags = isConnected ? (config.taggedProducts?.[itemIdentifier] || item.taggedProducts || []) : [];
+    const itemSuggestions = suggestedTags[itemIdentifier] || [];
 
     return (
       <div
@@ -2726,6 +2920,26 @@ export default function Index() {
               }}
             >
               🛍️ {itemTags.length}
+            </span>
+          </div>
+        )}
+        {isTagMode && itemSuggestions.length > 0 && (
+          <div style={{ position: "absolute", top: "8px", right: "8px", zIndex: 12 }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "3px 8px",
+                borderRadius: "10px",
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                color: "#ffffff",
+                fontSize: "10px",
+                fontWeight: "700",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+              }}
+            >
+              ⚡ {itemSuggestions.length} Suggested
             </span>
           </div>
         )}
@@ -3372,6 +3586,9 @@ export default function Index() {
                 setIsHideMode={setIsHideMode}
                 isTagMode={isTagMode}
                 setIsTagMode={setIsTagMode}
+                onAutoDetect={handleAutoDetect}
+                totalSuggestionsCount={totalSuggestionsCount}
+                onApproveAllHighConfidence={handleApproveAllHighConfidence}
                 showStorySection={showStorySection}
                 totalPostsCount={totalPostsCount}
                 shopify={shopify}
@@ -3523,6 +3740,32 @@ export default function Index() {
                       <Banner tone="info">
                         <strong>Hide Mode Active:</strong> Click any post in the preview below to toggle hidden status.
                       </Banner>
+                    )}
+
+                    {isTagMode && (
+                      <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "12px 16px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "16px" }}>🏷️</span>
+                          <div>
+                            <div style={{ fontSize: "13px", fontWeight: "700", color: "#166534" }}>
+                              Tag Mode Active {totalSuggestionsCount > 0 ? `· ⚡ ${totalSuggestionsCount} Matches Detected` : ""}
+                            </div>
+                            <div style={{ fontSize: "12px", color: "#15803d" }}>
+                              Click any post below to review suggestions or drop new pins.
+                            </div>
+                          </div>
+                        </div>
+                        <InlineStack gap="200">
+                          <Button size="slim" onClick={handleAutoDetect}>
+                            ⚡ Auto-Detect Matches
+                          </Button>
+                          {totalSuggestionsCount > 0 && (
+                            <Button size="slim" variant="primary" tone="success" onClick={handleApproveAllHighConfidence}>
+                              ✓ Approve All ({totalSuggestionsCount})
+                            </Button>
+                          )}
+                        </InlineStack>
+                      </div>
                     )}
 
                     {/* Frame Simulators */}
@@ -4545,197 +4788,329 @@ export default function Index() {
         })()}
 
         {/* ── Shopify Polaris Tagging Studio Modal ── */}
-        {taggingPost && (
-          <Modal
-            open={Boolean(taggingPost)}
-            onClose={() => setTaggingPost(null)}
-            title="Tag Shopify Products on Image"
-            size="large"
-            primaryAction={{
-              content: "Done Tagging",
-              onAction: () => {
+        {taggingPost && (() => {
+          const postId = taggingPost.id || taggingPost.media_url;
+          const postSuggestions = suggestedTags[postId] || [];
+
+          return (
+            <Modal
+              open={Boolean(taggingPost)}
+              onClose={() => {
                 setTaggingPost(null);
-                shopify?.toast?.show("Product tags saved! Remember to click Save in the top bar to publish.");
-              },
-            }}
-          >
-            <Modal.Section flush>
-              <div style={{ display: "flex", flexDirection: "row", minHeight: "460px", background: "#f8fafc" }}>
-                {/* Interactive Tagging Canvas */}
-                <div
-                  style={{
-                    flex: 1.4,
-                    background: "#0f172a",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    position: "relative",
-                    userSelect: "none",
-                    padding: "16px",
-                  }}
-                >
+                setActivePlacementSuggestion(null);
+              }}
+              title="Tag Shopify Products on Image"
+              size="large"
+              primaryAction={{
+                content: "Done Tagging",
+                onAction: () => {
+                  setTaggingPost(null);
+                  setActivePlacementSuggestion(null);
+                  shopify?.toast?.show("Product tags saved! Remember to click Save in the top bar to publish.");
+                },
+              }}
+            >
+              <Modal.Section flush>
+                <div style={{ display: "flex", flexDirection: "row", minHeight: "500px", background: "#f8fafc" }}>
+                  {/* Interactive Tagging Canvas */}
                   <div
                     style={{
+                      flex: 1.2,
+                      background: "#0f172a",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
                       position: "relative",
-                      display: "inline-block",
-                      cursor: "crosshair",
-                      maxWidth: "100%",
-                      maxHeight: "440px",
-                      borderRadius: "8px",
-                      overflow: "hidden",
-                      boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                      userSelect: "none",
+                      padding: "16px",
                     }}
-                    onClick={handleCanvasClick}
                   >
-                    <img
-                      src={taggingPost.media_url || taggingPost.thumbnail_url}
-                      alt="Tagging Canvas"
-                      style={{ display: "block", maxWidth: "100%", maxHeight: "440px", objectFit: "contain", pointerEvents: "none" }}
-                    />
+                    <div
+                      style={{
+                        position: "relative",
+                        display: "inline-block",
+                        cursor: "crosshair",
+                        maxWidth: "100%",
+                        maxHeight: "420px",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                      }}
+                      onClick={handleCanvasClick}
+                    >
+                      <img
+                        src={taggingPost.media_url || taggingPost.thumbnail_url}
+                        alt="Tagging Canvas"
+                        style={{ display: "block", maxWidth: "100%", maxHeight: "420px", objectFit: "contain", pointerEvents: "none" }}
+                      />
 
-                    {/* Active Hotspot Pins on Canvas */}
-                    {taggingPins.map((pin, idx) => (
-                      <div
-                        key={pin.id || idx}
-                        style={{
-                          position: "absolute",
-                          left: `${pin.x}%`,
-                          top: `${pin.y}%`,
-                          transform: "translate(-50%, -50%)",
-                          zIndex: 10,
-                          pointerEvents: "auto",
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      {/* Active Hotspot Pins on Canvas */}
+                      {taggingPins.map((pin, idx) => (
                         <div
+                          key={pin.id || idx}
                           style={{
-                            width: "28px",
-                            height: "28px",
-                            borderRadius: "50%",
-                            background: "#ffffff",
-                            border: "2px solid #0f172a",
-                            color: "#0f172a",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "12px",
-                            fontWeight: "800",
-                            boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
-                            cursor: "pointer",
+                            position: "absolute",
+                            left: `${pin.x}%`,
+                            top: `${pin.y}%`,
+                            transform: "translate(-50%, -50%)",
+                            zIndex: 10,
+                            pointerEvents: "auto",
                           }}
-                          title={`${pin.title} ($${pin.price})`}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          {idx + 1}
+                          <div
+                            style={{
+                              width: "28px",
+                              height: "28px",
+                              borderRadius: "50%",
+                              background: "#ffffff",
+                              border: "2px solid #0f172a",
+                              color: "#0f172a",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "12px",
+                              fontWeight: "800",
+                              boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                              cursor: "pointer",
+                            }}
+                            title={`${pin.title} ($${pin.price})`}
+                          >
+                            {idx + 1}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: "12px",
+                        background: activePlacementSuggestion ? "rgba(245, 158, 11, 0.95)" : "rgba(0,0,0,0.75)",
+                        backdropFilter: "blur(6px)",
+                        padding: "6px 14px",
+                        borderRadius: "20px",
+                        color: "white",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        textAlign: "center",
+                      }}
+                    >
+                      {activePlacementSuggestion
+                        ? `📍 Click photo where "${activePlacementSuggestion.title}" is located`
+                        : "👆 Click photo to drop pin, or approve suggestions on the right"}
+                    </div>
                   </div>
 
+                  {/* Side Panel: Suggestions + Tagged Products */}
                   <div
                     style={{
-                      position: "absolute",
-                      bottom: "12px",
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      background: "rgba(0,0,0,0.75)",
-                      backdropFilter: "blur(6px)",
-                      padding: "6px 14px",
-                      borderRadius: "20px",
-                      color: "white",
-                      fontSize: "12px",
-                      fontWeight: "500",
-                      pointerEvents: "none",
-                      whiteSpace: "nowrap",
+                      flex: 1.1,
+                      background: "white",
+                      borderLeft: "1px solid #e2e8f0",
+                      display: "flex",
+                      flexDirection: "column",
+                      maxHeight: "560px",
                     }}
                   >
-                    👆 Click anywhere on the photo to drop a product hotspot pin
-                  </div>
-                </div>
-
-                {/* Side Panel: Tagged Products List */}
-                <div
-                  style={{
-                    flex: 1,
-                    background: "white",
-                    borderLeft: "1px solid #e2e8f0",
-                    display: "flex",
-                    flexDirection: "column",
-                    maxHeight: "500px",
-                  }}
-                >
-                  <div style={{ padding: "16px", borderBottom: "1px solid #f1f5f9" }}>
-                    <Text variant="headingSm" as="h3">
-                      Tagged Products ({taggingPins.length})
-                    </Text>
-                    <Text variant="bodyXs" tone="subdued">
-                      Pins drop at exact image coordinates for 1-click cart checkout.
-                    </Text>
-                  </div>
-
-                  <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-                    {taggingPins.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "32px 16px" }}>
-                        <div style={{ fontSize: "32px", marginBottom: "8px" }}>🏷️</div>
-                        <Text variant="bodyMd" fontWeight="semibold">No products tagged yet</Text>
-                        <Text variant="bodySm" tone="subdued">Click anywhere on the photo to attach a Shopify product.</Text>
+                    {/* Post Caption Preview */}
+                    <div style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
+                      <Text variant="bodyXs" fontWeight="bold" tone="subdued">
+                        POST CAPTION
+                      </Text>
+                      <div style={{ fontSize: "12.5px", color: "#334155", marginTop: "4px", maxHeight: "60px", overflowY: "auto", lineHeight: "1.4" }}>
+                        {taggingPost.caption || "No caption provided for this post."}
                       </div>
-                    ) : (
-                      <BlockStack gap="300">
-                        {taggingPins.map((pin, idx) => (
-                          <Box key={pin.id || idx} padding="300" background="bg-surface-secondary" borderRadius="200">
-                            <InlineStack align="space-between" blockAlign="center">
-                              <InlineStack gap="300" blockAlign="center">
-                                <div
-                                  style={{
-                                    width: "24px",
-                                    height: "24px",
-                                    borderRadius: "50%",
-                                    background: "#6366f1",
-                                    color: "white",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "11px",
-                                    fontWeight: "bold",
-                                    flexShrink: 0,
+                    </div>
+
+                    <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+                      <BlockStack gap="400">
+                        {/* 1. Pending Detected Suggestions */}
+                        {postSuggestions.length > 0 && (
+                          <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "10px", padding: "12px" }}>
+                            <BlockStack gap="300">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <span style={{ fontSize: "14px" }}>⚡</span>
+                                  <Text variant="bodySm" fontWeight="bold">
+                                    Detected Matches ({postSuggestions.length})
+                                  </Text>
+                                </div>
+                                <Button
+                                  size="micro"
+                                  variant="plain"
+                                  tone="success"
+                                  onClick={() => {
+                                    postSuggestions.forEach((s) => handleApproveSuggestion(postId, s));
                                   }}
                                 >
-                                  {idx + 1}
-                                </div>
-                                {pin.image && (
-                                  <img
-                                    src={pin.image}
-                                    alt={pin.title}
-                                    style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover", flexShrink: 0 }}
-                                  />
-                                )}
-                                <div style={{ overflow: "hidden" }}>
-                                  <Text variant="bodySm" fontWeight="bold" truncate>
-                                    {pin.title}
-                                  </Text>
-                                  <Text variant="bodyXs" tone="subdued">
-                                    ${pin.price} • ({pin.x}%, {pin.y}%)
-                                  </Text>
-                                </div>
+                                  Approve All
+                                </Button>
                               </InlineStack>
-                              <Button
-                                icon={XIcon}
-                                variant="plain"
-                                tone="critical"
-                                onClick={() => handleRemovePin(pin.id)}
-                                accessibilityLabel="Remove pin"
-                              />
-                            </InlineStack>
-                          </Box>
-                        ))}
+
+                              <Text variant="bodyXs" tone="subdued">
+                                Based on product names and tags in this caption:
+                              </Text>
+
+                              <BlockStack gap="200">
+                                {postSuggestions.map((sug) => (
+                                  <div
+                                    key={sug.id}
+                                    style={{
+                                      background: "#ffffff",
+                                      border: "1px solid #fde68a",
+                                      borderRadius: "8px",
+                                      padding: "10px 12px",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: "8px",
+                                    }}
+                                  >
+                                    <InlineStack align="space-between" blockAlign="center">
+                                      <InlineStack gap="200" blockAlign="center">
+                                        {sug.image && (
+                                          <img
+                                            src={sug.image}
+                                            alt={sug.title}
+                                            style={{ width: "32px", height: "32px", borderRadius: "6px", objectFit: "cover" }}
+                                          />
+                                        )}
+                                        <div style={{ minWidth: 0, maxWidth: "160px" }}>
+                                          <Text variant="bodySm" fontWeight="bold" truncate>
+                                            {sug.title}
+                                          </Text>
+                                          <Text variant="bodyXs" tone="subdued">
+                                            ${sug.price}
+                                          </Text>
+                                        </div>
+                                      </InlineStack>
+                                      <Badge tone={sug.confidence >= 90 ? "success" : "attention"}>
+                                        {sug.confidence}% Match
+                                      </Badge>
+                                    </InlineStack>
+
+                                    <div style={{ fontSize: "11px", color: "#64748b" }}>
+                                      {sug.matchReason}
+                                    </div>
+
+                                    <InlineStack gap="150" align="end">
+                                      <Button
+                                        size="micro"
+                                        variant="plain"
+                                        tone="critical"
+                                        onClick={() => handleDismissSuggestion(postId, sug.id)}
+                                      >
+                                        Dismiss
+                                      </Button>
+                                      <Button
+                                        size="micro"
+                                        variant="secondary"
+                                        onClick={() => {
+                                          setActivePlacementSuggestion(sug);
+                                          shopify?.toast?.show(`Click anywhere on the photo to place pin for "${sug.title}"`);
+                                        }}
+                                      >
+                                        Set Position
+                                      </Button>
+                                      <Button
+                                        size="micro"
+                                        variant="primary"
+                                        onClick={() => handleApproveSuggestion(postId, sug)}
+                                      >
+                                        ✓ Approve & Assign
+                                      </Button>
+                                    </InlineStack>
+                                  </div>
+                                ))}
+                              </BlockStack>
+                            </BlockStack>
+                          </div>
+                        )}
+
+                        {/* 2. Active Approved Pins */}
+                        <div>
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text variant="headingSm" as="h3">
+                              Active Hotspot Pins ({taggingPins.length})
+                            </Text>
+                            <Button
+                              size="micro"
+                              variant="plain"
+                              onClick={handleCanvasClick}
+                            >
+                              + Add Pin Manually
+                            </Button>
+                          </InlineStack>
+
+                          <div style={{ marginTop: "10px" }}>
+                            {taggingPins.length === 0 ? (
+                              <div style={{ textAlign: "center", padding: "24px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
+                                <div style={{ fontSize: "24px", marginBottom: "4px" }}>🏷️</div>
+                                <Text variant="bodySm" fontWeight="semibold">No approved tags yet</Text>
+                                <Text variant="bodyXs" tone="subdued">Approve suggestions above or click photo to add manual pin.</Text>
+                              </div>
+                            ) : (
+                              <BlockStack gap="200">
+                                {taggingPins.map((pin, idx) => (
+                                  <Box key={pin.id || idx} padding="200" background="bg-surface-secondary" borderRadius="200">
+                                    <InlineStack align="space-between" blockAlign="center">
+                                      <InlineStack gap="200" blockAlign="center">
+                                        <div
+                                          style={{
+                                            width: "22px",
+                                            height: "22px",
+                                            borderRadius: "50%",
+                                            background: "#0f172a",
+                                            color: "white",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontSize: "11px",
+                                            fontWeight: "bold",
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          {idx + 1}
+                                        </div>
+                                        {pin.image && (
+                                          <img
+                                            src={pin.image}
+                                            alt={pin.title}
+                                            style={{ width: "32px", height: "32px", borderRadius: "6px", objectFit: "cover", flexShrink: 0 }}
+                                          />
+                                        )}
+                                        <div style={{ overflow: "hidden", maxWidth: "160px" }}>
+                                          <Text variant="bodySm" fontWeight="bold" truncate>
+                                            {pin.title}
+                                          </Text>
+                                          <Text variant="bodyXs" tone="subdued">
+                                            ${pin.price} • ({pin.x}%, {pin.y}%)
+                                          </Text>
+                                        </div>
+                                      </InlineStack>
+                                      <Button
+                                        icon={XIcon}
+                                        variant="plain"
+                                        tone="critical"
+                                        size="micro"
+                                        onClick={() => handleRemovePin(pin.id)}
+                                        accessibilityLabel="Remove pin"
+                                      />
+                                    </InlineStack>
+                                  </Box>
+                                ))}
+                              </BlockStack>
+                            )}
+                          </div>
+                        </div>
                       </BlockStack>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Modal.Section>
-          </Modal>
-        )}
+              </Modal.Section>
+            </Modal>
+          );
+        })()}
 
         {/* ── Templates Library Modal ── */}
         <Modal

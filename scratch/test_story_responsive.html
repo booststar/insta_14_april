@@ -65,12 +65,18 @@
       { id: "4", media_url: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=600&fit=crop", caption: "Behind the scenes at our Melbourne studio 📸", like_count: 154, permalink: "https://instagram.com" }
     ];
 
+    const sampleInstaData = {
+      username: "blowoutbabe",
+      profile_picture_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
+      media: { data: sampleMedia }
+    };
+
     window.addEventListener("DOMContentLoaded", () => {
       const storyEl = document.querySelector("instafeed-story");
-      if (storyEl) storyEl.render(sampleConfig, sampleMedia);
+      if (storyEl) storyEl.render(sampleConfig, sampleMedia, sampleInstaData);
       
       const gridEl = document.querySelector("instafeed-grid");
-      if (gridEl) gridEl.render(sampleConfig, sampleMedia);
+      if (gridEl) gridEl.render(sampleConfig, sampleMedia, sampleInstaData);
     });
   </script>
 </body>

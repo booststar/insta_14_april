@@ -459,7 +459,8 @@
             source: "grid",
             media: this.mediaData || cachedGridMedia || [],
             config: this.config || cachedConfig || {},
-            cssUrl: this.getAttribute("css-url") || getCssUrl()
+            cssUrl: this.getAttribute("css-url") || getCssUrl(),
+            instaData: this.instaData || cachedInstaData || null
           }
         }));
       }
@@ -926,14 +927,20 @@
               source: "story",
               media: this.mediaData || cachedStoryMedia || [],
               config: this.config || cachedConfig || {},
-              cssUrl: this.getAttribute("css-url") || getCssUrl()
+              cssUrl: this.getAttribute("css-url") || getCssUrl(),
+              instaData: this.instaData || cachedInstaData || null
             }
           }));
         }
       }
     }
 
-    render(config, mediaData) {
+    render(config, mediaData, instaData) {
+      if (instaData !== undefined) {
+        this.instaData = instaData;
+      } else if (!this.instaData && cachedInstaData) {
+        this.instaData = cachedInstaData;
+      }
       const isMobile   = window.innerWidth <= 768;
       const renderKey = JSON.stringify({ isMobile, c: config.stories, m: (mediaData || []).map(x => x.id || x.media_url) });
       if (this.lastRenderKey === renderKey) return;
@@ -1159,11 +1166,12 @@
       }
     }
 
-    open(id, source, mediaList, config, cssUrl) {
+    open(id, source, mediaList, config, cssUrl, instaData) {
       this.source = source;
       this.activeMedia = mediaList;
       this.config = config;
       this.cssUrl = cssUrl;
+      this.instaData = instaData || cachedInstaData || null;
 
       if (source === 'promo') {
         document.removeEventListener("keydown", this._boundKeydown);
@@ -1385,7 +1393,15 @@
           : '<img src="' + item.media_url + '" alt="Instagram post" style="width:100%;height:100%;object-fit:contain;display:block;">';
       }
 
-      const handle   = this.config.instagramHandle || 'instagram';
+      const handle   = (this.config && this.config.instagramHandle) || (this.instaData && (this.instaData.username || (this.instaData.user && this.instaData.user.username))) || 'instagram';
+      const rawProfilePic = (this.instaData && (this.instaData.profile_picture_url || (this.instaData.user && this.instaData.user.profile_picture_url))) || "";
+      const profilePic = rawProfilePic ? esc(rawProfilePic) : "";
+      const defaultAvatarSvg = '<svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>';
+      const avatarHtml = profilePic
+        ? '<img src="' + profilePic + '" alt="@' + esc(handle) + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\';">' +
+          '<div class="ai-modal-avatar-fallback" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">' + defaultAvatarSvg + '</div>'
+        : defaultAvatarSvg;
+
       const caption  = item.caption ? item.caption.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
       const date     = item.timestamp ? new Date(item.timestamp).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}) : 'Recently';
       const link     = item.permalink || '#';
@@ -1492,6 +1508,9 @@
         }
 
         // 2. Update Header Info
+        const avatarEl = this.shadowRoot.querySelector('.ai-modal-avatar');
+        if (avatarEl) avatarEl.innerHTML = avatarHtml;
+
         const handleEl = this.shadowRoot.querySelector('.ai-modal-handle');
         if (handleEl) handleEl.textContent = '@' + handle;
 
@@ -1604,7 +1623,7 @@
               '<div class="ai-modal-info-pane">' +
                 '<div class="ai-modal-header">' +
                   '<div class="ai-modal-avatar">' +
-                    '<svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>' +
+                    avatarHtml +
                   '</div>' +
                   '<div class="ai-modal-handle-wrap">' +
                     '<div class="ai-modal-handle">@' + handle + '</div>' +
@@ -1737,7 +1756,9 @@
 
     const cssUrl = (e.detail && e.detail.cssUrl) || (gridEl && gridEl.getAttribute("css-url")) || (storyEl && storyEl.getAttribute("css-url")) || getCssUrl();
 
-    modalEl.open(e.detail ? e.detail.id : null, e.detail ? e.detail.source : 'grid', (e.detail ? e.detail.media : null) || cachedGridMedia || cachedStoryMedia, config, cssUrl);
+    const instaData = (e.detail && e.detail.instaData) || cachedInstaData || null;
+
+    modalEl.open(e.detail ? e.detail.id : null, e.detail ? e.detail.source : 'grid', (e.detail ? e.detail.media : null) || cachedGridMedia || cachedStoryMedia, config, cssUrl, instaData);
   });
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
