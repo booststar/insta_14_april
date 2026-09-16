@@ -1,5 +1,4 @@
-<link rel="preload" href="{{ 'instafeed-front.css' | asset_url }}" as="style">
-<link rel="stylesheet" href="{{ 'instafeed-front.css' | asset_url }}">
+{{ 'instafeed-front.css' | asset_url | stylesheet_tag: preload: true }}
 
 {% assign config_meta = app.metafields.ai_instafeed.config.value | default: shop.metafields.ai_instafeed.config.value %}
 {% assign insta_meta = app.metafields.ai_instafeed.insta_data.value | default: shop.metafields.ai_instafeed.insta_data.value %}
