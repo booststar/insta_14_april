@@ -625,7 +625,7 @@
         const displayStories = getMedia(storyMedia, 10);
         
         html += '<div class="ai-fw-carousel-wrapper" style="position:relative;width:100%;margin-bottom:20px;">'
-              + '<div id="' + sTrackId + '" class="ai-fw-track" style="display:flex;width:100%;justify-content:flex-start;overflow-x:auto;scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;gap:12px;padding:4px 6px 16px;">';
+              + '<div id="' + sTrackId + '" class="ai-fw-track" style="display:flex;width:100%;justify-content:flex-start;overflow-x:auto;scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;gap:12px;padding:4px 16px 16px;">';
         
         if (s.promoEnable !== false) {
           html += '<div class="ai-story-item ai-promo-item" style="flex-shrink:0;width:64px;min-width:64px;text-align:center;cursor:pointer;overflow:visible;">'
@@ -981,7 +981,7 @@
                 <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#1e293b" stroke-width="2"><path d="M12 16l-4-4 4-4"/></svg>
               </div>
             ` : ''}
-            <div id="${trackId}" class="ai-fw-track" style="display:flex;width:100%;justify-content:flex-start;overflow-x:auto;scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;gap:12px;padding:8px 6px 24px;">`;
+            <div id="${trackId}" class="ai-fw-track" style="display:flex;width:100%;justify-content:flex-start;overflow-x:auto;scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;gap:12px;padding:8px 16px 24px;">`;
 
         // Prepend promo story if enabled
         if (s.promoEnable !== false) {
@@ -1532,7 +1532,7 @@
         const embeddedModalStyles = `<style>
           #ai-instafeed-modal-root {
             position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-            width: 100vw !important; height: 100vh !important; background: rgba(0, 0, 0, 0.85) !important;
+            width: 100vw !important; height: 100vh !important; height: 100dvh !important; background: rgba(0, 0, 0, 0.85) !important;
             backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important;
             z-index: 2147483647 !important; display: flex !important; align-items: center !important; justify-content: center !important;
             padding: 20px !important; box-sizing: border-box !important; margin: 0 !important;
@@ -1551,21 +1551,21 @@
           }
           .ai-modal-info-pane {
             flex: 1 !important; display: flex !important; flex-direction: column !important; background: #ffffff !important;
-            position: relative !important; overflow: hidden !important;
+            position: relative !important; overflow: hidden !important; min-height: 0 !important;
           }
           .ai-modal-header {
-            display: flex !important; align-items: center !important; gap: 12px !important; padding: 16px 20px !important; border-bottom: 1px solid #f1f5f9 !important;
+            display: flex !important; align-items: center !important; gap: 12px !important; padding: 16px 20px !important; border-bottom: 1px solid #f1f5f9 !important; flex-shrink: 0 !important;
           }
           .ai-modal-header-close {
             background: #f1f5f9 !important; border: none !important; width: 32px !important; height: 32px !important; border-radius: 50% !important;
-            cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: auto !important; font-size: 16px !important; font-weight: bold !important; color: #64748b !important;
+            cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: auto !important; font-size: 16px !important; font-weight: bold !important; color: #64748b !important; flex-shrink: 0 !important;
           }
           .ai-modal-body {
-            flex: 1 !important; padding: 20px !important; overflow-y: auto !important;
+            flex: 1 !important; padding: 20px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; overscroll-behavior: contain !important;
           }
           .ai-modal-caption { font-size: 14px !important; line-height: 1.5 !important; color: #334155 !important; margin: 0 !important; }
           .ai-modal-caption-handle { font-weight: 700 !important; color: #0f172a !important; margin-right: 6px !important; }
-          .ai-modal-footer { padding: 16px 20px !important; border-top: 1px solid #f1f5f9 !important; background: #fafafa !important; }
+          .ai-modal-footer { padding: 16px 20px !important; border-top: 1px solid #f1f5f9 !important; background: #fafafa !important; flex-shrink: 0 !important; }
           .ai-modal-actions { display: flex !important; align-items: center !important; gap: 16px !important; margin-bottom: 12px !important; }
           .ai-modal-promo-link-btn {
             display: flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; width: 100% !important;
@@ -1573,9 +1573,19 @@
             border: none !important; border-radius: 8px !important; font-size: 13px !important; font-weight: 700 !important; cursor: pointer !important; text-decoration: none !important; box-shadow: 0 4px 12px rgba(225, 48, 108, 0.3) !important; box-sizing: border-box !important;
           }
           @media (max-width: 768px) {
-            .ai-modal-layout { flex-direction: column !important; height: 90vh !important; max-height: 90vh !important; }
-            .ai-modal-media-pane { flex: 1 !important; max-height: 50vh !important; }
-            .ai-modal-info-pane { flex: 1 !important; }
+            #ai-instafeed-modal-root { padding: 0 !important; align-items: flex-end !important; }
+            .ai-modal-layout { flex-direction: column !important; width: 100% !important; max-width: 100% !important; height: 92vh !important; height: 92dvh !important; max-height: 92vh !important; max-height: 92dvh !important; border-radius: 20px 20px 0 0 !important; }
+            .ai-modal-media-pane { flex: none !important; width: 100% !important; height: 38vh !important; max-height: 38vh !important; min-height: 200px !important; }
+            .ai-modal-info-pane { flex: 1 !important; min-height: 0 !important; max-width: 100% !important; }
+            .ai-modal-header { padding: 12px 16px !important; }
+            .ai-modal-body { padding: 14px 16px !important; }
+            .ai-modal-footer { padding: 12px 16px !important; }
+            .ai-modal-actions { margin-bottom: 8px !important; }
+            .ai-modal-promo-link-btn { padding: 9px 14px !important; font-size: 12.5px !important; }
+          }
+          @media (max-width: 480px) {
+            .ai-modal-layout { height: 94vh !important; height: 94dvh !important; max-height: 94vh !important; max-height: 94dvh !important; border-radius: 16px 16px 0 0 !important; }
+            .ai-modal-media-pane { height: 35vh !important; max-height: 35vh !important; min-height: 180px !important; }
           }
         </style>`;
 

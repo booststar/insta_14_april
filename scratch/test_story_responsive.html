@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instafeed Responsiveness Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #fdfdfd;
+      overflow-x: hidden;
+    }
+    .store-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+  </style>
+  <script src="../extensions/instafeed-ui/assets/instafeed-front.js"></script>
+</head>
+<body>
+  <div class="store-container">
+    <h2>Story Section</h2>
+    <instafeed-story css-url="../extensions/instafeed-ui/assets/instafeed-front.css"></instafeed-story>
+
+    <h2>Feed Grid Section</h2>
+    <instafeed-grid css-url="../extensions/instafeed-ui/assets/instafeed-front.css"></instafeed-grid>
+  </div>
+  <instafeed-modal></instafeed-modal>
+
+  <script>
+    const sampleConfig = {
+      instagramHandle: "blowoutbabe",
+      stories: {
+        enable: true,
+        showHeader: true,
+        heading: "Featured Highlights",
+        subheading: "Tap to watch our latest stories",
+        alignment: "center",
+        activeRing: true,
+        ringColor: "#e1306c",
+        pulseRing: true,
+        promoEnable: true,
+        openPopup: true
+      },
+      postFeed: {
+        enable: true,
+        layoutMode: "grid",
+        desktopColumns: 4,
+        mobileColumns: 2,
+        gap: 12,
+        header: true,
+        heading: "Follow Our Looks",
+        subheading: "@blowoutbabe on Instagram",
+        alignment: "center"
+      }
+    };
+
+    const sampleMedia = [
+      { id: "1", media_url: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&h=600&fit=crop", caption: "Effortless volume & salon finish at home ✨ #blowoutbabe #hairgoals", like_count: 245, permalink: "https://instagram.com" },
+      { id: "2", media_url: "https://images.unsplash.com/photo-1556760544-74068565f05c?w=600&h=600&fit=crop", caption: "Summer essentials collection 💖 #haircare", like_count: 189, permalink: "https://instagram.com" },
+      { id: "3", media_url: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=600&fit=crop", caption: "Glow up routine with our signature tools 🌟", like_count: 312, permalink: "https://instagram.com" },
+      { id: "4", media_url: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=600&fit=crop", caption: "Behind the scenes at our Melbourne studio 📸", like_count: 154, permalink: "https://instagram.com" }
+    ];
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const storyEl = document.querySelector("instafeed-story");
+      if (storyEl) storyEl.render(sampleConfig, sampleMedia);
+      
+      const gridEl = document.querySelector("instafeed-grid");
+      if (gridEl) gridEl.render(sampleConfig, sampleMedia);
+    });
+  </script>
+</body>
+</html>
