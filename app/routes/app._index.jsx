@@ -2230,12 +2230,7 @@ export default function Index() {
     return Object.values(suggestedTags).reduce((acc, curr) => acc + (curr?.length || 0), 0);
   }, [suggestedTags]);
 
-  useEffect(() => {
-    // Automatically open Welcome Setup Modal on load if Instagram is not connected
-    if (!loaderData.instagramData?.connected && typeof window !== "undefined" && !sessionStorage.getItem("setup_modal_dismissed")) {
-      setIsSetupModalOpen(true);
-    }
-  }, [loaderData.instagramData?.connected]);
+
 
   const handleApplyTemplate = useCallback((template) => {
     setIsApplyingTemplate(true);
@@ -3520,7 +3515,7 @@ export default function Index() {
                 width: "24px",
                 height: "24px",
                 borderRadius: "50%",
-                background: allTasksDone ? "#16a34a" : "#3b82f6",
+                background: allTasksDone ? "#16a34a" : "#2563eb",
                 color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
@@ -3535,10 +3530,10 @@ export default function Index() {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>
-                  {allTasksDone ? "Setup guide completed" : "Quick Setup Guide"}
+                  {allTasksDone ? "Setup completed" : "Quick Setup Guide"}
                 </span>
                 <span style={{ fontSize: "12.5px", color: "#64748b" }}>
-                  · {(isConnected ? 1 : 0) + (loaderData.dynamicAppEmbedEnabled ? 1 : 0) + 1} of 3 steps ready
+                  · {(isConnected ? 1 : 0) + (loaderData.dynamicAppEmbedEnabled ? 1 : 0)} of 2 steps completed
                 </span>
               </div>
             </div>
@@ -3549,7 +3544,7 @@ export default function Index() {
               variant={allTasksDone ? "secondary" : "primary"}
               onClick={() => setIsSetupModalOpen(true)}
             >
-              {allTasksDone ? "View Setup Guide" : "⚡ Open Setup Wizard"}
+              {allTasksDone ? "View Setup Guide" : "Open Setup Guide"}
             </Button>
           </div>
         </div>
@@ -5195,254 +5190,121 @@ export default function Index() {
           open={isSetupModalOpen}
           onClose={() => {
             setIsSetupModalOpen(false);
-            if (typeof window !== "undefined") sessionStorage.setItem("setup_modal_dismissed", "1");
+            if (typeof window !== "undefined") localStorage.setItem("setup_modal_dismissed", "1");
           }}
           title="⚡ Quick Setup Guide"
-          size="large"
           primaryAction={{
-            content: "Done & View Live Preview",
+            content: "Done",
             onAction: () => {
               setIsSetupModalOpen(false);
-              if (typeof window !== "undefined") sessionStorage.setItem("setup_modal_dismissed", "1");
+              if (typeof window !== "undefined") localStorage.setItem("setup_modal_dismissed", "1");
             },
           }}
         >
           <Modal.Section>
             <BlockStack gap="400">
-              <div>
-                <Text variant="headingMd" as="h2" fontWeight="bold">
-                  Welcome to AI Instafeed Expert 👋
-                </Text>
-                <Text variant="bodyMd" tone="subdued">
-                  Get your Instagram feed live on your store in 3 fast and simple steps.
-                </Text>
-              </div>
-
-              {/* Progress bar */}
-              <div style={{ background: "#f1f5f9", borderRadius: "999px", height: "8px", width: "100%", overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${(((isConnected ? 1 : 0) + (loaderData.dynamicAppEmbedEnabled ? 1 : 0) + 1) / 3) * 100}%`,
-                    background: "linear-gradient(90deg, #833ab4, #fd1d1d, #fcb045)",
-                    transition: "width 0.3s ease",
-                  }}
-                />
-              </div>
+              <Text variant="bodyMd" tone="subdued">
+                Complete these 2 simple steps to get your Instagram feed live on your store.
+              </Text>
 
               {/* Step 1: Connect Instagram */}
               <Card>
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "24px",
-                          height: "24px",
-                          borderRadius: "50%",
-                          background: isConnected ? "#16a34a" : "#3b82f6",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "12px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {isConnected ? "✓" : "1"}
-                      </div>
-                      <Text variant="headingSm" as="h3" fontWeight="bold">
-                        Step 1: Connect Instagram Account
-                      </Text>
-                    </InlineStack>
+                    <Text variant="headingSm" as="h3" fontWeight="bold">
+                      1. Connect Instagram Account
+                    </Text>
                     <Badge tone={isConnected ? "success" : "attention"}>
                       {isConnected ? "Connected" : "Action Needed"}
                     </Badge>
                   </InlineStack>
 
-                  <Text variant="bodySm" tone="subdued">
-                    {isConnected
-                      ? `Connected to @${instaData?.username || config.instagramHandle} (${instaData?.media?.data?.length || 0} posts synced)`
-                      : "Enter your Instagram username or profile link to pull your latest posts."}
-                  </Text>
-
-                  {!isConnected ? (
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                      <div style={{ flex: 1, minWidth: "220px" }}>
-                        <input
-                          type="text"
-                          placeholder="e.g. yourbrand or instagram.com/yourbrand"
-                          value={config.instagramHandle}
-                          onChange={(e) => {
-                            let val = e.target.value;
-                            if (val.includes("instagram.com/")) {
-                              try {
-                                const url = new URL(val.startsWith("http") ? val : `https://${val}`);
-                                const parts = url.pathname.split("/").filter(Boolean);
-                                if (parts.length > 0) val = parts[0];
-                              } catch {
-                                const parts = val.replace(/\/$/, "").split("/");
-                                val = parts[parts.length - 1].split("?")[0];
-                              }
-                            }
-                            val = val.replace("@", "").split("?")[0].trim();
-                            setConfig((prev) => ({ ...prev, instagramHandle: val }));
-                            setConnectError(null);
-                          }}
-                          style={{
-                            width: "100%",
-                            padding: "8px 12px",
-                            border: "1px solid #cbd5e1",
-                            borderRadius: "6px",
-                            fontSize: "13px",
-                            boxSizing: "border-box",
-                            outline: "none",
-                          }}
-                        />
-                      </div>
-                      <Button
-                        variant="primary"
-                        loading={isSyncing}
-                        onClick={() => {
-                          if (!config.instagramHandle.trim()) {
-                            shopify?.toast?.show("Please enter an Instagram handle", { isError: true });
-                            return;
-                          }
-                          const fd = new FormData();
-                          fd.append("handle", config.instagramHandle);
-                          fetcher.submit(fd, { method: "post" });
-                        }}
-                      >
-                        Connect Account
-                      </Button>
-                    </div>
-                  ) : (
-                    <InlineStack gap="200">
-                      <Button
-                        size="slim"
-                        loading={isSyncing}
-                        onClick={() => {
-                          const fd = new FormData();
-                          fd.append("handle", config.instagramHandle);
-                          fetcher.submit(fd, { method: "post" });
-                        }}
-                      >
-                        Re-sync Posts
-                      </Button>
-                      <Button size="slim" tone="critical" onClick={handleDisconnect}>
-                        Disconnect
-                      </Button>
-                    </InlineStack>
-                  )}
-
-                  {connectError && (
-                    <Text variant="bodySm" tone="critical">
-                      {linkifyText(connectError)}
-                    </Text>
-                  )}
-                </BlockStack>
-              </Card>
-
-              {/* Step 2: Choose Design */}
-              <Card>
-                <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "24px",
-                          height: "24px",
-                          borderRadius: "50%",
-                          background: "#16a34a",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "12px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        ✓
-                      </div>
-                      <Text variant="headingSm" as="h3" fontWeight="bold">
-                        Step 2: Choose Feed Layout
-                      </Text>
-                    </InlineStack>
-                    <Badge tone="success">
-                      Active: {FEED_TEMPLATES.find((t) => t.id === config.appliedTemplateId)?.name || "Grid"}
-                    </Badge>
-                  </InlineStack>
-
-                  <Text variant="bodySm" tone="subdued">
-                    Select a layout template to instantly format your gallery:
-                  </Text>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "10px" }}>
-                    {[
-                      { id: "grid-layout", name: "Clean Grid", iconType: "grid" },
-                      { id: "slider-layout", name: "Slider Carousel", iconType: "carousel" },
-                      { id: "highlight-eurus", name: "Highlight", iconType: "highlight" },
-                      { id: "grid-profile", name: "Grid + Profile", iconType: "grid" },
-                    ].map((tplRef) => {
-                      const tpl = FEED_TEMPLATES.find((t) => t.id === tplRef.id);
-                      const isSelected = config.appliedTemplateId === tplRef.id;
-                      return (
-                        <div
-                          key={tplRef.id}
-                          onClick={() => tpl && handleApplyTemplate(tpl)}
-                          style={{
-                            border: isSelected ? "2px solid #16a34a" : "1px solid #e2e8f0",
-                            background: isSelected ? "#f0fdf4" : "#ffffff",
-                            borderRadius: "8px",
-                            padding: "12px 8px",
-                            cursor: "pointer",
-                            textAlign: "center",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: "6px",
-                            transition: "all 0.15s ease",
-                            boxShadow: isSelected ? "0 2px 4px rgba(22,163,74,0.12)" : "none",
+                  {isConnected ? (
+                    <BlockStack gap="200">
+                      <Banner tone="success">
+                        <Text variant="bodySm">
+                          Connected to <strong>@{instaData?.username || config.instagramHandle}</strong> ({instaData?.media?.data?.length || 0} posts synced).
+                        </Text>
+                      </Banner>
+                      <InlineStack gap="200">
+                        <Button
+                          size="slim"
+                          loading={isSyncing}
+                          onClick={() => {
+                            const fd = new FormData();
+                            fd.append("handle", config.instagramHandle);
+                            fetcher.submit(fd, { method: "post" });
                           }}
                         >
-                          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "24px" }}>
-                            <LayoutStyleIcon type={tplRef.iconType} active={isSelected} />
-                          </div>
-                          <div style={{ fontSize: "12px", fontWeight: isSelected ? "700" : "600", color: isSelected ? "#16a34a" : "#1e293b" }}>
-                            {isSelected ? `✓ ${tplRef.name}` : tplRef.name}
-                          </div>
+                          Re-sync Posts
+                        </Button>
+                        <Button size="slim" tone="critical" onClick={handleDisconnect}>
+                          Disconnect
+                        </Button>
+                      </InlineStack>
+                    </BlockStack>
+                  ) : (
+                    <BlockStack gap="200">
+                      <Text variant="bodySm" tone="subdued">
+                        Enter your Instagram username or profile link:
+                      </Text>
+                      <InlineStack gap="200" wrap={false} blockAlign="center">
+                        <div style={{ flex: 1 }}>
+                          <TextField
+                            placeholder="e.g. yourbrand or instagram.com/yourbrand"
+                            value={config.instagramHandle}
+                            autoComplete="off"
+                            onChange={(val) => {
+                              let v = val;
+                              if (v.includes("instagram.com/")) {
+                                try {
+                                  const url = new URL(v.startsWith("http") ? v : `https://${v}`);
+                                  const parts = url.pathname.split("/").filter(Boolean);
+                                  if (parts.length > 0) v = parts[0];
+                                } catch {
+                                  const parts = v.replace(/\/$/, "").split("/");
+                                  v = parts[parts.length - 1].split("?")[0];
+                                }
+                              }
+                              v = v.replace("@", "").split("?")[0].trim();
+                              setConfig((prev) => ({ ...prev, instagramHandle: v }));
+                              setConnectError(null);
+                            }}
+                          />
                         </div>
-                      );
-                    })}
-                  </div>
+                        <Button
+                          variant="primary"
+                          loading={isSyncing}
+                          onClick={() => {
+                            if (!config.instagramHandle.trim()) {
+                              shopify?.toast?.show("Please enter an Instagram handle", { isError: true });
+                              return;
+                            }
+                            const fd = new FormData();
+                            fd.append("handle", config.instagramHandle);
+                            fetcher.submit(fd, { method: "post" });
+                          }}
+                        >
+                          Connect
+                        </Button>
+                      </InlineStack>
+                      {connectError && (
+                        <Banner tone="critical">
+                          <Text variant="bodySm">{linkifyText(connectError)}</Text>
+                        </Banner>
+                      )}
+                    </BlockStack>
+                  )}
                 </BlockStack>
               </Card>
 
-              {/* Step 3: Enable in Theme */}
+              {/* Step 2: Enable in Theme */}
               <Card>
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "24px",
-                          height: "24px",
-                          borderRadius: "50%",
-                          background: loaderData.dynamicAppEmbedEnabled ? "#16a34a" : "#3b82f6",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "12px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {loaderData.dynamicAppEmbedEnabled ? "✓" : "3"}
-                      </div>
-                      <Text variant="headingSm" as="h3" fontWeight="bold">
-                        Step 3: Enable in Shopify Store Theme
-                      </Text>
-                    </InlineStack>
+                    <Text variant="headingSm" as="h3" fontWeight="bold">
+                      2. Enable in Shopify Theme
+                    </Text>
                     <Badge tone={loaderData.dynamicAppEmbedEnabled ? "success" : "attention"}>
                       {loaderData.dynamicAppEmbedEnabled ? "Active in Theme" : "Action Needed"}
                     </Badge>
@@ -5450,20 +5312,21 @@ export default function Index() {
 
                   <Text variant="bodySm" tone="subdued">
                     {loaderData.dynamicAppEmbedEnabled
-                      ? "App Embed is active and feeding posts to your live storefront."
-                      : "Activate the AI Instafeed App Embed in your theme customizer to display feeds."}
+                      ? "App Embed is active and displaying feeds on your storefront."
+                      : "Activate the AI Instafeed App Embed in your Shopify Theme Editor."}
                   </Text>
 
                   {!loaderData.dynamicAppEmbedEnabled && (
                     <div>
                       <Button
                         variant="primary"
+                        icon={ExternalIcon}
                         onClick={() => {
                           const url = `https://${loaderData.shop}/admin/themes/${loaderData.themeId}/editor?context=apps&activateAppId=${loaderData.clientId}/app-embed&activateAppEmbed=${loaderData.clientId}/app-embed`;
                           window.open(url, "_blank");
                         }}
                       >
-                        ⚡ Enable in Theme Editor →
+                        Enable in Theme Editor
                       </Button>
                     </div>
                   )}
