@@ -639,7 +639,7 @@ export default function ProductTaggingPage() {
 
             <Divider />
 
-            {/* Grid of Instagram Posts */}
+            {/* Compact Shopify-style List View for Instagram Posts */}
             {filteredMedia.length === 0 ? (
               <EmptyState
                 heading="No posts found matching filter"
@@ -650,12 +650,39 @@ export default function ProductTaggingPage() {
             ) : (
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-                  gap: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  background: "#ffffff",
                 }}
               >
-                {filteredMedia.map((post) => {
+                {/* List Table Header */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "64px minmax(200px, 1.8fr) minmax(220px, 2fr) 140px",
+                    gap: "16px",
+                    padding: "10px 16px",
+                    background: "#f8fafc",
+                    borderBottom: "1px solid #e2e8f0",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.03em",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>Media</div>
+                  <div>Post Caption</div>
+                  <div>Tagged Products / Match</div>
+                  <div style={{ textAlign: "right" }}>Actions</div>
+                </div>
+
+                {/* List Rows */}
+                {filteredMedia.map((post, index) => {
                   const postId = post.id || post.media_url;
                   const tags = taggedProducts[postId] || [];
                   const suggestions = smartMatches[postId] || [];
@@ -669,23 +696,29 @@ export default function ProductTaggingPage() {
                     <div
                       key={postId}
                       style={{
-                        background: "#ffffff",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "12px",
-                        overflow: "hidden",
-                        display: "flex",
-                        flexDirection: "column",
-                        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                        display: "grid",
+                        gridTemplateColumns: "64px minmax(200px, 1.8fr) minmax(220px, 2fr) 140px",
+                        gap: "16px",
+                        padding: "10px 16px",
+                        borderBottom: index < filteredMedia.length - 1 ? "1px solid #f1f5f9" : "none",
+                        alignItems: "center",
+                        transition: "background-color 0.15s ease",
                       }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f8fafc")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                     >
-                      {/* Media Thumbnail Container */}
+                      {/* Media Thumbnail */}
                       <div
                         style={{
                           position: "relative",
-                          width: "100%",
-                          aspectRatio: "1/1",
+                          width: "52px",
+                          height: "52px",
+                          borderRadius: "8px",
+                          overflow: "hidden",
                           background: "#0f172a",
                           cursor: "pointer",
+                          flexShrink: 0,
+                          border: "1px solid #e2e8f0",
                         }}
                         onClick={() => handleOpenTaggingModal(post)}
                       >
@@ -699,76 +732,18 @@ export default function ProductTaggingPage() {
                             display: "block",
                           }}
                         />
-
-                        {/* Top Badges */}
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: "8px",
-                            left: "8px",
-                            display: "flex",
-                            gap: "6px",
-                            zIndex: 2,
-                          }}
-                        >
-                          {tags.length > 0 ? (
-                            <span
-                              style={{
-                                background: "rgba(16, 185, 129, 0.92)",
-                                color: "white",
-                                fontSize: "11px",
-                                fontWeight: "700",
-                                padding: "3px 8px",
-                                borderRadius: "12px",
-                                backdropFilter: "blur(4px)",
-                              }}
-                            >
-                              {tags.length} {tags.length === 1 ? "Product" : "Products"} Tagged
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                background: "rgba(15, 23, 42, 0.75)",
-                                color: "white",
-                                fontSize: "11px",
-                                fontWeight: "600",
-                                padding: "3px 8px",
-                                borderRadius: "12px",
-                                backdropFilter: "blur(4px)",
-                              }}
-                            >
-                              Untagged
-                            </span>
-                          )}
-
-                          {suggestions.length > 0 && tags.length === 0 && (
-                            <span
-                              style={{
-                                background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 100%)",
-                                color: "white",
-                                fontSize: "11px",
-                                fontWeight: "700",
-                                padding: "3px 8px",
-                                borderRadius: "12px",
-                              }}
-                            >
-                              AI Match
-                            </span>
-                          )}
-                        </div>
-
                         {isVideo && (
                           <div
                             style={{
                               position: "absolute",
-                              top: "8px",
-                              right: "8px",
-                              background: "rgba(0,0,0,0.65)",
-                              color: "white",
-                              padding: "4px 6px",
-                              borderRadius: "6px",
-                              fontSize: "10px",
+                              bottom: "2px",
+                              right: "2px",
+                              background: "rgba(0,0,0,0.75)",
+                              color: "#fff",
+                              fontSize: "8px",
                               fontWeight: "700",
+                              padding: "1px 4px",
+                              borderRadius: "4px",
                             }}
                           >
                             VIDEO
@@ -776,65 +751,121 @@ export default function ProductTaggingPage() {
                         )}
                       </div>
 
-                      {/* Post Info & Tag Actions */}
+                      {/* Caption */}
                       <div
-                        style={{
-                          padding: "12px",
-                          display: "flex",
-                          flexDirection: "column",
-                          flex: 1,
-                          justifyContent: "space-between",
-                          gap: "8px",
-                        }}
+                        style={{ minWidth: 0, cursor: "pointer" }}
+                        onClick={() => handleOpenTaggingModal(post)}
                       >
-                        <Text variant="bodyXs" tone="subdued" truncate>
-                          {post.caption || "No caption"}
-                        </Text>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "13px",
+                            lineHeight: "1.4",
+                            color: "#1e293b",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {post.caption || <span style={{ color: "#94a3b8", fontStyle: "italic" }}>No caption</span>}
+                        </p>
+                      </div>
 
-                        {/* Tagged Items Mini List */}
-                        {tags.length > 0 && (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "4px",
-                              background: "#f8fafc",
-                              padding: "6px 8px",
-                              borderRadius: "8px",
-                            }}
-                          >
-                            {tags.slice(0, 2).map((pin, pIdx) => (
-                              <div
-                                key={pIdx}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  fontSize: "11px",
-                                }}
-                              >
-                                <span style={{ fontWeight: "600", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {/* Tagged Products Status */}
+                      <div style={{ minWidth: 0 }}>
+                        {tags.length > 0 ? (
+                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
+                            <Badge tone="success">
+                              {`${tags.length}/5 Tagged`}
+                            </Badge>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "4px",
+                                alignItems: "center",
+                              }}
+                            >
+                              {tags.slice(0, 2).map((pin, pIdx) => (
+                                <span
+                                  key={pIdx}
+                                  style={{
+                                    fontSize: "11px",
+                                    background: "#f1f5f9",
+                                    color: "#334155",
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #e2e8f0",
+                                    maxWidth: "140px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
                                   🏷️ {pin.title}
                                 </span>
-                                <span style={{ color: "#64748b", fontWeight: "700" }}>${pin.price}</span>
-                              </div>
-                            ))}
-                            {tags.length > 2 && (
-                              <span style={{ fontSize: "10px", color: "#94a3b8" }}>
-                                +{tags.length - 2} more
-                              </span>
-                            )}
+                              ))}
+                              {tags.length > 2 && (
+                                <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "600" }}>
+                                  +{tags.length - 2} more
+                                </span>
+                              )}
+                            </div>
                           </div>
+                        ) : suggestions.length > 0 ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            <Badge tone="magic">
+                              {`AI Match (${suggestions[0].confidence}%)`}
+                            </Badge>
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: "#6b21a8",
+                                fontWeight: "600",
+                                maxWidth: "160px",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                              title={suggestions[0].title}
+                            >
+                              ✨ {suggestions[0].title}
+                            </span>
+                          </div>
+                        ) : (
+                          <Badge tone="subdued">Untagged</Badge>
                         )}
+                      </div>
 
-                        <Button
-                          size="slim"
-                          variant={tags.length > 0 ? "secondary" : "primary"}
-                          onClick={() => handleOpenTaggingModal(post)}
-                          fullWidth
-                        >
-                          {tags.length > 0 ? "Edit Tagged Products" : "Tag Products"}
-                        </Button>
+                      {/* Actions */}
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                        {tags.length === 0 && suggestions.length > 0 ? (
+                          <ButtonGroup>
+                            <Button
+                              size="micro"
+                              variant="primary"
+                              onClick={() => handleApproveMatch(postId, suggestions[0])}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="micro"
+                              onClick={() => handleOpenTaggingModal(post)}
+                            >
+                              Tag
+                            </Button>
+                          </ButtonGroup>
+                        ) : (
+                          <Button
+                            size="slim"
+                            variant={tags.length > 0 ? "secondary" : "primary"}
+                            onClick={() => handleOpenTaggingModal(post)}
+                          >
+                            {tags.length > 0 ? "Edit Tags" : "Tag Products"}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
