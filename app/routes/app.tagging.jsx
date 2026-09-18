@@ -173,6 +173,7 @@ export default function ProductTaggingPage() {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all"); // 'all' | 'tagged' | 'untagged' | 'suggested'
+  const [showSuggestionsPreview, setShowSuggestionsPreview] = useState(false);
 
   // Modal State for Tagging a Post
   const [selectedPost, setSelectedPost] = useState(null);
@@ -482,36 +483,56 @@ export default function ProductTaggingPage() {
           </Layout.Section>
         </Layout>
 
-        {/* Smart Recommendations Section */}
+        {/* Compact Smart Match Suggestions Callout Banner */}
         {totalSmartMatchesCount > 0 && (
-          <Card padding="500">
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <InlineStack gap="200" blockAlign="center">
-                  <div
-                    style={{
-                      background: "linear-gradient(135deg, #e1306c 0%, #c13584 100%)",
-                      color: "white",
-                      padding: "6px",
-                      borderRadius: "8px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Icon source={MagicIcon} />
-                  </div>
-                  <BlockStack gap="050">
-                    <Text variant="headingMd" fontWeight="bold">
+          <div
+            style={{
+              background: "linear-gradient(135deg, #faf5ff 0%, #fdf4ff 100%)",
+              border: "1px solid #e9d5ff",
+              borderRadius: "10px",
+              padding: "12px 16px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            }}
+          >
+            <InlineStack align="space-between" blockAlign="center" gap="300">
+              <InlineStack gap="200" blockAlign="center">
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)",
+                    color: "white",
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "6px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon source={MagicIcon} />
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: "700", fontSize: "14px", color: "#4c1d95" }}>
                       Smart Product Match Suggestions ({totalSmartMatchesCount})
-                    </Text>
-                    <Text variant="bodySm" tone="subdued">
-                      We detected product names and tags in your Instagram captions. Review and approve with 1-click:
-                    </Text>
-                  </BlockStack>
-                </InlineStack>
+                    </span>
+                    <span style={{ fontSize: "12px", color: "#6b21a8" }}>
+                      Detected product names in captions with ≥75% confidence.
+                    </span>
+                  </div>
+                </div>
+              </InlineStack>
 
+              <InlineStack gap="200" blockAlign="center">
                 <Button
+                  size="slim"
+                  variant="plain"
+                  onClick={() => setShowSuggestionsPreview((prev) => !prev)}
+                >
+                  {showSuggestionsPreview ? "Hide Preview" : "Preview Matches"}
+                </Button>
+                <Button
+                  size="slim"
                   variant="primary"
                   tone="success"
                   icon={CheckCircleIcon}
@@ -520,75 +541,71 @@ export default function ProductTaggingPage() {
                   Approve All ({totalSmartMatchesCount})
                 </Button>
               </InlineStack>
+            </InlineStack>
 
-              <Divider />
+            {/* Optional Collapsible Compact Horizontal Scroll Strip */}
+            {showSuggestionsPreview && (
+              <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e9d5ff" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    overflowX: "auto",
+                    paddingBottom: "6px",
+                  }}
+                >
+                  {Object.entries(smartMatches).map(([postId, suggestions]) => {
+                    const post = mediaList.find((m) => (m.id || m.media_url) === postId);
+                    if (!post || !suggestions || suggestions.length === 0) return null;
+                    const suggestion = suggestions[0];
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-                  gap: "12px",
-                  maxHeight: "360px",
-                  overflowY: "auto",
-                  padding: "4px",
-                }}
-              >
-                {Object.entries(smartMatches).map(([postId, suggestions]) => {
-                  const post = mediaList.find((m) => (m.id || m.media_url) === postId);
-                  if (!post || !suggestions || suggestions.length === 0) return null;
-
-                  return (
-                    <div
-                      key={postId}
-                      style={{
-                        display: "flex",
-                        gap: "12px",
-                        padding: "12px",
-                        background: "#f8fafc",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "10px",
-                        alignItems: "center",
-                      }}
-                    >
-                      <img
-                        src={post.thumbnail_url || post.media_url}
-                        alt="Post"
+                    return (
+                      <div
+                        key={postId}
                         style={{
-                          width: "60px",
-                          height: "60px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "6px 10px",
+                          background: "#ffffff",
+                          border: "1px solid #d8b4fe",
                           borderRadius: "8px",
-                          objectFit: "cover",
                           flexShrink: 0,
+                          fontSize: "12px",
                         }}
-                      />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <Text variant="bodySm" fontWeight="bold" truncate>
-                          {suggestions[0].title}
-                        </Text>
-                        <Text variant="bodyXs" tone="subdued">
-                          ${suggestions[0].price} · Matched caption
-                        </Text>
-                        <div style={{ marginTop: "6px" }}>
-                          <InlineStack gap="100">
-                            <Button
-                              size="micro"
-                              variant="primary"
-                              onClick={() => handleApproveMatch(postId, suggestions[0])}
-                            >
-                              Approve & Tag
-                            </Button>
-                            <Button size="micro" onClick={() => handleOpenTaggingModal(post)}>
-                              Inspect
-                            </Button>
-                          </InlineStack>
+                      >
+                        <img
+                          src={post.thumbnail_url || post.media_url}
+                          alt="Post"
+                          style={{
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "4px",
+                            objectFit: "cover",
+                          }}
+                        />
+                        <div style={{ maxWidth: "160px" }}>
+                          <div style={{ fontWeight: "600", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {suggestion.title}
+                          </div>
+                          <div style={{ color: "#7c3aed", fontSize: "11px", fontWeight: "600" }}>
+                            ${suggestion.price} · {suggestion.confidence}% match
+                          </div>
                         </div>
+                        <Button
+                          size="micro"
+                          variant="primary"
+                          onClick={() => handleApproveMatch(postId, suggestion)}
+                        >
+                          Approve
+                        </Button>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </BlockStack>
-          </Card>
+            )}
+          </div>
         )}
 
         {/* Filter Toolbar & Grid */}
@@ -1039,41 +1056,53 @@ export default function ProductTaggingPage() {
                             No products found matching "{productSearchQuery}"
                           </div>
                         ) : (
-                          filteredPickerProducts.map((p) => (
-                            <div
-                              key={p.id}
-                              onClick={() => handleAddProductPin(p)}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                padding: "8px",
-                                background: "#ffffff",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "6px",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                {p.image ? (
-                                  <img
-                                    src={p.image}
-                                    alt={p.title}
-                                    style={{ width: "32px", height: "32px", borderRadius: "4px", objectFit: "cover" }}
-                                  />
-                                ) : (
-                                  <div style={{ width: "32px", height: "32px", borderRadius: "4px", background: "#e2e8f0" }} />
-                                )}
-                                <div>
-                                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#0f172a" }}>{p.title}</div>
-                                  <div style={{ fontSize: "11px", color: "#64748b" }}>${p.price}</div>
+                          filteredPickerProducts.map((p) => {
+                            const currentPostPins = selectedPost ? (taggedProducts[selectedPost.id || selectedPost.media_url] || []) : [];
+                            const isAlreadyTagged = currentPostPins.some((pin) => pin.productId === p.id || pin.title === p.title);
+
+                            return (
+                              <div
+                                key={p.id}
+                                onClick={() => {
+                                  if (!isAlreadyTagged) handleAddProductPin(p);
+                                }}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  padding: "8px",
+                                  background: isAlreadyTagged ? "#f8fafc" : "#ffffff",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: "6px",
+                                  cursor: isAlreadyTagged ? "not-allowed" : "pointer",
+                                  opacity: isAlreadyTagged ? 0.7 : 1,
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                  {p.image ? (
+                                    <img
+                                      src={p.image}
+                                      alt={p.title}
+                                      style={{ width: "32px", height: "32px", borderRadius: "4px", objectFit: "cover" }}
+                                    />
+                                  ) : (
+                                    <div style={{ width: "32px", height: "32px", borderRadius: "4px", background: "#e2e8f0" }} />
+                                  )}
+                                  <div>
+                                    <div style={{ fontSize: "13px", fontWeight: "600", color: "#0f172a" }}>{p.title}</div>
+                                    <div style={{ fontSize: "11px", color: "#64748b" }}>${p.price}</div>
+                                  </div>
                                 </div>
+                                {isAlreadyTagged ? (
+                                  <Badge tone="success">Tagged</Badge>
+                                ) : (
+                                  <Button size="micro" variant="primary">
+                                    Select
+                                  </Button>
+                                )}
                               </div>
-                              <Button size="micro" variant="primary">
-                                Select
-                              </Button>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     </BlockStack>

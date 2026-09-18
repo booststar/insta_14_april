@@ -70,14 +70,6 @@ export function extractCaptionTokens(caption) {
  * @param {Array} products - Array of Shopify products { id, title, handle, tags, price, image, variantId, ... }
  * @param {Object} existingTaggedProducts - Already approved tags { [postId]: [pin, ...] }
  * @param {number} minConfidenceThreshold - Minimum confidence score (0-100) to include as suggestion (default: 75)
- * @returns {Object} { [postId]: [ suggestedPin, ... ] }
- */
-/**
- * Detect matching products for a list of Instagram posts against a catalog of Shopify products.
- * @param {Array} posts - Array of Instagram post objects { id, caption, media_url, ... }
- * @param {Array} products - Array of Shopify products { id, title, handle, tags, price, image, variantId, ... }
- * @param {Object} existingTaggedProducts - Already approved tags { [postId]: [pin, ...] }
- * @param {number} minConfidenceThreshold - Minimum confidence score (0-100) to include as suggestion (default: 75)
  * @param {number} maxSuggestions - Maximum suggestions to return per post (default: 5)
  * @returns {Object} { [postId]: [ suggestedPin, ... ] }
  */
