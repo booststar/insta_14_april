@@ -226,9 +226,14 @@ export default function ProductTaggingPage() {
 
   // Approve a smart match recommendation for a post
   const handleApproveMatch = useCallback((postId, suggestedPin) => {
+    let limitReached = false;
     setTaggedProducts((prev) => {
       const existing = prev[postId] || [];
       if (existing.some((p) => p.productId === suggestedPin.productId || p.title === suggestedPin.title)) {
+        return prev;
+      }
+      if (existing.length >= 5) {
+        limitReached = true;
         return prev;
       }
       return {
@@ -236,7 +241,9 @@ export default function ProductTaggingPage() {
         [postId]: [...existing, suggestedPin],
       };
     });
-    if (window.shopify?.toast) {
+    if (limitReached) {
+      window.shopify?.toast?.show("Maximum 5 products can be tagged per post", { isError: true });
+    } else if (window.shopify?.toast) {
       window.shopify.toast.show(`Added "${suggestedPin.title}" tag to post!`);
     }
   }, []);
@@ -249,9 +256,10 @@ export default function ProductTaggingPage() {
       Object.entries(smartMatches).forEach(([postId, suggestions]) => {
         if (Array.isArray(suggestions) && suggestions.length > 0) {
           const current = updated[postId] || [];
-          const toAdd = suggestions.filter(
-            (s) => !current.some((c) => c.productId === s.productId || c.title === s.title)
-          );
+          const availableSlots = Math.max(0, 5 - current.length);
+          const toAdd = suggestions
+            .filter((s) => !current.some((c) => c.productId === s.productId || c.title === s.title))
+            .slice(0, availableSlots);
           if (toAdd.length > 0) {
             updated[postId] = [...current, ...toAdd];
             count += toAdd.length;
@@ -307,6 +315,13 @@ export default function ProductTaggingPage() {
     if (!selectedPost) return;
     const postId = selectedPost.id || selectedPost.media_url;
     const currentPins = taggedProducts[postId] || [];
+
+    if (currentPins.length >= 5) {
+      if (window.shopify?.toast) {
+        window.shopify.toast.show("Maximum 5 products can be tagged per post", { isError: true });
+      }
+      return;
+    }
 
     if (currentPins.some((p) => p.productId === product.id || p.title === product.title)) {
       if (window.shopify?.toast) {

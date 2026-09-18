@@ -2711,8 +2711,13 @@ export default function Index() {
       image: suggestion.image,
     };
 
+    let limitReached = false;
     setConfig((prev) => {
       const currentTags = prev.taggedProducts?.[postId] || [];
+      if (currentTags.length >= 5) {
+        limitReached = true;
+        return prev;
+      }
       return {
         ...prev,
         taggedProducts: {
@@ -2721,6 +2726,11 @@ export default function Index() {
         },
       };
     });
+
+    if (limitReached) {
+      shopify?.toast?.show("Maximum 5 products can be tagged per post", { isError: true });
+      return;
+    }
 
     if (taggingPost && (taggingPost.id === postId || taggingPost.media_url === postId)) {
       setTaggingPins((prev) => [...prev, newTag]);
@@ -2749,7 +2759,8 @@ export default function Index() {
         const highConf = list.filter((s) => s.confidence >= 75);
         if (highConf.length > 0) {
           const current = nextTagged[postId] || [];
-          const newTags = highConf.map((s, idx) => ({
+          const availableSlots = Math.max(0, 5 - current.length);
+          const newTags = highConf.slice(0, availableSlots).map((s, idx) => ({
             id: `tag_${Date.now()}_${idx}`,
             productId: s.productId,
             variantId: s.variantId,
@@ -2758,8 +2769,10 @@ export default function Index() {
             price: s.price,
             image: s.image,
           }));
-          nextTagged[postId] = [...current, ...newTags];
-          approvedCount += newTags.length;
+          if (newTags.length > 0) {
+            nextTagged[postId] = [...current, ...newTags];
+            approvedCount += newTags.length;
+          }
         }
       });
       return { ...prev, taggedProducts: nextTagged };
@@ -2787,6 +2800,11 @@ export default function Index() {
   const handleTagProduct = async () => {
     if (!taggingPost) return;
     const postId = taggingPost.id || taggingPost.media_url;
+
+    if (taggingPins.length >= 5) {
+      shopify?.toast?.show("Maximum 5 products can be tagged per post", { isError: true });
+      return;
+    }
 
     try {
       if (shopify?.resourcePicker) {
@@ -2840,7 +2858,7 @@ export default function Index() {
         shopify?.toast?.show(`Tagged "${mockTag.title}"!`);
       }
     } catch (err) {
-      console.warn("Resource picker cancelled or failed", err);
+      console.warn("Tag product error:", err);
     }
   };
 

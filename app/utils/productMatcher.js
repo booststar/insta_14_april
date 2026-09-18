@@ -72,11 +72,21 @@ export function extractCaptionTokens(caption) {
  * @param {number} minConfidenceThreshold - Minimum confidence score (0-100) to include as suggestion (default: 75)
  * @returns {Object} { [postId]: [ suggestedPin, ... ] }
  */
+/**
+ * Detect matching products for a list of Instagram posts against a catalog of Shopify products.
+ * @param {Array} posts - Array of Instagram post objects { id, caption, media_url, ... }
+ * @param {Array} products - Array of Shopify products { id, title, handle, tags, price, image, variantId, ... }
+ * @param {Object} existingTaggedProducts - Already approved tags { [postId]: [pin, ...] }
+ * @param {number} minConfidenceThreshold - Minimum confidence score (0-100) to include as suggestion (default: 75)
+ * @param {number} maxSuggestions - Maximum suggestions to return per post (default: 5)
+ * @returns {Object} { [postId]: [ suggestedPin, ... ] }
+ */
 export function detectProductMatches(
   posts = [],
   products = [],
   existingTaggedProducts = {},
-  minConfidenceThreshold = 75
+  minConfidenceThreshold = 75,
+  maxSuggestions = 5
 ) {
   const suggestionsByPost = {};
   if (!Array.isArray(posts) || !Array.isArray(products) || products.length === 0) {
@@ -127,9 +137,14 @@ export function detectProductMatches(
     const postId = post.id || post.media_url;
     if (!postId || !post.caption) return;
 
+    const alreadyTaggedPins = existingTaggedProducts[postId] || [];
     const alreadyTaggedIds = new Set(
-      (existingTaggedProducts[postId] || []).map((pin) => String(pin.productId || pin.title))
+      alreadyTaggedPins.map((pin) => String(pin.productId || pin.title))
     );
+
+    // If post already has reached max 5 tagged products, skip generating more suggestions
+    const remainingSlots = Math.max(0, maxSuggestions - alreadyTaggedPins.length);
+    if (remainingSlots <= 0) return;
 
     const { words, stemmedWords, hashtags, normalized, compact } = extractCaptionTokens(post.caption);
     const detectedForPost = [];
@@ -237,8 +252,9 @@ export function detectProductMatches(
     });
 
     if (detectedForPost.length > 0) {
+      // Sort by highest confidence first and take ONLY top max matched products (max 5)
       detectedForPost.sort((a, b) => b.confidence - a.confidence);
-      suggestionsByPost[postId] = detectedForPost;
+      suggestionsByPost[postId] = detectedForPost.slice(0, remainingSlots);
     }
   });
 
