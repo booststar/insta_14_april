@@ -113,7 +113,7 @@ export default function Guide() {
       badge: "Shoppable",
       badgeTone: "magic",
       description:
-        "Click on any post to tag products from your store. Customers can view item details and click 'Add to Cart' directly from the Instagram popup.",
+        "Click on any post to tag products from your store. Customers can view item details and click 'View' to open the product directly from the Instagram popup.",
       actionText: "Tag Products",
       action: () => navigate("/app"),
     },
@@ -489,7 +489,7 @@ export default function Guide() {
                                 borderRadius: "4px",
                               }}
                             >
-                              Add to Cart
+                              View →
                             </span>
                           </div>
                         </div>

@@ -4699,17 +4699,17 @@ export default function Index() {
                                     </div>
                                   </div>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      shopify?.toast?.show(`✓ Added "${pin.title}" to cart!`);
-                                    }}
+                                  <a
+                                    href={pin.handle ? `https://${shop}/products/${pin.handle}` : `https://${shop}/collections/all`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     style={{
                                       background: "#0f172a",
                                       color: "#ffffff",
+                                      textDecoration: "none",
                                       border: "none",
                                       borderRadius: "6px",
-                                      padding: "7px 12px",
+                                      padding: "6px 13px",
                                       fontSize: "12px",
                                       fontWeight: "600",
                                       cursor: "pointer",
@@ -4721,13 +4721,11 @@ export default function Index() {
                                       transition: "background 0.15s ease",
                                     }}
                                   >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                                      <line x1="3" y1="6" x2="21" y2="6"/>
-                                      <path d="M16 10a4 4 0 0 1-8 0"/>
+                                    <span>View</span>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M5 12h14M12 5l7 7-7 7"/>
                                     </svg>
-                                    <span>Add to Cart</span>
-                                  </button>
+                                  </a>
                                 </div>
                               ))}
                             </div>

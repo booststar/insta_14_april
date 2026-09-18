@@ -1455,6 +1455,7 @@
 
       let taggedProductsSectionHtml = '';
       if (postTags.length > 0) {
+        const rootPath = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
         taggedProductsSectionHtml = `
           <div class="ai-tagged-products-wrap">
             <div class="ai-tagged-products-header">
@@ -1465,21 +1466,24 @@
               <span class="ai-tagged-count-pill">${postTags.length} ${postTags.length === 1 ? 'item' : 'items'}</span>
             </div>
             <div class="ai-tagged-products-list">
-              ${postTags.map((pin) => `
+              ${postTags.map((pin) => {
+                const prodUrl = pin.handle ? (rootPath + 'products/' + encodeURIComponent(pin.handle)) : (rootPath + 'collections/all');
+                return `
                 <div class="ai-tagged-product-item">
-                  <div class="ai-tagged-product-left">
+                  <a href="${prodUrl}" class="ai-tagged-product-left" target="_top">
                     ${pin.image ? `<img src="${esc(pin.image)}" class="ai-tagged-product-img" alt="${esc(pin.title)}" />` : `<div class="ai-tagged-product-img ai-tagged-img-placeholder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>`}
                     <div class="ai-tagged-product-details">
                       <div class="ai-tagged-product-name" title="${esc(pin.title)}">${esc(pin.title)}</div>
                       <div class="ai-tagged-product-price">$${esc(pin.price)}</div>
                     </div>
-                  </div>
-                  <button type="button" class="ai-product-add-cart-btn" data-variant-id="${esc(pin.variantId)}" data-product-title="${esc(pin.title)}">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                    <span>Add to Cart</span>
-                  </button>
+                  </a>
+                  <a href="${prodUrl}" class="ai-product-view-btn" target="_top">
+                    <span>View</span>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </a>
                 </div>
-              `).join('')}
+              `;
+              }).join('')}
             </div>
           </div>
         `;
