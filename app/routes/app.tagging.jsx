@@ -176,7 +176,6 @@ export default function ProductTaggingPage() {
 
   // Modal State for Tagging a Post
   const [selectedPost, setSelectedPost] = useState(null);
-  const [activePinIndex, setActivePinIndex] = useState(null);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [showProductPicker, setShowProductPicker] = useState(false);
 
@@ -290,17 +289,16 @@ export default function ProductTaggingPage() {
     });
   }, [mediaList, taggedProducts, smartMatches, activeFilter, searchQuery]);
 
-  // Open modal for post
+  // Open tagging modal for a specific post
   const handleOpenTaggingModal = (post) => {
     setSelectedPost(post);
-    setActivePinIndex(null);
-    setProductSearchQuery("");
     setShowProductPicker(false);
+    setProductSearchQuery("");
   };
 
+  // Close tagging modal
   const handleCloseModal = () => {
     setSelectedPost(null);
-    setActivePinIndex(null);
     setShowProductPicker(false);
   };
 
@@ -310,25 +308,29 @@ export default function ProductTaggingPage() {
     const postId = selectedPost.id || selectedPost.media_url;
     const currentPins = taggedProducts[postId] || [];
 
+    if (currentPins.some((p) => p.productId === product.id || p.title === product.title)) {
+      if (window.shopify?.toast) {
+        window.shopify.toast.show(`"${product.title}" is already tagged`);
+      }
+      return;
+    }
+
     const selectedVariant = variant || product.variants?.[0] || {};
-    const newPin = {
-      id: "pin_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+    const newTag = {
+      id: "tag_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
       productId: product.id,
       title: product.title,
       price: selectedVariant.price || product.price || "0.00",
       image: product.image || "",
       handle: product.handle || "",
       variantId: selectedVariant.id || product.variantId || "default",
-      x: 50,
-      y: 50,
     };
 
     setTaggedProducts((prev) => ({
       ...prev,
-      [postId]: [...currentPins, newPin],
+      [postId]: [...currentPins, newTag],
     }));
 
-    setActivePinIndex(currentPins.length);
     setShowProductPicker(false);
     setProductSearchQuery("");
   };
@@ -344,54 +346,6 @@ export default function ProductTaggingPage() {
       ...prev,
       [postId]: nextPins,
     }));
-
-    if (activePinIndex === pinIndex) {
-      setActivePinIndex(null);
-    } else if (activePinIndex > pinIndex) {
-      setActivePinIndex(activePinIndex - 1);
-    }
-  };
-
-  // Handle clicking on the image canvas in modal to place or move pin
-  const handleImageCanvasClick = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = ((e.clientX - rect.left) / rect.width) * 100;
-    const clickY = ((e.clientY - rect.top) / rect.height) * 100;
-
-    const boundedX = Math.max(5, Math.min(95, Math.round(clickX * 10) / 10));
-    const boundedY = Math.max(5, Math.min(95, Math.round(clickY * 10) / 10));
-
-    if (!selectedPost) return;
-    const postId = selectedPost.id || selectedPost.media_url;
-    const currentPins = taggedProducts[postId] || [];
-
-    if (activePinIndex !== null && currentPins[activePinIndex]) {
-      const updated = [...currentPins];
-      updated[activePinIndex] = {
-        ...updated[activePinIndex],
-        x: boundedX,
-        y: boundedY,
-      };
-      setTaggedProducts((prev) => ({
-        ...prev,
-        [postId]: updated,
-      }));
-    } else if (currentPins.length > 0) {
-      const latestIdx = currentPins.length - 1;
-      const updated = [...currentPins];
-      updated[latestIdx] = {
-        ...updated[latestIdx],
-        x: boundedX,
-        y: boundedY,
-      };
-      setTaggedProducts((prev) => ({
-        ...prev,
-        [postId]: updated,
-      }));
-      setActivePinIndex(latestIdx);
-    } else {
-      setShowProductPicker(true);
-    }
   };
 
   // Filter products for the picker modal
@@ -876,7 +830,7 @@ export default function ProductTaggingPage() {
         </Card>
       </BlockStack>
 
-      {/* Interactive Tagging Modal */}
+      {/* Clean Tagging Modal */}
       {selectedPost && (
         <Modal
           open={Boolean(selectedPost)}
@@ -897,8 +851,8 @@ export default function ProductTaggingPage() {
                 minHeight: "480px",
               }}
             >
-              {/* Left Column: Interactive Image Hotspot Canvas */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {/* Left Column: Post Preview & Caption */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 <div
                   style={{
                     position: "relative",
@@ -906,10 +860,11 @@ export default function ProductTaggingPage() {
                     background: "#0f172a",
                     borderRadius: "12px",
                     overflow: "hidden",
-                    cursor: "crosshair",
-                    userSelect: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
                   }}
-                  onClick={handleImageCanvasClick}
                 >
                   <img
                     src={selectedPost.thumbnail_url || selectedPost.media_url}
@@ -917,55 +872,30 @@ export default function ProductTaggingPage() {
                     style={{
                       width: "100%",
                       height: "auto",
-                      maxHeight: "460px",
+                      maxHeight: "400px",
                       objectFit: "contain",
                       display: "block",
                     }}
                   />
-
-                  {/* Hotspot Pins Rendered on Image */}
-                  {(taggedProducts[selectedPost.id || selectedPost.media_url] || []).map((pin, pIdx) => {
-                    const isActive = activePinIndex === pIdx;
-                    return (
-                      <div
-                        key={pin.id || pIdx}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActivePinIndex(pIdx);
-                        }}
-                        style={{
-                          position: "absolute",
-                          left: `${pin.x || 50}%`,
-                          top: `${pin.y || 50}%`,
-                          transform: "translate(-50%, -50%)",
-                          width: "28px",
-                          height: "28px",
-                          borderRadius: "50%",
-                          background: isActive
-                            ? "linear-gradient(135deg, #e1306c 0%, #c13584 100%)"
-                            : "rgba(15, 23, 42, 0.9)",
-                          border: "2px solid #ffffff",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#ffffff",
-                          fontSize: "12px",
-                          fontWeight: "800",
-                          cursor: "pointer",
-                          zIndex: isActive ? 10 : 5,
-                          transition: "transform 0.15s ease",
-                        }}
-                      >
-                        {pIdx + 1}
-                      </div>
-                    );
-                  })}
                 </div>
 
-                <Text variant="bodyXs" tone="subdued" alignment="center">
-                  💡 <strong>Tip:</strong> Click anywhere on the image to position the product hotspot pin.
-                </Text>
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "12px",
+                  }}
+                >
+                  <Text variant="headingXs" tone="subdued">
+                    Post Caption:
+                  </Text>
+                  <div style={{ marginTop: "4px" }}>
+                    <Text variant="bodyXs" tone="subdued">
+                      {selectedPost.caption || "No caption available for this post."}
+                    </Text>
+                  </div>
+                </div>
               </div>
 
               {/* Right Column: Tagged Products & Product Selector */}
@@ -973,7 +903,7 @@ export default function ProductTaggingPage() {
                 {/* Header & Add Button */}
                 <InlineStack align="space-between" blockAlign="center">
                   <Text variant="headingSm" fontWeight="bold">
-                    Attached Products (
+                    Tagged Products (
                     {(taggedProducts[selectedPost.id || selectedPost.media_url] || []).length})
                   </Text>
                   <Button
@@ -993,15 +923,15 @@ export default function ProductTaggingPage() {
                       background: "#f3e8ff",
                       border: "1px solid #d8b4fe",
                       borderRadius: "8px",
-                      padding: "10px",
+                      padding: "10px 12px",
                     }}
                   >
                     <InlineStack align="space-between" blockAlign="center">
-                      <div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
                         <Text variant="bodyXs" fontWeight="bold" tone="magic">
                           ✨ AI Caption Match:
                         </Text>
-                        <Text variant="bodySm" fontWeight="bold">
+                        <Text variant="bodySm" fontWeight="bold" truncate>
                           {smartMatches[selectedPost.id || selectedPost.media_url][0].title} ($
                           {smartMatches[selectedPost.id || selectedPost.media_url][0].price})
                         </Text>
@@ -1104,7 +1034,7 @@ export default function ProductTaggingPage() {
                   </div>
                 ) : null}
 
-                {/* List of current pins */}
+                {/* List of current tagged products */}
                 <div
                   style={{
                     display: "flex",
@@ -1117,7 +1047,7 @@ export default function ProductTaggingPage() {
                   {(taggedProducts[selectedPost.id || selectedPost.media_url] || []).length === 0 ? (
                     <div
                       style={{
-                        padding: "24px",
+                        padding: "32px 16px",
                         textAlign: "center",
                         background: "#f8fafc",
                         border: "1px dashed #cbd5e1",
@@ -1125,86 +1055,56 @@ export default function ProductTaggingPage() {
                       }}
                     >
                       <Text variant="bodySm" tone="subdued">
-                        No products tagged on this post yet. Click "Add Product" or click anywhere on the photo to tag.
+                        No products tagged on this post yet. Click "Add Product" to select from your store catalog.
                       </Text>
                     </div>
                   ) : (
-                    (taggedProducts[selectedPost.id || selectedPost.media_url] || []).map((pin, idx) => {
-                      const isActive = activePinIndex === idx;
-                      return (
-                        <div
-                          key={pin.id || idx}
-                          onClick={() => setActivePinIndex(idx)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "10px 12px",
-                            background: isActive ? "#eff6ff" : "#ffffff",
-                            border: `1px solid ${isActive ? "#3b82f6" : "#e2e8f0"}`,
-                            borderRadius: "8px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <span
-                              style={{
-                                width: "22px",
-                                height: "22px",
-                                borderRadius: "50%",
-                                background: isActive ? "#2563eb" : "#475569",
-                                color: "white",
-                                fontSize: "11px",
-                                fontWeight: "bold",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              {idx + 1}
-                            </span>
-                            {pin.image && (
-                              <img
-                                src={pin.image}
-                                alt={pin.title}
-                                style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover" }}
-                              />
-                            )}
-                            <div>
-                              <div style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a" }}>
-                                {pin.title}
-                              </div>
-                              <div style={{ fontSize: "11px", color: "#64748b" }}>
-                                ${pin.price} · Hotspot ({Math.round(pin.x || 50)}%, {Math.round(pin.y || 50)}%)
-                              </div>
+                    (taggedProducts[selectedPost.id || selectedPost.media_url] || []).map((pin, idx) => (
+                      <div
+                        key={pin.id || idx}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 12px",
+                          background: "#ffffff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                          {pin.image ? (
+                            <img
+                              src={pin.image}
+                              alt={pin.title}
+                              style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover", flexShrink: 0 }}
+                            />
+                          ) : (
+                            <div style={{ width: "36px", height: "36px", borderRadius: "6px", background: "#e2e8f0", flexShrink: 0 }} />
+                          )}
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                              {pin.title}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#64748b" }}>
+                              ${pin.price}
                             </div>
                           </div>
-
-                          <Button
-                            size="micro"
-                            tone="critical"
-                            icon={DeleteIcon}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemovePin(idx);
-                            }}
-                          />
                         </div>
-                      );
-                    })
+
+                        <Button
+                          size="micro"
+                          tone="critical"
+                          icon={DeleteIcon}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemovePin(idx);
+                          }}
+                          accessibilityLabel="Remove tag"
+                        />
+                      </div>
+                    ))
                   )}
-                </div>
-
-                <Divider />
-
-                {/* Caption Snippet */}
-                <div>
-                  <Text variant="headingXs" tone="subdued">
-                    Post Caption:
-                  </Text>
-                  <Text variant="bodyXs" tone="subdued">
-                    {selectedPost.caption || "No caption available"}
-                  </Text>
                 </div>
               </div>
             </div>

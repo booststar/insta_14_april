@@ -1452,28 +1452,6 @@
         : '';
 
       const postTags = (this.config && this.config.taggedProducts && (this.config.taggedProducts[item.id] || this.config.taggedProducts[item.media_url])) || [];
-      let hotspotPinsHtml = '';
-      if (postTags.length > 0) {
-        hotspotPinsHtml = postTags.map((pin) => `
-          <div class="ai-hotspot-pin" style="position:absolute;left:${pin.x}%;top:${pin.y}%;transform:translate(-50%,-50%);z-index:30;" data-pin-id="${esc(pin.id)}">
-            <div class="ai-pin-pulse"></div>
-            <div class="ai-pin-dot">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            </div>
-            <div class="ai-pin-tooltip">
-              ${pin.image ? `<img src="${esc(pin.image)}" class="ai-pin-tooltip-img" alt="${esc(pin.title)}" />` : `<div class="ai-pin-tooltip-img ai-pin-img-placeholder"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>`}
-              <div class="ai-pin-tooltip-info">
-                <div class="ai-pin-tooltip-title">${esc(pin.title)}</div>
-                <div class="ai-pin-tooltip-price">$${esc(pin.price)}</div>
-                <button type="button" class="ai-pin-add-cart-btn" data-variant-id="${esc(pin.variantId)}" data-product-title="${esc(pin.title)}">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                  <span>Add to Cart</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        `).join('');
-      }
 
       let taggedProductsSectionHtml = '';
       if (postTags.length > 0) {
@@ -1520,7 +1498,7 @@
         // 1. Update Media Pane
         const mediaPane = this.shadowRoot.querySelector('.ai-modal-media-pane');
         if (mediaPane) {
-          mediaPane.innerHTML = mediaHtml + hotspotPinsHtml + prevBtn + nextBtn + counterBadge;
+          mediaPane.innerHTML = mediaHtml + prevBtn + nextBtn + counterBadge;
         }
 
         // 2. Update Header Info
@@ -1631,7 +1609,6 @@
             '<div class="ai-modal-layout">' +
               '<div class="ai-modal-media-pane">' +
                 mediaHtml +
-                hotspotPinsHtml +
                 prevBtn +
                 nextBtn +
                 counterBadge +
