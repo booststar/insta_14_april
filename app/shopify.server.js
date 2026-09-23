@@ -55,24 +55,31 @@ const shopify = shopifyApp({
   hooks: {
     afterAuth: async ({ admin, session }) => {
       try {
-        // Fetch shop details to get the registered email
+        // Fetch shop details to get the registered email and store info
         const response = await admin.graphql(
           `#graphql
           query {
             shop {
               name
               email
+              myshopifyDomain
             }
           }`
         );
         const { data } = await response.json();
         
-        if (data?.shop?.email) {
+        const shopEmail = data?.shop?.email;
+        const shopName = data?.shop?.name || session.shop;
+        const myshopifyDomain = data?.shop?.myshopifyDomain || session.shop;
+
+        if (shopEmail) {
           await sendWelcomeEmail({
-            to: data.shop.email,
+            to: shopEmail,
             shop: session.shop,
+            shopName,
+            myshopifyDomain,
           });
-          console.log(`Welcome email sent to ${data.shop.email} for ${session.shop}`);
+          console.log(`[Email] Welcome email sent to ${shopEmail} for ${session.shop}`);
         }
       } catch (error) {
         console.error("Failed to send welcome email in afterAuth:", error);
