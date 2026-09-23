@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { useFetcher, useLoaderData, useNavigate } from "react-router";
+import { useFetcher, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { authenticate } from "../shopify.server";
 import { fetchShopConfig, fetchShopInstaData, fetchAllInstagramMedia } from "../instagramApi.server";
 import { withRateLimit, trackApiResponse } from "../rateLimiter.server";
 import { invalidateResource, cacheGetOrSet } from "../cache.server";
 import { detectProductMatches } from "../utils/productMatcher";
+import { sendSupportEmail } from "../utils/email.server";
 import {
   Page,
   Layout,
@@ -333,6 +334,23 @@ export const action = async ({ request }) => {
   const shop = session?.shop ?? "unknown";
   const formData = await request.formData();
   const intent = formData.get("intent");
+
+  if (intent === "submit_review") {
+    const rating = formData.get("rating") || "5";
+    const reviewText = formData.get("reviewText") || "";
+    try {
+      await sendSupportEmail({
+        from: session?.email || `merchant@${shop}`,
+        subject: `[Merchant Review] ${rating}-Star Rating from ${shop}`,
+        message: `Merchant has submitted a ${rating}-Star review from the Dashboard:\n\nRating: ${rating} / 5 Stars\nStore: ${shop}\n\nReview Feedback:\n${reviewText || "No feedback text provided."}`,
+        shop,
+      });
+      return { success: true, message: "Thank you for reviewing AI Instafeed!" };
+    } catch (e) {
+      console.error("[Review Submission Error]:", e.message);
+      return { success: true };
+    }
+  }
 
   if (intent === "saveConfig") {
     const configData = formData.get("config");
@@ -2064,6 +2082,43 @@ export default function Index() {
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const activeTab = selectedTabIndex === 0 ? "post" : "story";
   const [previewDevice, setPreviewDevice] = useState("desktop");
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const reviewFetcher = useFetcher();
+
+  useEffect(() => {
+    if (searchParams.get("review") === "true") {
+      setIsReviewModalOpen(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (reviewFetcher.data?.success) {
+      setReviewSubmitted(true);
+    }
+  }, [reviewFetcher.data]);
+
+  const handleCloseReviewModal = () => {
+    setIsReviewModalOpen(false);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("review");
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const handleSubmitReview = () => {
+    reviewFetcher.submit(
+      {
+        intent: "submit_review",
+        rating: String(reviewRating),
+        reviewText,
+      },
+      { method: "post" }
+    );
+  };
 
   const isPaid = true;
   const planName = "Free Forever";
@@ -5363,6 +5418,110 @@ export default function Index() {
             </Modal.Section>
           </Modal>
         )}
+
+        {/* ── Merchant Review Modal (Triggered via ?review=true from Monthly Report) ── */}
+        <Modal
+          open={isReviewModalOpen}
+          onClose={handleCloseReviewModal}
+          title="Rate & Review AI Instafeed"
+          primaryAction={{
+            content: reviewSubmitted ? "Done" : "Submit Review",
+            onAction: reviewSubmitted ? handleCloseReviewModal : handleSubmitReview,
+            loading: reviewFetcher.state === "submitting",
+          }}
+          secondaryActions={[
+            {
+              content: "Maybe Later",
+              onAction: handleCloseReviewModal,
+            },
+          ]}
+        >
+          <Modal.Section>
+            {reviewSubmitted ? (
+              <BlockStack gap="400" align="center" inlineAlign="center">
+                <div style={{ textAlign: "center", padding: "20px 0" }}>
+                  <div style={{ fontSize: "40px", marginBottom: "12px" }}>🎉</div>
+                  <Text variant="headingMd" as="h3" alignment="center">
+                    Thank you for your feedback!
+                  </Text>
+                  <Box paddingBlockStart="200">
+                    <Text variant="bodyMd" tone="subdued" alignment="center">
+                      Your review means a lot to our team and helps us keep improving AI Instafeed for your store.
+                    </Text>
+                  </Box>
+                  <Box paddingBlockStart="400">
+                    <Button
+                      variant="primary"
+                      url="https://apps.shopify.com/ai-instafeed#modal-show=ReviewListingModal"
+                      target="_blank"
+                    >
+                      Post on Shopify App Store ↗
+                    </Button>
+                  </Box>
+                </div>
+              </BlockStack>
+            ) : (
+              <BlockStack gap="400">
+                <Banner tone="info">
+                  We'd love to hear your thoughts! Your feedback helps independent developers build better features for merchants like you.
+                </Banner>
+
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    How would you rate your experience?
+                  </Text>
+                  <InlineStack gap="100">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: "4px",
+                          fontSize: "28px",
+                          color: star <= reviewRating ? "#f59e0b" : "#d1d5db",
+                          transition: "transform 0.15s ease",
+                        }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                    <Box paddingInlineStart="200" paddingBlockStart="100">
+                      <Text variant="bodySm" tone="subdued">
+                        {reviewRating === 5 ? "⭐⭐⭐⭐⭐ Excellent!" : `${reviewRating} / 5 Stars`}
+                      </Text>
+                    </Box>
+                  </InlineStack>
+                </BlockStack>
+
+                <TextField
+                  label="Your Feedback / Review"
+                  value={reviewText}
+                  onChange={setReviewText}
+                  multiline={4}
+                  placeholder="What do you love most about AI Instafeed? How has it helped your store conversions?"
+                  autoComplete="off"
+                />
+
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodyXs" tone="subdued">
+                    Your feedback will be sent directly to our development team.
+                  </Text>
+                  <Button
+                    variant="plain"
+                    url="https://apps.shopify.com/ai-instafeed#modal-show=ReviewListingModal"
+                    target="_blank"
+                  >
+                    Review directly on App Store ↗
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            )}
+          </Modal.Section>
+        </Modal>
 
         {/* ── Footer ── */}
         <Box paddingBlock="600">

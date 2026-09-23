@@ -609,3 +609,183 @@ export async function sendSupportEmail({ from, subject, message, shop, attachmen
     return { success: false, error: error.message };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. MONTHLY ANALYTICS REPORT EMAIL (With In-App Review Deep Link)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendMonthlyReportEmail({ to, shop, shopName, myshopifyDomain, metrics = [] }) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log("[Email] SMTP credentials not configured. Skipping monthly report email.");
+    return { success: false, error: "SMTP credentials not configured" };
+  }
+
+  const cleanDomain = (myshopifyDomain || shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
+
+  // Aggregate past 30 days metrics
+  const totalViews = metrics.reduce((sum, m) => sum + (Number(m.views) || 0), 0);
+  const totalClicks = metrics.reduce((sum, m) => sum + (Number(m.clicks) || 0), 0);
+  const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : "0.0";
+  const activeDays = metrics.filter((m) => (Number(m.views) || 0) > 0 || (Number(m.clicks) || 0) > 0).length;
+
+  const currentMonthYear = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
+
+  const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
+  const reviewUrl = `https://${cleanDomain}/admin/apps/ai-instafeed?review=true`;
+
+  const subject = `📊 ${currentMonthYear} Instagram Feed Performance Report for ${displayName}`;
+
+  const textContent = `
+Hello ${displayName},
+
+Here is your monthly Instagram storefront feed performance report for ${currentMonthYear} on ${cleanDomain}:
+
+MONTHLY PERFORMANCE SUMMARY:
+- Total Feed Impressions: ${totalViews.toLocaleString()}
+- Total Product / Post Clicks: ${totalClicks.toLocaleString()}
+- Click-Through Rate (CTR): ${ctr}%
+- Active Engagement Days: ${activeDays} / 30 Days
+
+View Detailed Analytics in Dashboard:
+${dashboardUrl}
+
+⭐ ENJOYING AI INSTAFEED?
+Your feedback helps independent developers improve AI Instafeed for merchants worldwide!
+Click here to rate us and leave a review:
+${reviewUrl}
+
+Need assistance or custom design adjustments?
+- Book a Google Calendar slot: ${CALENDAR_URL}
+- Chat on WhatsApp: ${WHATSAPP_URL}
+- Email Support: ${SUPPORT_EMAIL}
+
+Best regards,
+The AI Instafeed Team
+`.trim();
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+
+    <!-- Instagram Signature Header -->
+    <tr>
+      <td style="background: ${IG_GRADIENT_MAIN}; padding: 36px 36px 32px 36px; text-align: left;">
+        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">MONTHLY PERFORMANCE REPORT</span>
+        <h1 style="margin: 0; font-size: 25px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">${currentMonthYear} Analytics</h1>
+        <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.95); font-size: 14px;">Storefront Instagram Feed metrics for <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+
+    <!-- Body -->
+    <tr>
+      <td style="padding: 36px 36px 24px 36px;">
+        <p style="margin: 0 0 20px 0; font-size: 15px; color: #334155; line-height: 1.65;">
+          Here is how your storefront Instagram feed performed over the past 30 days on <strong>${displayName}</strong> (${cleanDomain}).
+        </p>
+
+        <!-- KPI Grid (2x2) -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+          <tr>
+            <td width="48%" style="padding: 18px; background: #fff5f8; border: 1px solid #fce4ec; border-radius: 12px; vertical-align: top;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #833ab4; letter-spacing: 0.05em; margin-bottom: 6px;">Total Impressions</div>
+              <div style="font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1;">${totalViews.toLocaleString()}</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 6px;">Feed views by shoppers</div>
+            </td>
+            <td width="4%"></td>
+            <td width="48%" style="padding: 18px; background: #fdf2f8; border: 1px solid #fce7f3; border-radius: 12px; vertical-align: top;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #e1306c; letter-spacing: 0.05em; margin-bottom: 6px;">Product / Post Clicks</div>
+              <div style="font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1;">${totalClicks.toLocaleString()}</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 6px;">Interactions on feed items</div>
+            </td>
+          </tr>
+          <tr><td height="12" colspan="3"></td></tr>
+          <tr>
+            <td width="48%" style="padding: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; vertical-align: top;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0284c7; letter-spacing: 0.05em; margin-bottom: 6px;">Click-Through Rate</div>
+              <div style="font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1;">${ctr}%</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 6px;">Shopper engagement rate</div>
+            </td>
+            <td width="4%"></td>
+            <td width="48%" style="padding: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; vertical-align: top;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #16a34a; letter-spacing: 0.05em; margin-bottom: 6px;">Active Days</div>
+              <div style="font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1;">${activeDays} <span style="font-size: 14px; font-weight: 500; color: #64748b;">/ 30 Days</span></div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 6px;">Days with customer traffic</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Direct Dashboard Button -->
+        <div style="text-align: center; margin: 24px 0 32px 0;">
+          <a href="${dashboardUrl}" target="_blank" style="background: ${IG_GRADIENT_BTN}; color: #ffffff; text-decoration: none; padding: 14px 32px; font-size: 14px; font-weight: 700; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(225, 48, 108, 0.35);">
+            View Real-Time Analytics Dashboard &rarr;
+          </a>
+        </div>
+
+        <!-- 🌟 REVIEW INVITATION HERO SPOTLIGHT -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #faf5ff; border: 2px solid #e9d5ff; border-radius: 14px; margin-bottom: 28px;">
+          <tr>
+            <td style="padding: 26px 24px; text-align: center;">
+              <div style="font-size: 24px; color: #f59e0b; margin-bottom: 8px; letter-spacing: 4px;">
+                &#9733;&#9733;&#9733;&#9733;&#9733;
+              </div>
+              <div style="font-size: 18px; font-weight: 800; color: #581c87; margin-bottom: 8px;">
+                How is AI Instafeed working for ${displayName}?
+              </div>
+              <p style="margin: 0 0 20px 0; font-size: 14px; color: #6b21a8; line-height: 1.6; max-width: 480px; margin-left: auto; margin-right: auto;">
+                We are a dedicated team constantly building new features for Shopify stores. Your review helps us tremendously! Please take 30 seconds to rate us.
+              </p>
+              <a href="${reviewUrl}" target="_blank" style="background: ${IG_GRADIENT_BTN}; color: #ffffff; text-decoration: none; padding: 15px 36px; font-size: 15px; font-weight: 800; border-radius: 8px; display: inline-block; box-shadow: 0 6px 18px rgba(193, 53, 132, 0.4); letter-spacing: 0.01em;">
+                ⭐ Rate AI Instafeed &amp; Leave a Review &rarr;
+              </a>
+              <div style="margin-top: 10px; font-size: 12px; color: #9333ea;">
+                Clicking opens the review form directly in your app dashboard
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Direct Contact Channels -->
+        ${renderContactBlock()}
+
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    ${renderFooter(cleanDomain)}
+
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const mailOptions = {
+    from: `"AI Instafeed" <${process.env.SMTP_USER}>`,
+    to,
+    replyTo: SUPPORT_EMAIL,
+    subject,
+    text: textContent,
+    html: htmlContent,
+    headers: {
+      "X-Entity-Ref-ID": `monthly-report-${cleanDomain}-${Date.now()}`,
+      "X-Auto-Response-Suppress": "OOF, AutoReply",
+    },
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("[Email] Monthly report email sent to %s: %s", to, info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("[Email] Error sending monthly report email:", error);
+    return { success: false, error: error.message };
+  }
+}

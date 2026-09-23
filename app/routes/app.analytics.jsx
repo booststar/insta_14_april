@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
-import { useLoaderData, useNavigate } from "react-router";
+import { useLoaderData, useNavigate, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server.js";
+import { sendMonthlyReportEmail } from "../utils/email.server";
 import {
   Page,
   Layout,
@@ -24,6 +25,52 @@ import {
   ViewIcon,
   CheckCircleIcon,
 } from "@shopify/polaris-icons";
+
+export const action = async ({ request }) => {
+  const { session, admin } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      query {
+        shop {
+          name
+          email
+          myshopifyDomain
+        }
+      }`
+    );
+    const { data } = await response.json();
+    const shopEmail = data?.shop?.email || session.email;
+    const shopName = data?.shop?.name || shop;
+    const myshopifyDomain = data?.shop?.myshopifyDomain || shop;
+
+    const metrics = await prisma.feedMetric.findMany({
+      where: { shop },
+      orderBy: { date: "desc" },
+      take: 30,
+    });
+
+    if (shopEmail) {
+      const res = await sendMonthlyReportEmail({
+        to: shopEmail,
+        shop,
+        shopName,
+        myshopifyDomain,
+        metrics,
+      });
+
+      if (res.success) {
+        return { success: true, message: `Monthly performance report sent to ${shopEmail}!` };
+      }
+    }
+    return { success: false, message: "Could not send report email. Please check your SMTP settings." };
+  } catch (error) {
+    console.error("[app.analytics action error]:", error);
+    return { success: false, message: error.message };
+  }
+};
 
 export const loader = async ({ request }) => {
   const { session, admin } = await authenticate.admin(request);
@@ -97,6 +144,7 @@ export const loader = async ({ request }) => {
 export default function AnalyticsPage() {
   const { shop, themeId, rawMetrics, taggedCount, instagramHandle, clientId } = useLoaderData();
   const navigate = useNavigate();
+  const fetcher = useFetcher();
 
   const [timeRange, setTimeRange] = useState("30");
 
@@ -159,6 +207,11 @@ export default function AnalyticsPage() {
       }}
       secondaryActions={[
         {
+          content: fetcher.state === "submitting" ? "Sending Report..." : "Email Monthly Report",
+          onAction: () => fetcher.submit({}, { method: "post" }),
+          loading: fetcher.state === "submitting",
+        },
+        {
           content: "Theme Editor",
           icon: ExternalIcon,
           url: deepLinkUrl,
@@ -167,6 +220,15 @@ export default function AnalyticsPage() {
       ]}
     >
       <BlockStack gap="500">
+        {fetcher.data?.message && (
+          <Banner
+            tone={fetcher.data.success ? "success" : "critical"}
+            onDismiss={() => {}}
+          >
+            {fetcher.data.message}
+          </Banner>
+        )}
+
         {/* Timeframe & Filter Bar */}
         <Card>
           <InlineStack align="space-between" blockAlign="center" wrap>
