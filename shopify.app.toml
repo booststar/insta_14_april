@@ -1,3 +1,5 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
 client_id = "27bee79bfa6071d88605e515871d4a7d"
 name = "AI Instafeed"
 application_url = "https://insta14april-production.up.railway.app"
@@ -10,33 +12,35 @@ automatically_update_urls_on_dev = true
 api_version = "2025-07"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
-
-  [[webhooks.subscriptions]]
-  topics = [ "products/update" ]
-  uri = "/webhooks/products/update"
-
-  [[webhooks.subscriptions]]
-  topics = [ "products/create" ]
   uri = "/webhooks/products/create"
+  topics = [ "products/create" ]
 
   [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
-
-  [[webhooks.subscriptions]]
-  compliance_topics = ["customers/data_request"]
   uri = "/webhooks/customers/data_request"
+  compliance_topics = [ "customers/data_request" ]
 
   [[webhooks.subscriptions]]
-  compliance_topics = ["customers/redact"]
   uri = "/webhooks/customers/redact"
+  compliance_topics = [ "customers/redact" ]
 
   [[webhooks.subscriptions]]
-  compliance_topics = ["shop/redact"]
   uri = "/webhooks/shop/redact"
+  compliance_topics = [ "shop/redact" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/products/update"
+  topics = [ "products/update" ]
+
 [access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_products,write_themes"
 
 [auth]

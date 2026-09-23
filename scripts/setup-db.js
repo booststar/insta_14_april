@@ -20,6 +20,26 @@ console.log(`[DB Setup] Database Engine: ${isMysql ? "MySQL (XAMPP)" : isPostgre
 console.log(`[DB Setup] Target Database: ${dbUrl.replace(/:[^:@]+@/, ":****@")}`);
 console.log(`======================================================\n`);
 
+function safeGenerate(schemaPath, env) {
+  try {
+    console.log(`[DB Setup] Generating Prisma Client...`);
+    execSync(`npx prisma generate --schema=${schemaPath}`, {
+      stdio: "pipe",
+      env,
+    });
+    console.log(`[DB Setup] Prisma Client generated successfully.`);
+  } catch (err) {
+    const combinedOutput = (err.stdout ? err.stdout.toString() : "") + (err.stderr ? err.stderr.toString() : "") + (err.message || "");
+    const clientExists = fs.existsSync(path.resolve(process.cwd(), "node_modules/@prisma/client/index.js"));
+    if (clientExists && combinedOutput.includes("EPERM")) {
+      console.log(`[DB Setup] Note: Prisma Client is already generated and currently in use by a running server (skipping re-write).`);
+    } else {
+      console.error(combinedOutput);
+      throw err;
+    }
+  }
+}
+
 try {
   if (isMysql) {
     // Read PostgreSQL schema and generate local MySQL schema
@@ -27,34 +47,26 @@ try {
     schemaContent = schemaContent.replace(/provider\s*=\s*"postgresql"/g, 'provider = "mysql"');
     
     fs.writeFileSync(localSchema, schemaContent, "utf8");
-    console.log(`[DB Setup] Local MySQL schema created: prisma/schema.local.prisma`);
+    console.log(`[DB Setup] Local MySQL schema verified: prisma/schema.local.prisma`);
 
     const env = { ...process.env, DATABASE_URL: dbUrl };
 
     console.log(`[DB Setup] Syncing tables with MySQL database...`);
-    execSync("npx prisma db push --schema=prisma/schema.local.prisma --accept-data-loss", {
+    execSync("npx prisma db push --schema=prisma/schema.local.prisma --skip-generate --accept-data-loss", {
       stdio: "inherit",
       env,
     });
 
-    console.log(`[DB Setup] Generating Prisma Client for MySQL...`);
-    execSync("npx prisma generate --schema=prisma/schema.local.prisma", {
-      stdio: "inherit",
-      env,
-    });
+    safeGenerate("prisma/schema.local.prisma", env);
   } else {
     // PostgreSQL or default
     console.log(`[DB Setup] Syncing tables with PostgreSQL database...`);
-    execSync("npx prisma db push --schema=prisma/schema.prisma --accept-data-loss", {
+    execSync("npx prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss", {
       stdio: "inherit",
       env: process.env,
     });
 
-    console.log(`[DB Setup] Generating Prisma Client for PostgreSQL...`);
-    execSync("npx prisma generate --schema=prisma/schema.prisma", {
-      stdio: "inherit",
-      env: process.env,
-    });
+    safeGenerate("prisma/schema.prisma", process.env);
   }
 
   console.log(`\n[DB Setup] Database setup completed successfully!\n`);
