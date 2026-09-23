@@ -6,7 +6,7 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
-import { sendWelcomeEmail } from "./utils/email.server";
+import { sendWelcomeEmail, sendReinstallEmail } from "./utils/email.server";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -73,16 +73,43 @@ const shopify = shopifyApp({
         const myshopifyDomain = data?.shop?.myshopifyDomain || session.shop;
 
         if (shopEmail) {
-          await sendWelcomeEmail({
-            to: shopEmail,
-            shop: session.shop,
-            shopName,
-            myshopifyDomain,
+          // Check if this store has uninstalled before
+          const previousUninstall = await prisma.webhookEvent.findFirst({
+            where: {
+              shop: session.shop,
+              topic: "app/uninstalled",
+            },
           });
-          console.log(`[Email] Welcome email sent to ${shopEmail} for ${session.shop}`);
+
+          if (previousUninstall) {
+            // Re-installation detected: Send Welcome Back email
+            await sendReinstallEmail({
+              to: shopEmail,
+              shop: session.shop,
+              shopName,
+              myshopifyDomain,
+            });
+            // Clean up previous uninstall record
+            await prisma.webhookEvent.deleteMany({
+              where: {
+                shop: session.shop,
+                topic: "app/uninstalled",
+              },
+            }).catch(() => {});
+            console.log(`[Email] Reinstall welcome-back email sent to ${shopEmail} for ${session.shop}`);
+          } else {
+            // First time installation: Send standard welcome email
+            await sendWelcomeEmail({
+              to: shopEmail,
+              shop: session.shop,
+              shopName,
+              myshopifyDomain,
+            });
+            console.log(`[Email] First-time Welcome email sent to ${shopEmail} for ${session.shop}`);
+          }
         }
       } catch (error) {
-        console.error("Failed to send welcome email in afterAuth:", error);
+        console.error("Failed to process welcome/reinstall email in afterAuth:", error);
       }
     },
   },
