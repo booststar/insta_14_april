@@ -1,16 +1,26 @@
 import nodemailer from "nodemailer";
 
-// Singleton — created once per server process, reused for all emails
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  pool: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+function getTransporter() {
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!user || !pass) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    pool: true,
+    auth: { user, pass },
+  });
+}
 
 export async function sendSupportEmail({ from, subject, message, shop, attachments = [] }) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("[Email] SMTP credentials (SMTP_USER / SMTP_PASS) not configured in .env. Skipping support email.");
+    return { success: false, error: "SMTP credentials not configured" };
+  }
 
   const mailOptions = {
     from: `"AI Instafeed Support" <${process.env.SMTP_USER}>`,
@@ -64,6 +74,11 @@ export async function sendSupportEmail({ from, subject, message, shop, attachmen
 }
 
 export async function sendWelcomeEmail({ to, shop }) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log("[Email] SMTP credentials (SMTP_USER / SMTP_PASS) not configured in .env. Skipping welcome email.");
+    return { success: false, error: "SMTP credentials not configured" };
+  }
 
   const mailOptions = {
     from: `"Shivdutt | AI Instafeed" <${process.env.SMTP_USER}>`,
