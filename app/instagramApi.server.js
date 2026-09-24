@@ -135,7 +135,7 @@ export async function fetchInstagramFeed(handle, shop, cursor = null) {
   const safeHandle = handle.replace("@", "").split("?")[0].trim().toLowerCase();
   // We include cursor in cache key to avoid collisions
   const cacheKey   = `ig:${shop}:${safeHandle}${cursor ? `:${cursor}` : ""}`;
-  const fbToken    = process.env.FACEBOOK_ACCESS_TOKEN;
+  const fbToken    = process.env.FACEBOOK_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN;
 
   if (!fbToken) {
     throw new Error("FACEBOOK_ACCESS_TOKEN is not configured in environment variables.");
@@ -194,7 +194,7 @@ export async function fetchInstagramFeed(handle, shop, cursor = null) {
  */
 export async function fetchAllInstagramMedia(handle, shop, maxPages = 10) {
   const safeHandle = handle.replace("@", "").split("?")[0].trim().toLowerCase();
-  const fbToken = process.env.FACEBOOK_ACCESS_TOKEN;
+  const fbToken = process.env.FACEBOOK_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN;
 
   if (!fbToken) {
     throw new Error("Instagram connection isn't configured for this store yet. Please contact support.");

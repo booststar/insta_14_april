@@ -89,127 +89,127 @@
     return '';
   }
 
-  // ── Sample media (same as backend dashboard lookbook) ─────────────────────
+  // ── Realistic Instagram-style Sample Media (Used when no Instagram account is connected) ──
   const SAMPLE_MEDIA = [
     {
       id: "placeholder_1",
-      media_url: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1027/800/800",
+      thumbnail_url: "https://picsum.photos/id/1027/800/800",
       media_type: "IMAGE",
-      caption: "Our signature Silk Slip Dress in Champagne Gold ✨ Designed for effortless day-to-night styling. #ootd #summerstyle #silkdress",
+      caption: "Our signature collection ✨ Designed for effortless day-to-night styling. #shopify #newcollection #lifestyle",
       like_count: 342,
       comments_count: 18,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_2",
-      media_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      thumbnail_url: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=800&fit=crop",
+      media_url: "https://vjs.zencdn.net/v/oceans.mp4",
+      thumbnail_url: "https://vjs.zencdn.net/v/oceans.png",
       media_type: "VIDEO",
-      caption: "Behind the scenes at our Autumn Lookbook shoot 🍂 Discover the collection online now. #behindthescenes #fashionfilm",
+      caption: "Behind the scenes look at our summer campaign 🌊 Discover the full collection in store. #reel #video #summer",
       like_count: 812,
       comments_count: 45,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_3",
-      media_url: "https://images.unsplash.com/photo-1539106604-24283ef1677b?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1539106604-24283ef1677b?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1011/800/800",
+      thumbnail_url: "https://picsum.photos/id/1011/800/800",
       media_type: "IMAGE",
-      caption: "Minimalist tailoring for every occasion. Styled with our handcrafted leather bucket bag 🤍 #streetstyle #minimalist",
+      caption: "Minimalist craftsmanship for every occasion. Styled with our handcrafted accessories 🤍 #collection #minimalist",
       like_count: 420,
       comments_count: 24,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_4",
-      media_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      thumbnail_url: "https://images.unsplash.com/photo-1529139513364-c4d1221e93c0?w=800&h=800&fit=crop",
+      media_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+      thumbnail_url: "https://picsum.photos/id/152/800/800",
       media_type: "VIDEO",
-      caption: "Sunset styling session in Los Angeles 🌅 Which look is your favorite? 1, 2, or 3? #reels #outfitinspo",
+      caption: "Nature-inspired botanicals & fresh organic drop 🌸 Watch the details unfold! #reels #outfitinspo #shopify",
       like_count: 1240,
       comments_count: 89,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_5",
-      media_url: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1015/800/800",
+      thumbnail_url: "https://picsum.photos/id/1015/800/800",
       media_type: "IMAGE",
-      caption: "Weekend essentials: Oversized Linen Shirt in crisp white. Breathable, relaxed, perfected 🌿 #linenlove #summercapsule",
+      caption: "Weekend essentials in crisp neutral tones. Breathable, relaxed, perfected 🌿 #essentials #summercapsule",
       like_count: 518,
       comments_count: 31,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_6",
-      media_url: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1062/800/800",
+      thumbnail_url: "https://picsum.photos/id/1062/800/800",
       media_type: "IMAGE",
-      caption: "Monochrome moments. The tailored Wide-Leg Pant paired with our ribbed knit tank 🖤 #parisianstyle #capsulewardrobe",
+      caption: "Monochrome moments. Tap to shop products featured in this photo 🖤 #capsulewardrobe #styleinspo",
       like_count: 673,
       comments_count: 40,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_7",
-      media_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-      thumbnail_url: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=800&fit=crop",
+      media_url: "https://media.w3.org/2010/05/sintel/trailer.mp4",
+      thumbnail_url: "https://media.w3.org/2010/05/sintel/poster.png",
       media_type: "VIDEO",
-      caption: "How our community wears the Cloud Soft Cardigan 🧶 Swipe for styling ideas! #community #lookbook",
+      caption: "Cinematic story of our latest release 🎬 Swipe to explore the lookbook! #behindthescenes #production",
       like_count: 940,
       comments_count: 67,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_8",
-      media_url: "https://images.unsplash.com/photo-1529139513364-c4d1221e93c0?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1529139513364-c4d1221e93c0?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1080/800/800",
+      thumbnail_url: "https://picsum.photos/id/1080/800/800",
       media_type: "IMAGE",
-      caption: "Sculptural accessories to elevate any outfit. Handcrafted brass earrings now online ✨ #jewelrylovers #statementjewelry",
+      caption: "Curated collection for modern living. Handcrafted pieces available now online ✨ #statementjewelry #lifestyle",
       like_count: 380,
       comments_count: 22,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_9",
-      media_url: "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1043/800/800",
+      thumbnail_url: "https://picsum.photos/id/1043/800/800",
       media_type: "IMAGE",
-      caption: "Clean lines, timeless palette. The Classic Trench in Sandstone 🍂 #autumnlayers #classicstyle",
+      caption: "Clean lines and timeless materials. Tap to shop our flagship product 🍂 #productdrop #shoponline",
       like_count: 685,
       comments_count: 28,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_10",
-      media_url: "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1060/800/800",
+      thumbnail_url: "https://picsum.photos/id/1060/800/800",
       media_type: "IMAGE",
-      caption: "Coffee runs in our Oversized Crewneck ☕️ Cozy season has officially arrived. #casualchic #cozyvibes",
+      caption: "Premium essentials for daily routine ☕️ Crafted with precision and sustainable care. #casualchic #cozyvibes",
       like_count: 490,
       comments_count: 17,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_11",
-      media_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4",
-      thumbnail_url: "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=800&h=800&fit=crop",
+      media_url: "https://vjs.zencdn.net/v/oceans.mp4",
+      thumbnail_url: "https://vjs.zencdn.net/v/oceans.png",
       media_type: "VIDEO",
-      caption: "Morning skincare rituals with our antioxidant glow duo 🍊 Watch the texture melt in. #skincaretips #glowingskin",
+      caption: "Product spotlight & live demonstration 🌊 Watch how it works! #productvideo #demo",
       like_count: 1120,
       comments_count: 75,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_12",
-      media_url: "https://images.unsplash.com/photo-1485230895905-ec17bd36b5cc?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1485230895905-ec17bd36b5cc?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1069/800/800",
+      thumbnail_url: "https://picsum.photos/id/1069/800/800",
       media_type: "IMAGE",
-      caption: "Soft tailoring for modern living. Designed to transition from day to evening seamlessly 🌙 #effortlessstyle",
+      caption: "Soft tailoring and everyday elegance 🌙 Designed to elevate your storefront seamlessly.",
       like_count: 560,
       comments_count: 32,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
   ];
 
@@ -773,18 +773,20 @@
       const loadAttr  = isPriority ? 'loading="eager" fetchpriority="high" decoding="async"' : 'loading="lazy" decoding="async"';
 
       let inner = "";
+      const defaultImg = "https://picsum.photos/id/1027/800/800";
+      const fallbackPoster = thumbUrl || fallbackItem.thumbnail_url || fallbackItem.media_url || defaultImg;
       if (isVideo && mediaUrl) {
         if (c.autoplay !== false) {
-          inner = `<video src="${esc(mediaUrl)}"${posterAttr} autoplay muted loop playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
+          inner = `<video src="${esc(mediaUrl)}"${posterAttr} autoplay muted loop playsinline preload="metadata" onerror="if(!this.dataset.errored){this.dataset.errored='1';this.outerHTML='<img ${loadAttr} src=\x22${esc(fallbackPoster)}\x22 style=\x22width:100%;height:100%;object-fit:cover;display:block;\x22 alt=\x22Shopify Media\x22>'}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
         } else if (thumbUrl) {
-          inner = `<img ${loadAttr} src="${esc(thumbUrl)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+          inner = `<img ${loadAttr} src="${esc(thumbUrl)}" onerror="this.onerror=null;this.src='${defaultImg}'" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
         } else {
-          inner = `<video src="${esc(mediaUrl)}" muted playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
+          inner = `<video src="${esc(mediaUrl)}"${posterAttr} muted playsinline preload="metadata" onerror="if(!this.dataset.errored){this.dataset.errored='1';this.outerHTML='<img ${loadAttr} src=\x22${esc(fallbackPoster)}\x22 style=\x22width:100%;height:100%;object-fit:cover;display:block;\x22 alt=\x22Shopify Media\x22>'}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
         }
       } else if (mediaUrl) {
-        inner = `<img ${loadAttr} src="${esc(mediaUrl)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+        inner = `<img ${loadAttr} src="${esc(mediaUrl)}" onerror="this.onerror=null;this.src='${defaultImg}'" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
       } else {
-        inner = `<img ${loadAttr} src="${esc(fallbackItem.media_url)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+        inner = `<img ${loadAttr} src="${esc(fallbackItem.media_url || defaultImg)}" onerror="this.onerror=null;this.src='${defaultImg}'" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
       }
       const metrics = c.metrics ? `
         <div style="display:flex;align-items:center;gap:6px;">

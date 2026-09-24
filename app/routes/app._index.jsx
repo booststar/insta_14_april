@@ -404,7 +404,8 @@ export const action = async ({ request }) => {
   const handle = formData.get("handle");
 
   if (!handle) return { error: "Please enter an Instagram username." };
-  if (!process.env.FACEBOOK_ACCESS_TOKEN) {
+  const fbToken = process.env.FACEBOOK_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN;
+  if (!fbToken) {
     return { error: "Instagram connection isn't configured for this store yet. Please contact support." };
   }
 
@@ -2075,6 +2076,7 @@ export default function Index() {
   const fetcher = useFetcher();
   const saveFetcher = useFetcher();
   const loaderData = useLoaderData() || {};
+  const shop = loaderData.shop || "";
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [isAppBridgeReady, setIsAppBridgeReady] = useState(false);
@@ -2132,123 +2134,123 @@ export default function Index() {
   const PLACEHOLDER_MEDIA = useMemo(() => [
     {
       id: "placeholder_1",
-      media_url: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1027/800/800",
+      thumbnail_url: "https://picsum.photos/id/1027/800/800",
       media_type: "IMAGE",
-      caption: "Our signature Silk Slip Dress in Champagne Gold ✨ Designed for effortless day-to-night styling. #ootd #summerstyle #silkdress",
+      caption: "Our signature collection ✨ Designed for effortless day-to-night styling. #shopify #newcollection #lifestyle",
       like_count: 342,
       comments_count: 18,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_2",
-      media_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      thumbnail_url: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=800&fit=crop",
+      media_url: "https://vjs.zencdn.net/v/oceans.mp4",
+      thumbnail_url: "https://vjs.zencdn.net/v/oceans.png",
       media_type: "VIDEO",
-      caption: "Behind the scenes at our Autumn Lookbook shoot 🍂 Discover the collection online now. #behindthescenes #fashionfilm",
+      caption: "Behind the scenes look at our summer campaign 🌊 Discover the full collection in store. #reel #video #summer",
       like_count: 812,
       comments_count: 45,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_3",
-      media_url: "https://images.unsplash.com/photo-1539106604-24283ef1677b?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1539106604-24283ef1677b?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1011/800/800",
+      thumbnail_url: "https://picsum.photos/id/1011/800/800",
       media_type: "IMAGE",
-      caption: "Minimalist tailoring for every occasion. Styled with our handcrafted leather bucket bag 🤍 #streetstyle #minimalist",
+      caption: "Minimalist craftsmanship for every occasion. Styled with our handcrafted accessories 🤍 #collection #minimalist",
       like_count: 420,
       comments_count: 24,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_4",
-      media_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      thumbnail_url: "https://images.unsplash.com/photo-1529139513364-c4d1221e93c0?w=800&h=800&fit=crop",
+      media_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+      thumbnail_url: "https://picsum.photos/id/152/800/800",
       media_type: "VIDEO",
-      caption: "Sunset styling session in Los Angeles 🌅 Which look is your favorite? 1, 2, or 3? #reels #outfitinspo",
+      caption: "Nature-inspired botanicals & fresh organic drop 🌸 Watch the details unfold! #reels #outfitinspo #shopify",
       like_count: 1240,
       comments_count: 89,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_5",
-      media_url: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1015/800/800",
+      thumbnail_url: "https://picsum.photos/id/1015/800/800",
       media_type: "IMAGE",
-      caption: "Weekend essentials: Oversized Linen Shirt in crisp white. Breathable, relaxed, perfected 🌿 #linenlove #summercapsule",
+      caption: "Weekend essentials in crisp neutral tones. Breathable, relaxed, perfected 🌿 #essentials #summercapsule",
       like_count: 518,
       comments_count: 31,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_6",
-      media_url: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1062/800/800",
+      thumbnail_url: "https://picsum.photos/id/1062/800/800",
       media_type: "IMAGE",
-      caption: "Monochrome moments. The tailored Wide-Leg Pant paired with our ribbed knit tank 🖤 #parisianstyle #capsulewardrobe",
+      caption: "Monochrome moments. Tap to shop products featured in this photo 🖤 #capsulewardrobe #styleinspo",
       like_count: 673,
       comments_count: 40,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_7",
-      media_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-      thumbnail_url: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=800&fit=crop",
+      media_url: "https://media.w3.org/2010/05/sintel/trailer.mp4",
+      thumbnail_url: "https://media.w3.org/2010/05/sintel/poster.png",
       media_type: "VIDEO",
-      caption: "How our community wears the Cloud Soft Cardigan 🧶 Swipe for styling ideas! #community #lookbook",
+      caption: "Cinematic story of our latest release 🎬 Swipe to explore the lookbook! #behindthescenes #production",
       like_count: 940,
       comments_count: 67,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_8",
-      media_url: "https://images.unsplash.com/photo-1529139513364-c4d1221e93c0?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1529139513364-c4d1221e93c0?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1080/800/800",
+      thumbnail_url: "https://picsum.photos/id/1080/800/800",
       media_type: "IMAGE",
-      caption: "Sculptural accessories to elevate any outfit. Handcrafted brass earrings now online ✨ #jewelrylovers #statementjewelry",
+      caption: "Curated collection for modern living. Handcrafted pieces available now online ✨ #statementjewelry #lifestyle",
       like_count: 380,
       comments_count: 22,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_9",
-      media_url: "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1043/800/800",
+      thumbnail_url: "https://picsum.photos/id/1043/800/800",
       media_type: "IMAGE",
-      caption: "Clean lines, timeless palette. The Classic Trench in Sandstone 🍂 #autumnlayers #classicstyle",
+      caption: "Clean lines and timeless materials. Tap to shop our flagship product 🍂 #productdrop #shoponline",
       like_count: 685,
       comments_count: 28,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_10",
-      media_url: "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1060/800/800",
+      thumbnail_url: "https://picsum.photos/id/1060/800/800",
       media_type: "IMAGE",
-      caption: "Coffee runs in our Oversized Crewneck ☕️ Cozy season has officially arrived. #casualchic #cozyvibes",
+      caption: "Premium essentials for daily routine ☕️ Crafted with precision and sustainable care. #casualchic #cozyvibes",
       like_count: 490,
       comments_count: 17,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_11",
-      media_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4",
-      thumbnail_url: "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=800&h=800&fit=crop",
+      media_url: "https://vjs.zencdn.net/v/oceans.mp4",
+      thumbnail_url: "https://vjs.zencdn.net/v/oceans.png",
       media_type: "VIDEO",
-      caption: "Morning skincare rituals with our antioxidant glow duo 🍊 Watch the texture melt in. #skincaretips #glowingskin",
+      caption: "Product spotlight & live demonstration 🌊 Watch how it works! #productvideo #demo",
       like_count: 1120,
       comments_count: 75,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
     {
       id: "placeholder_12",
-      media_url: "https://images.unsplash.com/photo-1485230895905-ec17bd36b5cc?w=800&h=800&fit=crop",
-      thumbnail_url: "https://images.unsplash.com/photo-1485230895905-ec17bd36b5cc?w=800&h=800&fit=crop",
+      media_url: "https://picsum.photos/id/1069/800/800",
+      thumbnail_url: "https://picsum.photos/id/1069/800/800",
       media_type: "IMAGE",
-      caption: "Soft tailoring for modern living. Designed to transition from day to evening seamlessly 🌙 #effortlessstyle",
+      caption: "Soft tailoring and everyday elegance 🌙 Designed to elevate your storefront seamlessly.",
       like_count: 560,
       comments_count: 32,
-      permalink: "https://instagram.com",
+      permalink: "https://shopify.com",
     },
   ], []);
 
@@ -2264,6 +2266,7 @@ export default function Index() {
   const [activePlacementSuggestion, setActivePlacementSuggestion] = useState(null);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const [isDisconnectConfirmOpen, setIsDisconnectConfirmOpen] = useState(false);
   const [previewingTemplate, setPreviewingTemplate] = useState(null);
   const [templateFilter, setTemplateFilter] = useState("all");
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(true);
@@ -3064,24 +3067,38 @@ export default function Index() {
           config.postFeed.autoplay ? (
             <video
               src={item.media_url}
-              poster={item.thumbnail_url || undefined}
+              poster={item.thumbnail_url || "https://picsum.photos/id/1027/800/800"}
               autoPlay
               muted
               loop
               playsInline
               preload="metadata"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.errored) {
+                  target.dataset.errored = "1";
+                  target.style.display = "none";
+                  const fallbackImg = target.parentElement?.querySelector(".video-fallback-img");
+                  if (fallbackImg) fallbackImg.style.display = "block";
+                }
+              }}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
           ) : item.thumbnail_url ? (
             <img
               loading="lazy"
               src={item.thumbnail_url}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = "https://picsum.photos/id/1027/800/800";
+              }}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              alt="Instagram post"
+              alt="Shopify post"
             />
           ) : item.media_url ? (
             <video
               src={item.media_url}
+              poster={item.thumbnail_url || "https://picsum.photos/id/1027/800/800"}
               muted
               playsInline
               preload="metadata"
@@ -3092,8 +3109,12 @@ export default function Index() {
           <img
             loading="lazy"
             src={item.media_url}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "https://picsum.photos/id/1027/800/800";
+            }}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            alt="Instagram post"
+            alt="Shopify post"
           />
         ) : (
           <div
@@ -3489,25 +3510,7 @@ export default function Index() {
               zIndex: 1,
             }}
           >
-            {(!isConnected && item.id?.startsWith("placeholder_")) ? (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
-                  color: "#94a3b8",
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-                </svg>
-              </div>
-            ) : isVideo ? (
+            {isVideo ? (
               <video
                 src={item.media_url}
                 poster={item.thumbnail_url || undefined}
@@ -3517,9 +3520,13 @@ export default function Index() {
               />
             ) : (
               <img
-                src={item.media_url || item.thumbnail_url}
+                src={item.media_url || item.thumbnail_url || "https://picsum.photos/id/1027/800/800"}
                 alt="Story"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "https://picsum.photos/id/1027/800/800";
+                }}
               />
             )}
           </div>
@@ -3632,12 +3639,12 @@ export default function Index() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <div
+            {!allTasksDone && <div
               style={{
                 width: "24px",
                 height: "24px",
                 borderRadius: "50%",
-                background: allTasksDone ? "#16a34a" : "#2563eb",
+                background: "#2563eb",
                 color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
@@ -3647,8 +3654,8 @@ export default function Index() {
                 flexShrink: 0,
               }}
             >
-              {allTasksDone ? "✓" : "⚡"}
-            </div>
+              ⚡
+            </div>}
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>
@@ -3661,13 +3668,110 @@ export default function Index() {
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Button
-              variant={allTasksDone ? "secondary" : "primary"}
-              onClick={() => setIsSetupModalOpen(true)}
+          {!isConnected && (
+            <div
+              style={{ flex: "1 1 320px", maxWidth: "480px" }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
+                  e.preventDefault();
+                  const fd = new FormData();
+                  fd.append("handle", config.instagramHandle);
+                  fetcher.submit(fd, { method: "post" });
+                }
+              }}
             >
-              {allTasksDone ? "View Setup Guide" : "Open Setup Guide"}
-            </Button>
+              <InlineStack gap="200" wrap={false} blockAlign="center">
+                <div style={{ flex: 1 }}>
+                  <TextField
+                    label="Instagram username"
+                    labelHidden
+                    prefix="@"
+                    placeholder="Your Instagram username or profile link"
+                    value={config.instagramHandle}
+                    autoComplete="off"
+                    clearButton
+                    onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
+                    onChange={(val) => {
+                      let v = val;
+                      if (v.includes("instagram.com/")) {
+                        const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
+                        if (parts.length > 0) v = parts[0];
+                      }
+                      v = v.replace("@", "").split("?")[0].trim();
+                      setConfig((prev) => ({ ...prev, instagramHandle: v }));
+                      setConnectError(null);
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="primary"
+                  loading={isSyncing}
+                  disabled={!config.instagramHandle.trim()}
+                  onClick={() => {
+                    const fd = new FormData();
+                    fd.append("handle", config.instagramHandle);
+                    fetcher.submit(fd, { method: "post" });
+                  }}
+                >
+                  Connect
+                </Button>
+              </InlineStack>
+              {connectError && (
+                <div style={{ marginTop: "8px" }}>
+                  <Banner tone="critical">
+                    <Text variant="bodySm">{linkifyText(connectError)}</Text>
+                  </Banner>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {isConnected && (
+              <Button variant="plain" tone="critical" onClick={() => setIsDisconnectConfirmOpen(true)}>
+                {`Disconnect @${instaData?.username || config.instagramHandle}`}
+              </Button>
+            )}
+            {!isConnected ? (
+              <Button variant="plain" icon={MagicIcon} onClick={() => setIsSetupModalOpen(true)}>
+                Setup Your Instagram
+              </Button>
+            ) : !loaderData.dynamicAppEmbedEnabled ? (
+              <Button
+                variant="primary"
+                icon={ExternalIcon}
+                onClick={() => {
+                  const url = `https://${loaderData.shop}/admin/themes/${loaderData.themeId}/editor?context=apps&activateAppId=${loaderData.clientId}/app-embed&activateAppEmbed=${loaderData.clientId}/app-embed`;
+                  window.open(url, "_blank");
+                }}
+              >
+                Enable in Theme
+              </Button>
+            ) : (
+              <Button
+                icon={
+                  <span
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      borderRadius: "50%",
+                      background: "#16a34a",
+                      color: "#ffffff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "11px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    ✓
+                  </span>
+                }
+                onClick={() => setIsSetupModalOpen(true)}
+              >
+                Setup Your Instagram
+              </Button>
+            )}
           </div>
         </div>
 
@@ -5214,6 +5318,40 @@ export default function Index() {
           </Modal.Section>
         </Modal>
 
+        {/* ── Disconnect Confirmation Modal ── */}
+        <Modal
+          open={isDisconnectConfirmOpen}
+          onClose={() => setIsDisconnectConfirmOpen(false)}
+          title="Disconnect your Instagram account?"
+          primaryAction={{
+            content: "Yes, disconnect",
+            destructive: true,
+            onAction: () => {
+              handleDisconnect();
+              setIsDisconnectConfirmOpen(false);
+            },
+          }}
+          secondaryActions={[{ content: "Cancel", onAction: () => setIsDisconnectConfirmOpen(false) }]}
+        >
+          <Modal.Section>
+            <BlockStack gap="300">
+              <Text variant="bodyMd">
+                You are about to disconnect <strong>@{instaData?.username || config.instagramHandle}</strong>.
+              </Text>
+              <Banner tone="warning">
+                <BlockStack gap="100">
+                  <Text variant="bodySm">• Your real Instagram posts will stop showing on your store.</Text>
+                  <Text variant="bodySm">• Sample posts will be shown until you connect again.</Text>
+                  <Text variant="bodySm">• Your widget design and settings stay saved.</Text>
+                </BlockStack>
+              </Banner>
+              <Text variant="bodySm" tone="subdued">
+                You can reconnect anytime by entering your username again.
+              </Text>
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+
         {/* ── Welcome Onboarding Setup Guide Modal ── */}
         <Modal
           open={isSetupModalOpen}
@@ -5267,20 +5405,45 @@ export default function Index() {
                         >
                           Re-sync Posts
                         </Button>
-                        <Button size="slim" tone="critical" onClick={handleDisconnect}>
+                        <Button size="slim" tone="critical" onClick={() => setIsDisconnectConfirmOpen(true)}>
                           Disconnect
                         </Button>
                       </InlineStack>
                     </BlockStack>
                   ) : (
-                    <BlockStack gap="200">
-                      <Text variant="bodySm" tone="subdued">
-                        Enter your Instagram username or profile link:
-                      </Text>
-                      <InlineStack gap="200" wrap={false} blockAlign="center">
+                    <BlockStack gap="300">
+                      <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                        <BlockStack gap="100">
+                          <Text variant="bodySm" fontWeight="semibold">Where do I find my username?</Text>
+                          <Text variant="bodySm" tone="subdued">
+                            Open the Instagram app → tap your profile picture (bottom right) → your username is shown at the top.
+                            You can also paste your full profile link — we'll pick the username out of it.
+                          </Text>
+                        </BlockStack>
+                      </Box>
+                      <div
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
+                            e.preventDefault();
+                            const fd = new FormData();
+                            fd.append("handle", config.instagramHandle);
+                            fetcher.submit(fd, { method: "post" });
+                          }
+                        }}
+                      >
+                      <InlineStack gap="200" wrap={false} blockAlign="end">
                         <div style={{ flex: 1 }}>
                           <TextField
-                            placeholder="e.g. yourbrand or instagram.com/yourbrand"
+                            label="Instagram username"
+                            prefix="@"
+                            placeholder="yourbrand"
+                            helpText={
+                              config.instagramHandle
+                                ? `We'll connect: instagram.com/${config.instagramHandle}`
+                                : "Type your username or paste a link like https://instagram.com/yourbrand"
+                            }
+                            clearButton
+                            onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
                             value={config.instagramHandle}
                             autoComplete="off"
                             onChange={(val) => {
@@ -5317,6 +5480,7 @@ export default function Index() {
                           Connect
                         </Button>
                       </InlineStack>
+                      </div>
                       {connectError && (
                         <Banner tone="critical">
                           <Text variant="bodySm">{linkifyText(connectError)}</Text>
