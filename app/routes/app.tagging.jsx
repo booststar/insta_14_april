@@ -225,6 +225,26 @@ export default function ProductTaggingPage() {
     );
   }, [fetcher, taggedProducts]);
 
+  // Discard changes
+  const handleDiscard = useCallback(() => {
+    try {
+      setTaggedProducts(JSON.parse(initialSavedJson));
+      if (window.shopify?.toast) {
+        window.shopify.toast.show("Unsaved tagging changes discarded.");
+      }
+    } catch (e) {}
+  }, [initialSavedJson]);
+
+  // Sync App Bridge save bar
+  useEffect(() => {
+    const saveBar = document.getElementById("product-tagging-save-bar");
+    if (hasUnsavedChanges) {
+      saveBar?.show?.();
+    } else {
+      saveBar?.hide?.();
+    }
+  }, [hasUnsavedChanges]);
+
   // Approve a smart match recommendation for a post
   const handleApproveMatch = useCallback((postId, suggestedPin) => {
     let limitReached = false;
@@ -483,129 +503,109 @@ export default function ProductTaggingPage() {
           </Layout.Section>
         </Layout>
 
-        {/* Compact Smart Match Suggestions Callout Banner */}
+        {/* Compact Smart Match Suggestions Callout */}
         {totalSmartMatchesCount > 0 && (
-          <div
-            style={{
-              background: "linear-gradient(135deg, #faf5ff 0%, #fdf4ff 100%)",
-              border: "1px solid #e9d5ff",
-              borderRadius: "10px",
-              padding: "12px 16px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-            }}
-          >
-            <InlineStack align="space-between" blockAlign="center" gap="300">
-              <InlineStack gap="200" blockAlign="center">
-                <div
-                  style={{
-                    background: "linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)",
-                    color: "white",
-                    width: "28px",
-                    height: "28px",
-                    borderRadius: "6px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon source={MagicIcon} />
-                </div>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: "700", fontSize: "14px", color: "#4c1d95" }}>
-                      Smart Product Match Suggestions ({totalSmartMatchesCount})
-                    </span>
-                    <span style={{ fontSize: "12px", color: "#6b21a8" }}>
-                      Detected product names in captions with ≥75% confidence.
-                    </span>
+          <Card padding="300">
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center" gap="300" wrap>
+                <InlineStack gap="300" blockAlign="center">
+                  <Badge tone="magic" size="large">
+                    ✨ AI Suggestions
+                  </Badge>
+                  <BlockStack gap="050">
+                    <Text variant="headingSm" as="h3" fontWeight="bold">
+                      {`Smart Product Match Suggestions (${totalSmartMatchesCount})`}
+                    </Text>
+                    <Text variant="bodyXs" tone="subdued">
+                      Detected product names in Instagram captions with ≥75% confidence.
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
+
+                <InlineStack gap="200" blockAlign="center">
+                  <Button
+                    size="slim"
+                    variant="plain"
+                    onClick={() => setShowSuggestionsPreview((prev) => !prev)}
+                  >
+                    {showSuggestionsPreview ? "Hide Preview" : "Preview Matches"}
+                  </Button>
+                  <Button
+                    size="slim"
+                    variant="primary"
+                    tone="success"
+                    icon={CheckCircleIcon}
+                    onClick={handleApproveAllMatches}
+                  >
+                    {`Approve All (${totalSmartMatchesCount})`}
+                  </Button>
+                </InlineStack>
+              </InlineStack>
+
+              {/* Optional Collapsible Compact Horizontal Scroll Strip */}
+              {showSuggestionsPreview && (
+                <div style={{ paddingTop: "8px", borderTop: "1px solid #f1f5f9" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      overflowX: "auto",
+                      paddingBottom: "6px",
+                    }}
+                  >
+                    {Object.entries(smartMatches).map(([postId, suggestions]) => {
+                      const post = mediaList.find((m) => (m.id || m.media_url) === postId);
+                      if (!post || !suggestions || suggestions.length === 0) return null;
+                      const suggestion = suggestions[0];
+
+                      return (
+                        <div
+                          key={postId}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "6px 10px",
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "8px",
+                            flexShrink: 0,
+                            fontSize: "12px",
+                          }}
+                        >
+                          <img
+                            src={post.thumbnail_url || post.media_url}
+                            alt="Post"
+                            style={{
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "4px",
+                              objectFit: "cover",
+                            }}
+                          />
+                          <div style={{ maxWidth: "160px" }}>
+                            <div style={{ fontWeight: "600", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {suggestion.title}
+                            </div>
+                            <div style={{ color: "#7c3aed", fontSize: "11px", fontWeight: "600" }}>
+                              ${suggestion.price} · {suggestion.confidence}% match
+                            </div>
+                          </div>
+                          <Button
+                            size="micro"
+                            variant="primary"
+                            onClick={() => handleApproveMatch(postId, suggestion)}
+                          >
+                            Approve
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              </InlineStack>
-
-              <InlineStack gap="200" blockAlign="center">
-                <Button
-                  size="slim"
-                  variant="plain"
-                  onClick={() => setShowSuggestionsPreview((prev) => !prev)}
-                >
-                  {showSuggestionsPreview ? "Hide Preview" : "Preview Matches"}
-                </Button>
-                <Button
-                  size="slim"
-                  variant="primary"
-                  tone="success"
-                  icon={CheckCircleIcon}
-                  onClick={handleApproveAllMatches}
-                >
-                  Approve All ({totalSmartMatchesCount})
-                </Button>
-              </InlineStack>
-            </InlineStack>
-
-            {/* Optional Collapsible Compact Horizontal Scroll Strip */}
-            {showSuggestionsPreview && (
-              <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e9d5ff" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "10px",
-                    overflowX: "auto",
-                    paddingBottom: "6px",
-                  }}
-                >
-                  {Object.entries(smartMatches).map(([postId, suggestions]) => {
-                    const post = mediaList.find((m) => (m.id || m.media_url) === postId);
-                    if (!post || !suggestions || suggestions.length === 0) return null;
-                    const suggestion = suggestions[0];
-
-                    return (
-                      <div
-                        key={postId}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          padding: "6px 10px",
-                          background: "#ffffff",
-                          border: "1px solid #d8b4fe",
-                          borderRadius: "8px",
-                          flexShrink: 0,
-                          fontSize: "12px",
-                        }}
-                      >
-                        <img
-                          src={post.thumbnail_url || post.media_url}
-                          alt="Post"
-                          style={{
-                            width: "32px",
-                            height: "32px",
-                            borderRadius: "4px",
-                            objectFit: "cover",
-                          }}
-                        />
-                        <div style={{ maxWidth: "160px" }}>
-                          <div style={{ fontWeight: "600", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {suggestion.title}
-                          </div>
-                          <div style={{ color: "#7c3aed", fontSize: "11px", fontWeight: "600" }}>
-                            ${suggestion.price} · {suggestion.confidence}% match
-                          </div>
-                        </div>
-                        <Button
-                          size="micro"
-                          variant="primary"
-                          onClick={() => handleApproveMatch(postId, suggestion)}
-                        >
-                          Approve
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </BlockStack>
+          </Card>
         )}
 
         {/* Filter Toolbar & Grid */}
@@ -1186,6 +1186,25 @@ export default function ProductTaggingPage() {
           </Modal.Section>
         </Modal>
       )}
+
+      {/* Native Shopify App Bridge Save Bar */}
+      <ui-save-bar id="product-tagging-save-bar">
+        <button
+          variant="primary"
+          onClick={handleSaveAll}
+          id="tagging-save-button"
+          loading={isSaving ? "" : undefined}
+        >
+          Save
+        </button>
+        <button
+          onClick={handleDiscard}
+          id="tagging-discard-button"
+          disabled={isSaving ? "" : undefined}
+        >
+          Discard
+        </button>
+      </ui-save-bar>
     </Page>
   );
 }

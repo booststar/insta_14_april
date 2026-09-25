@@ -63,6 +63,55 @@ function renderContactBlock() {
 }
 
 /**
+ * Shared "Free Forever" & Review Incentive Reward Component for Email Templates
+ */
+function renderReviewRewardBlock(cleanDomain) {
+  const reviewUrl = "https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal";
+
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 26px 0 16px 0; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #fde68a; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);">
+      <tr>
+        <td style="padding: 24px 26px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td>
+                <div style="display: inline-block; background: #16a34a; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 20px; margin-bottom: 10px;">
+                  ✨ 100% FREE FOREVER APP
+                </div>
+                <div style="font-size: 17px; font-weight: 800; color: #78350f; margin-bottom: 8px; line-height: 1.3;">
+                  🎁 Leave a Review &amp; Get Free App Credits + Unlocked AI Features!
+                </div>
+                <div style="font-size: 13.5px; color: #92400e; line-height: 1.6; margin-bottom: 16px;">
+                  AI Instafeed is completely <strong>Free Forever</strong> with no hidden costs or subscriptions. If you love using the app, please take 30 seconds to drop us a quick 5-star review. As a special thank you, <strong>we will send you free app credits and enable premium AI Auto-Tagging &amp; Smart Product Matching features</strong> for your store!
+                </div>
+                <div>
+                  <a href="${reviewUrl}" target="_blank" style="display: inline-block; background: ${IG_GRADIENT_BTN}; color: #ffffff; text-decoration: none; padding: 12px 26px; border-radius: 8px; font-size: 13.5px; font-weight: 800; box-shadow: 0 4px 12px rgba(225, 48, 108, 0.35);">
+                    ⭐ Write a Review &amp; Unlock AI Rewards &rarr;
+                  </a>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+function getReviewRewardText(cleanDomain) {
+  const reviewUrl = "https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal";
+  return `
+✨ 100% FREE FOREVER APP
+AI Instafeed is completely free forever with no hidden subscriptions or surprise fees.
+
+🎁 WRITE A REVIEW & CLAIM BONUS AI REWARDS:
+Enjoying AI Instafeed? Please take 30 seconds to rate us and leave a 5-star review!
+As a special thank you, our team will send you free app credits and enable premium AI Auto-Detection & Smart Product Tagging features for your store:
+${reviewUrl}
+`.trim();
+}
+
+/**
  * Shared Email Footer Component
  */
 function renderFooter(cleanDomain) {
@@ -70,7 +119,7 @@ function renderFooter(cleanDomain) {
     <tr>
       <td style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 24px 36px; text-align: center;">
         <div style="margin-bottom: 8px; font-size: 13px; color: #64748b;">
-          <strong>AI Instafeed for Shopify</strong> &bull; Official Merchant Notification
+          <strong>AI Instafeed for Shopify</strong> &bull; Free Forever &bull; Official Merchant Notification
         </div>
         <div style="font-size: 12px; color: #94a3b8; line-height: 1.6;">
           Support Email: <a href="mailto:${SUPPORT_EMAIL}" style="color: #e1306c; text-decoration: none; font-weight: 600;">${SUPPORT_EMAIL}</a> &bull; 
@@ -106,6 +155,7 @@ export async function sendWelcomeEmail({ to, shop, shopName, myshopifyDomain }) 
 Hello,
 
 AI Instafeed is now successfully connected to your Shopify store: ${displayName} (${cleanDomain}).
+✨ Great news: AI Instafeed is 100% Free Forever with no hidden subscription fees!
 
 Direct App Dashboard link:
 ${dashboardUrl}
@@ -115,6 +165,8 @@ ${dashboardUrl}
 2. Tag Store Products on Posts: Interlink products with feed posts to boost storefront conversions.
 3. Activate in Theme Editor: Turn on "Instafeed" in your Shopify Theme App Embeds:
 ${themeEditorUrl}
+
+${getReviewRewardText(cleanDomain)}
 
 Need 1-on-1 Assistance?
 - Book a slot in our calendar: ${CALENDAR_URL}
@@ -140,7 +192,7 @@ The AI Instafeed Team
     <!-- Instagram Signature Header -->
     <tr>
       <td style="background: ${IG_GRADIENT_MAIN}; padding: 36px 36px 32px 36px; text-align: left;">
-        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">SHOPIFY APP ACTIVATION</span>
+        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">SHOPIFY APP ACTIVATION &bull; 100% FREE FOREVER</span>
         <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">Welcome to AI Instafeed!</h1>
         <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.95); font-size: 14px;">Setup guide for <strong>${displayName}</strong></p>
       </td>
@@ -151,7 +203,7 @@ The AI Instafeed Team
       <td style="padding: 36px 36px 24px 36px;">
         <p style="margin: 0 0 16px 0; font-size: 16px; color: #334155;">Hello,</p>
         <p style="margin: 0 0 24px 0; font-size: 15px; color: #334155; line-height: 1.65;">
-          <strong>AI Instafeed</strong> has been successfully installed on your store. You can now showcase your Instagram posts, reels, and stories with clickable product tags on your storefront.
+          <strong>AI Instafeed</strong> has been successfully installed on your store. Enjoy unlimited Instagram posts, reels, and stories with clickable shoppable product tags on your storefront — <strong>100% Free Forever</strong>.
         </p>
 
         <!-- Store Info Pill -->
@@ -168,9 +220,9 @@ The AI Instafeed Team
                   <td style="color: #0f172a; padding: 4px 0; font-family: monospace; font-size: 12px;">${cleanDomain}</td>
                 </tr>
                 <tr>
-                  <td style="color: #64748b; font-weight: 600; padding: 4px 0;">Status:</td>
+                  <td style="color: #64748b; font-weight: 600; padding: 4px 0;">Plan Status:</td>
                   <td style="padding: 4px 0;">
-                    <span style="background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;">Active &amp; Ready</span>
+                    <span style="background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;">Free Forever &bull; Active</span>
                   </td>
                 </tr>
               </table>
@@ -242,6 +294,9 @@ The AI Instafeed Team
           </tr>
         </table>
 
+        <!-- 🎁 Free Forever & Review Incentive Reward Block -->
+        ${renderReviewRewardBlock(cleanDomain)}
+
         <!-- Direct Contact Channels -->
         ${renderContactBlock()}
 
@@ -296,14 +351,16 @@ export async function sendUninstallEmail({ to, shop, shopName }) {
   // Direct Reinstall URL inside Shopify Admin
   const reinstallUrl = `https://admin.shopify.com/store/${shopHandle}/apps/ai-instafeed`;
 
-  const subject = `We're sorry to see you go from AI Instafeed – Can we help ${displayName}?`;
+  const subject = `AI Instafeed is 100% Free Forever – Can we help ${displayName}?`;
 
   const textContent = `
 Hello ${displayName},
 
 We noticed that you recently uninstalled AI Instafeed from your store (${cleanDomain}).
 
-We understand that finding the right app is essential. If you faced any issues with feed loading, theme styling, product tagging, or mobile layout, our developer team is ready to fix it for you 100% free of charge!
+✨ Remember: AI Instafeed is 100% Free Forever for your store with zero subscription fees. If you faced any issues with feed loading, theme styling, product tagging, or mobile layout, our developer team is ready to personally fix and optimize it for you completely free of charge!
+
+Plus, if you write us a review, we will happily unlock premium Pro AI Auto-Detection features and add bonus app credits to your account!
 
 Reinstall AI Instafeed in 1-Click:
 ${reinstallUrl}
@@ -334,7 +391,7 @@ The AI Instafeed Team
     <!-- Instagram Signature Header -->
     <tr>
       <td style="background: ${IG_GRADIENT_MAIN}; padding: 36px 36px 32px 36px; text-align: left;">
-        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">WE VALUE YOUR FEEDBACK</span>
+        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">WE VALUE YOUR FEEDBACK &bull; 100% FREE FOREVER</span>
         <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">We're Sorry to See You Go</h1>
         <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.95); font-size: 14px;">Did something not work for <strong>${displayName}</strong>?</p>
       </td>
@@ -349,7 +406,7 @@ The AI Instafeed Team
         </p>
 
         <p style="margin: 0 0 24px 0; font-size: 15px; color: #334155; line-height: 1.65;">
-          If you experienced any difficulty with theme compatibility, feed alignment, speed, or product tagging, <strong>our engineering team will personally customize and set it up for your store 100% free of cost!</strong>
+          Just a reminder that <strong>AI Instafeed is 100% Free Forever</strong>. If you experienced any difficulty with theme compatibility, feed alignment, speed, or product tagging, <strong>our engineering team will personally customize and set it up for your store 100% free of cost!</strong>
         </p>
 
         <!-- Reinstall Box -->
@@ -368,6 +425,9 @@ The AI Instafeed Team
             </td>
           </tr>
         </table>
+
+        <!-- 🎁 Free Forever & Review Incentive Reward Block -->
+        ${renderReviewRewardBlock(cleanDomain)}
 
         <!-- Direct Contact Channels -->
         ${renderContactBlock()}
@@ -423,15 +483,18 @@ export async function sendReinstallEmail({ to, shop, shopName, myshopifyDomain }
   const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
   const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
 
-  const subject = `Welcome back to AI Instafeed, ${displayName}! 🎉`;
+  const subject = `Welcome back to AI Instafeed, ${displayName}! 🎉 (100% Free Forever)`;
 
   const textContent = `
 Hello ${displayName},
 
 Thank you so much for reinstalling AI Instafeed on ${cleanDomain}! We are absolutely thrilled to welcome you back.
+✨ Remember: AI Instafeed is 100% Free Forever for your store.
 
 Open Your Dashboard:
 ${dashboardUrl}
+
+${getReviewRewardText(cleanDomain)}
 
 If you need any personalized setup, custom theme adjustments, or have any questions:
 - Book a slot in our calendar: ${CALENDAR_URL}
@@ -459,7 +522,7 @@ The AI Instafeed Team
     <!-- Instagram Signature Header -->
     <tr>
       <td style="background: ${IG_GRADIENT_MAIN}; padding: 36px 36px 32px 36px; text-align: left;">
-        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">WELCOME BACK</span>
+        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">WELCOME BACK &bull; 100% FREE FOREVER</span>
         <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">Thanks for Reinstalling! 🎉</h1>
         <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.95); font-size: 14px;">We're so glad to have <strong>${displayName}</strong> back!</p>
       </td>
@@ -470,7 +533,7 @@ The AI Instafeed Team
       <td style="padding: 36px 36px 24px 36px;">
         <p style="margin: 0 0 16px 0; font-size: 16px; color: #334155;">Welcome back,</p>
         <p style="margin: 0 0 24px 0; font-size: 15px; color: #334155; line-height: 1.65;">
-          Thank you for choosing to reinstall <strong>AI Instafeed</strong> on your store, <strong>${displayName}</strong>. We truly appreciate your trust and are dedicated to making your storefront look stunning.
+          Thank you for choosing to reinstall <strong>AI Instafeed</strong> on your store, <strong>${displayName}</strong>. Your app remains <strong>100% Free Forever</strong>. We truly appreciate your trust and are dedicated to making your storefront look stunning.
         </p>
 
         <!-- CTA Button -->
@@ -482,6 +545,9 @@ The AI Instafeed Team
             Direct link: <a href="${dashboardUrl}" style="color: #e1306c; text-decoration: underline;">${dashboardUrl}</a>
           </div>
         </div>
+
+        <!-- 🎁 Free Forever & Review Incentive Reward Block -->
+        ${renderReviewRewardBlock(cleanDomain)}
 
         <!-- VIP Support Highlight -->
         <div style="background: #fdf2f8; border-left: 4px solid #e1306c; border-radius: 8px; padding: 18px 20px; margin: 24px 0;">
@@ -634,12 +700,13 @@ export async function sendMonthlyReportEmail({ to, shop, shopName, myshopifyDoma
   const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
   const reviewUrl = `https://${cleanDomain}/admin/apps/ai-instafeed?review=true`;
 
-  const subject = `📊 ${currentMonthYear} Instagram Feed Performance Report for ${displayName}`;
+  const subject = `📊 ${currentMonthYear} Instagram Feed Performance Report for ${displayName} (100% Free Forever)`;
 
   const textContent = `
 Hello ${displayName},
 
 Here is your monthly Instagram storefront feed performance report for ${currentMonthYear} on ${cleanDomain}:
+✨ Reminder: AI Instafeed is 100% Free Forever on your store!
 
 MONTHLY PERFORMANCE SUMMARY:
 - Total Feed Impressions: ${totalViews.toLocaleString()}
@@ -650,10 +717,7 @@ MONTHLY PERFORMANCE SUMMARY:
 View Detailed Analytics in Dashboard:
 ${dashboardUrl}
 
-⭐ ENJOYING AI INSTAFEED?
-Your feedback helps independent developers improve AI Instafeed for merchants worldwide!
-Click here to rate us and leave a review:
-${reviewUrl}
+${getReviewRewardText(cleanDomain)}
 
 Need assistance or custom design adjustments?
 - Book a Google Calendar slot: ${CALENDAR_URL}
@@ -679,7 +743,7 @@ The AI Instafeed Team
     <!-- Instagram Signature Header -->
     <tr>
       <td style="background: ${IG_GRADIENT_MAIN}; padding: 36px 36px 32px 36px; text-align: left;">
-        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">MONTHLY PERFORMANCE REPORT</span>
+        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">MONTHLY REPORT &bull; 100% FREE FOREVER</span>
         <h1 style="margin: 0; font-size: 25px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">${currentMonthYear} Analytics</h1>
         <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.95); font-size: 14px;">Storefront Instagram Feed metrics for <strong>${displayName}</strong></p>
       </td>
@@ -689,7 +753,7 @@ The AI Instafeed Team
     <tr>
       <td style="padding: 36px 36px 24px 36px;">
         <p style="margin: 0 0 20px 0; font-size: 15px; color: #334155; line-height: 1.65;">
-          Here is how your storefront Instagram feed performed over the past 30 days on <strong>${displayName}</strong> (${cleanDomain}).
+          Here is how your storefront Instagram feed performed over the past 30 days on <strong>${displayName}</strong> (${cleanDomain}). Your app is <strong>100% Free Forever</strong>!
         </p>
 
         <!-- KPI Grid (2x2) -->
@@ -730,28 +794,8 @@ The AI Instafeed Team
           </a>
         </div>
 
-        <!-- 🌟 REVIEW INVITATION HERO SPOTLIGHT -->
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #faf5ff; border: 2px solid #e9d5ff; border-radius: 14px; margin-bottom: 28px;">
-          <tr>
-            <td style="padding: 26px 24px; text-align: center;">
-              <div style="font-size: 24px; color: #f59e0b; margin-bottom: 8px; letter-spacing: 4px;">
-                &#9733;&#9733;&#9733;&#9733;&#9733;
-              </div>
-              <div style="font-size: 18px; font-weight: 800; color: #581c87; margin-bottom: 8px;">
-                How is AI Instafeed working for ${displayName}?
-              </div>
-              <p style="margin: 0 0 20px 0; font-size: 14px; color: #6b21a8; line-height: 1.6; max-width: 480px; margin-left: auto; margin-right: auto;">
-                We are a dedicated team constantly building new features for Shopify stores. Your review helps us tremendously! Please take 30 seconds to rate us.
-              </p>
-              <a href="${reviewUrl}" target="_blank" style="background: ${IG_GRADIENT_BTN}; color: #ffffff; text-decoration: none; padding: 15px 36px; font-size: 15px; font-weight: 800; border-radius: 8px; display: inline-block; box-shadow: 0 6px 18px rgba(193, 53, 132, 0.4); letter-spacing: 0.01em;">
-                ⭐ Rate AI Instafeed &amp; Leave a Review &rarr;
-              </a>
-              <div style="margin-top: 10px; font-size: 12px; color: #9333ea;">
-                Clicking opens the review form directly in your app dashboard
-              </div>
-            </td>
-          </tr>
-        </table>
+        <!-- 🎁 Free Forever & Review Incentive Reward Block -->
+        ${renderReviewRewardBlock(cleanDomain)}
 
         <!-- Direct Contact Channels -->
         ${renderContactBlock()}

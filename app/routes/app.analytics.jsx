@@ -24,6 +24,7 @@ import {
   ExternalIcon,
   ViewIcon,
   CheckCircleIcon,
+  StarIcon,
 } from "@shopify/polaris-icons";
 
 export const action = async ({ request }) => {
@@ -377,6 +378,36 @@ export default function AnalyticsPage() {
               </EmptyState>
             </Box>
           )}
+        </Card>
+
+        {/* Free Forever & Review Reward Card */}
+        <Card padding="400">
+          <BlockStack gap="300">
+            <InlineStack gap="200" blockAlign="center" wrap>
+              <Badge tone="magic">⭐ 100% Free Forever</Badge>
+              <Badge tone="success">🎁 Bonus App Credits & AI Perks</Badge>
+            </InlineStack>
+
+            <BlockStack gap="100">
+              <Text variant="headingMd" as="h3" fontWeight="bold">
+                Seeing results? Leave a review & claim AI perks!
+              </Text>
+              <Text variant="bodySm" tone="subdued">
+                AI Instafeed is <strong>100% Free Forever</strong>. Leave a quick 5-star review and we'll send free <strong>App Credits</strong> + unlock VIP <strong>AI Smart Tagging & Auto-Detection</strong>!
+              </Text>
+            </BlockStack>
+
+            <div>
+              <Button
+                variant="primary"
+                icon={StarIcon}
+                url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
+                target="_blank"
+              >
+                Write a 5-Star Review & Claim Perks ⭐⭐⭐⭐⭐
+              </Button>
+            </div>
+          </BlockStack>
         </Card>
 
         {/* Quick Tips for Higher Engagement */}

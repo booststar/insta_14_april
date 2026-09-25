@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, startTransition } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useFetcher, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -349,6 +349,33 @@ export const action = async ({ request }) => {
     } catch (e) {
       console.error("[Review Submission Error]:", e.message);
       return { success: true };
+    }
+  }
+
+  if (intent === "verifyEmbed") {
+    const themeId = formData.get("themeId");
+    try {
+      await invalidateResource(shop, `theme_embed_status:${shop}:${themeId}`);
+      const clientId = process.env.SHOPIFY_API_KEY;
+      const { dynamicAppEmbedEnabled } = await getCachedThemeEmbedStatus(
+        shop,
+        themeId,
+        session?.accessToken,
+        clientId
+      );
+      return {
+        verifiedEmbed: true,
+        dynamicAppEmbedEnabled: !!dynamicAppEmbedEnabled,
+        message: dynamicAppEmbedEnabled
+          ? "🎉 App Embed is active and verified in your theme!"
+          : "App embed is still not enabled. Please make sure you clicked Save in the top right corner of your Theme Editor.",
+      };
+    } catch (e) {
+      return {
+        verifiedEmbed: true,
+        dynamicAppEmbedEnabled: false,
+        message: "Could not verify theme embed status. Please try again.",
+      };
     }
   }
 
@@ -2068,6 +2095,248 @@ function UnifiedConfigurator({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// APP EMBED IS REQUIRED CARD (Matches Reference Illustration & Step Design)
+// ─────────────────────────────────────────────────────────────────────────────
+function AppEmbedRequiredCard({
+  shop,
+  themeId,
+  clientId,
+  onVerify,
+  isVerifying,
+  statusMessage,
+  statusTone,
+}) {
+  const themeEditorUrl = themeId && shop && clientId
+    ? `https://${shop}/admin/themes/${themeId}/editor?context=apps&activateAppId=${clientId}/app-embed&activateAppEmbed=${clientId}/app-embed`
+    : `https://${shop}/admin/themes/current/editor`;
+
+  return (
+    <div
+      style={{
+        maxWidth: "520px",
+        margin: "0 auto",
+        textAlign: "center",
+        padding: "16px 8px",
+      }}
+    >
+      {/* ── Visual Illustration (Matching Reference Graphic) ── */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+        <svg width="220" height="145" viewBox="0 0 220 145" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Soft background arch base */}
+          <path d="M15 145C15 92.5329 57.5329 50 110 50C162.467 50 205 92.5329 205 145H15Z" fill="#F1F5F9" />
+
+          {/* Gradient Definitions */}
+          <defs>
+            <linearGradient id="embedArchGrad" x1="110" y1="16" x2="110" y2="120" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#4F46E5" />
+              <stop offset="50%" stopColor="#7C3AED" />
+              <stop offset="100%" stopColor="#A855F7" />
+            </linearGradient>
+            <filter id="yellowBadgeShadow" x="38" y="4" width="36" height="36" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.18" />
+            </filter>
+          </defs>
+
+          {/* Main Arched Purple Pill */}
+          <path d="M60 62C60 34.3858 82.3858 12 110 12C137.614 12 160 34.3858 160 62V105C160 110.523 155.523 115 150 115H70C64.4772 115 60 110.523 60 105V62Z" fill="url(#embedArchGrad)" />
+
+          {/* 4-Point Star Sparkles */}
+          <path d="M146 32C146 32 147.5 36.5 151 36.5C147.5 36.5 146 41 146 41C146 41 144.5 36.5 141 36.5C144.5 36.5 146 32 146 32Z" fill="white" opacity="0.95" />
+          <path d="M126 18C126 18 127.2 21.5 129.5 21.5C127.2 21.5 126 25 126 25C126 25 124.8 21.5 122.5 21.5C124.8 21.5 126 18 126 18Z" fill="white" opacity="0.85" />
+          <circle cx="154" cy="46" r="1.5" fill="white" opacity="0.8" />
+
+          {/* Stacked Disc Platforms at bottom */}
+          <ellipse cx="110" cy="116" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
+          <ellipse cx="110" cy="113" rx="34" ry="7" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="1.5" />
+          <ellipse cx="110" cy="103" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
+          <ellipse cx="110" cy="100" rx="34" ry="7" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1.5" />
+          <ellipse cx="110" cy="90" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
+          <ellipse cx="110" cy="87" rx="34" ry="7" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1.5" />
+
+          {/* Window / App Embed card icon */}
+          <rect x="80" y="38" width="34" height="26" rx="3" fill="#FFFFFF" opacity="0.35" />
+          <rect x="85" y="43" width="38" height="28" rx="4" fill="#FFFFFF" stroke="#6366F1" strokeWidth="1.5" />
+          <path d="M85 50H123" stroke="#CBD5E1" strokeWidth="1.5" />
+          <circle cx="90" cy="47" r="1.2" fill="#94A3B8" />
+          <circle cx="94" cy="47" r="1.2" fill="#94A3B8" />
+          <circle cx="98" cy="47" r="1.2" fill="#94A3B8" />
+
+          {/* Mouse Cursor Click */}
+          <g transform="translate(112, 54)">
+            <path d="M0 0L4 12L7.5 8.5L12 13L13.5 11.5L9 7L13 5L0 0Z" fill="#6366F1" stroke="#FFFFFF" strokeWidth="1.5" strokeLinejoin="round" />
+          </g>
+
+          {/* Yellow Warning Exclamation Badge Top Left */}
+          <g filter="url(#yellowBadgeShadow)">
+            <circle cx="56" cy="18" r="14" fill="#FDE047" stroke="#FEF08A" strokeWidth="2" />
+            <text x="56" y="23" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontWeight="900" fontSize="16" fill="#854D0E" textAnchor="middle">!</text>
+          </g>
+        </svg>
+      </div>
+
+      {/* ── Title & Subtitle ── */}
+      <div style={{ marginBottom: "20px" }}>
+        <h2
+          style={{
+            margin: "0 0 6px",
+            fontSize: "20px",
+            fontWeight: "700",
+            color: "#18181b",
+            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          }}
+        >
+          App embed is required
+        </h2>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "14px",
+            color: "#64748b",
+            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          }}
+        >
+          Please follow the steps below to activate this feature
+        </p>
+      </div>
+
+      {/* ── Step Container Box ── */}
+      <div
+        style={{
+          border: "1px solid #bae6fd",
+          borderRadius: "12px",
+          background: "#ffffff",
+          padding: "20px 22px",
+          textAlign: "left",
+          marginBottom: "20px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Step 1 */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div
+              style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                background: "#eff6ff",
+                color: "#2563eb",
+                fontWeight: "700",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              1
+            </div>
+            <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
+              Go to{" "}
+              <a
+                href={themeEditorUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "#2563eb", textDecoration: "underline", fontWeight: "600" }}
+              >
+                App embed
+              </a>{" "}
+              in your Theme Editor
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div
+              style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                background: "#eff6ff",
+                color: "#2563eb",
+                fontWeight: "700",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              2
+            </div>
+            <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
+              Click <strong>Save</strong> at top right corner
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div
+              style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                background: "#eff6ff",
+                color: "#2563eb",
+                fontWeight: "700",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              3
+            </div>
+            <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
+              Click below button to verify your settings
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {statusMessage && (
+        <div style={{ marginBottom: "16px" }}>
+          <Banner tone={statusTone || "info"}>
+            <p>{statusMessage}</p>
+          </Banner>
+        </div>
+      )}
+
+      {/* ── Action Button ── */}
+      <button
+        type="button"
+        onClick={onVerify}
+        disabled={isVerifying}
+        style={{
+          background: isVerifying ? "#52525b" : "#27272a",
+          color: "#ffffff",
+          border: "none",
+          borderRadius: "8px",
+          padding: "10px 28px",
+          fontSize: "14px",
+          fontWeight: "700",
+          cursor: isVerifying ? "not-allowed" : "pointer",
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.18)",
+          transition: "all 0.15s ease",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+        onMouseEnter={(e) => {
+          if (!isVerifying) e.currentTarget.style.background = "#18181b";
+        }}
+        onMouseLeave={(e) => {
+          if (!isVerifying) e.currentTarget.style.background = "#27272a";
+        }}
+      >
+        {isVerifying ? "Verifying..." : "Verify Now"}
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Index() {
@@ -2075,11 +2344,13 @@ export default function Index() {
   const navigate = useNavigate();
   const fetcher = useFetcher();
   const saveFetcher = useFetcher();
+  const verifyEmbedFetcher = useFetcher();
   const loaderData = useLoaderData() || {};
   const shop = loaderData.shop || "";
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [isAppBridgeReady, setIsAppBridgeReady] = useState(false);
+  const [dynamicEmbedActive, setDynamicEmbedActive] = useState(!!loaderData.dynamicAppEmbedEnabled);
 
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const activeTab = selectedTabIndex === 0 ? "post" : "story";
@@ -2090,7 +2361,31 @@ export default function Index() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [isReviewRewardCardDismissed, setIsReviewRewardCardDismissed] = useState(false);
   const reviewFetcher = useFetcher();
+
+  const isVerifyingEmbed = verifyEmbedFetcher.state !== "idle";
+
+  const handleVerifyEmbed = useCallback(() => {
+    const fd = new FormData();
+    fd.append("intent", "verifyEmbed");
+    fd.append("themeId", loaderData.themeId || "current");
+    verifyEmbedFetcher.submit(fd, { method: "post" });
+  }, [loaderData.themeId, verifyEmbedFetcher]);
+
+  useEffect(() => {
+    if (verifyEmbedFetcher.data?.verifiedEmbed) {
+      if (verifyEmbedFetcher.data.dynamicAppEmbedEnabled) {
+        setDynamicEmbedActive(true);
+        shopify?.toast?.show("App Embed is active & verified in your theme!");
+      } else {
+        shopify?.toast?.show(
+          verifyEmbedFetcher.data.message || "App Embed is not active yet. Please save in Theme Editor.",
+          { isError: true }
+        );
+      }
+    }
+  }, [verifyEmbedFetcher.data, shopify]);
 
   useEffect(() => {
     if (searchParams.get("review") === "true") {
@@ -2104,14 +2399,27 @@ export default function Index() {
     }
   }, [reviewFetcher.data]);
 
-  const handleCloseReviewModal = () => {
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsReviewRewardCardDismissed(localStorage.getItem("review_reward_card_dismissed") === "1");
+    }
+  }, []);
+
+  const handleDismissReviewRewardCard = useCallback(() => {
+    setIsReviewRewardCardDismissed(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("review_reward_card_dismissed", "1");
+    }
+  }, []);
+
+  const handleCloseReviewModal = useCallback(() => {
     setIsReviewModalOpen(false);
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("review");
     setSearchParams(newParams, { replace: true });
-  };
+  }, [searchParams, setSearchParams]);
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = useCallback(() => {
     reviewFetcher.submit(
       {
         intent: "submit_review",
@@ -2120,7 +2428,7 @@ export default function Index() {
       },
       { method: "post" }
     );
-  };
+  }, [reviewRating, reviewText, reviewFetcher]);
 
   const isPaid = true;
   const planName = "Free Forever";
@@ -2460,10 +2768,10 @@ export default function Index() {
   }, [instaData, config.instagramHandle]);
 
   const setupStep1 = isConnected;
-  const setupStep2 = !!loaderData.dynamicAppEmbedEnabled;
+  const setupStep2 = !!dynamicEmbedActive;
   const setupStep3 = !!loaderData.dynamicSections?.grid;
   const welcomeCompletedSteps = (setupStep1 ? 1 : 0) + (setupStep2 ? 1 : 0) + (setupStep3 ? 1 : 0);
-  const allTasksDone = isConnected && !!loaderData.dynamicAppEmbedEnabled;
+  const allTasksDone = isConnected && !!dynamicEmbedActive;
   const isAllSetupComplete = allTasksDone;
 
   const [wizardStep, setWizardStep] = useState(isConnected ? 2 : 1);
@@ -2489,6 +2797,16 @@ export default function Index() {
     setIsConnectExpanded(!isConnected);
     setIsSetupExpanded(isConnected && !isAllSetupComplete);
   }, [isConnected, isAllSetupComplete]);
+
+  // Auto-open Welcome / Setup Guide Modal for new installs or unlinked merchants
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isDismissed = localStorage.getItem("setup_modal_dismissed") === "1";
+      if (!isDismissed && !isConnected) {
+        setIsSetupModalOpen(true);
+      }
+    }
+  }, [isConnected]);
 
   // ── Handle Fetcher Responses ──
   useEffect(() => {
@@ -2548,10 +2866,12 @@ export default function Index() {
   }, [config, saveFetcher, shopify]);
 
   const updateConfig = useCallback((section, key, value) => {
-    setConfig((prev) => ({
-      ...prev,
-      [section]: { ...prev[section], [key]: value },
-    }));
+    startTransition(() => {
+      setConfig((prev) => ({
+        ...prev,
+        [section]: { ...prev[section], [key]: value },
+      }));
+    });
     if (key === "mobileColumns" || key === "mobileLimit") setPreviewDevice("mobile");
     if (key === "desktopColumns" || key === "desktopLimit") setPreviewDevice("desktop");
     if (section === "stories") setSelectedTabIndex(1);
@@ -2586,20 +2906,22 @@ export default function Index() {
   }, [isSaving]);
 
   const handleToggleHidePost = useCallback((postId) => {
-    setConfig((prev) => {
-      const currentHidden = prev.postFeed.hiddenPostIds || [];
-      const isCurrentlyHidden = currentHidden.includes(postId);
-      const nextHidden = isCurrentlyHidden
-        ? currentHidden.filter((id) => id !== postId)
-        : [...currentHidden, postId];
+    startTransition(() => {
+      setConfig((prev) => {
+        const currentHidden = prev.postFeed.hiddenPostIds || [];
+        const isCurrentlyHidden = currentHidden.includes(postId);
+        const nextHidden = isCurrentlyHidden
+          ? currentHidden.filter((id) => id !== postId)
+          : [...currentHidden, postId];
 
-      return {
-        ...prev,
-        postFeed: {
-          ...prev.postFeed,
-          hiddenPostIds: nextHidden,
-        },
-      };
+        return {
+          ...prev,
+          postFeed: {
+            ...prev.postFeed,
+            hiddenPostIds: nextHidden,
+          },
+        };
+      });
     });
   }, []);
 
@@ -3582,209 +3904,166 @@ export default function Index() {
           }
         `}</style>
         {/* ── 1. Top Header Bar ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px", paddingBottom: "4px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <h1 style={{ fontSize: "21px", fontWeight: "700", color: "#111827", margin: 0, letterSpacing: "-0.3px" }}>
+        <InlineStack align="space-between" blockAlign="center">
+          <InlineStack gap="300" blockAlign="center">
+            <Text variant="headingLg" as="h1" fontWeight="bold">
               Welcome to AI Instafeed Expert!
-            </h1>
+            </Text>
             <Badge tone="success">Free Forever</Badge>
-          </div>
-        </div>
+          </InlineStack>
+        </InlineStack>
 
-        {/* ── 2. Red Alert Banner (When Unlinked) ── */}
+        {/* ── 2. Alert Banner (When Unlinked) ── */}
         {!isConnected && (
-          <div style={{ borderRadius: "8px", overflow: "hidden", border: "1px solid #fecaca", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
-            <div
-              style={{
-                background: "#dc2626",
-                color: "#ffffff",
-                padding: "10px 16px",
-                fontWeight: "700",
-                fontSize: "13.5px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <span style={{ fontSize: "14px" }}>⚠️</span>
-              <span>Connect Instagram account</span>
-            </div>
-            <div
-              style={{
-                background: "#ffffff",
-                padding: "14px 16px",
-                fontSize: "13.5px",
-                color: "#334155",
-              }}
-            >
-              To continue, you need to connect your Instagram account.
-            </div>
-          </div>
+          <Banner tone="critical" title="Connect Instagram account">
+            <p>To continue, you need to connect your Instagram account.</p>
+          </Banner>
         )}
 
-        {/* ── 3. Quick Setup Guide Banner (Clean & Modern) ── */}
-        <div
-          id="welcome-widget-card"
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
-            borderRadius: "10px",
-            padding: "12px 18px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "12px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            {!allTasksDone && <div
-              style={{
-                width: "24px",
-                height: "24px",
-                borderRadius: "50%",
-                background: "#2563eb",
-                color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "12px",
-                fontWeight: "bold",
-                flexShrink: 0,
-              }}
-            >
-              ⚡
-            </div>}
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>
-                  {allTasksDone ? "Setup completed" : "Quick Setup Guide"}
-                </span>
-                <span style={{ fontSize: "12.5px", color: "#64748b" }}>
-                  · {(isConnected ? 1 : 0) + (loaderData.dynamicAppEmbedEnabled ? 1 : 0)} of 2 steps completed
-                </span>
-              </div>
-            </div>
-          </div>
+        {/* ── 3. Quick Setup Guide Banner (Polaris Card) ── */}
+        <div id="welcome-widget-card">
+          <Card padding="400">
+            <InlineStack align="space-between" blockAlign="center" wrap gap="400">
+              <InlineStack gap="300" blockAlign="center" wrap>
+                {!allTasksDone && (
+                  <Badge tone="info" size="large">
+                    ⚡ Setup
+                  </Badge>
+                )}
+                <BlockStack gap="050">
+                  <InlineStack gap="200" blockAlign="center" wrap>
+                    <Text variant="headingSm" as="h2" fontWeight="bold">
+                      {allTasksDone ? "Setup completed" : "Quick Setup Guide"}
+                    </Text>
+                    <Badge tone={allTasksDone ? "success" : "attention"}>
+                      {`${(isConnected ? 1 : 0) + (dynamicEmbedActive ? 1 : 0)} of 2 steps completed`}
+                    </Badge>
+                    {allTasksDone && (instaData?.username || config.instagramHandle) && (
+                      <Badge tone="info">
+                        {`@${instaData?.username || config.instagramHandle}`}
+                      </Badge>
+                    )}
+                  </InlineStack>
+                </BlockStack>
+              </InlineStack>
 
-          {!isConnected && (
-            <div
-              style={{ flex: "1 1 320px", maxWidth: "480px" }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
-                  e.preventDefault();
-                  const fd = new FormData();
-                  fd.append("handle", config.instagramHandle);
-                  fetcher.submit(fd, { method: "post" });
-                }
-              }}
-            >
-              <InlineStack gap="200" wrap={false} blockAlign="center">
-                <div style={{ flex: 1 }}>
-                  <TextField
-                    label="Instagram username"
-                    labelHidden
-                    prefix="@"
-                    placeholder="Your Instagram username or profile link"
-                    value={config.instagramHandle}
-                    autoComplete="off"
-                    clearButton
-                    onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
-                    onChange={(val) => {
-                      let v = val;
-                      if (v.includes("instagram.com/")) {
-                        const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
-                        if (parts.length > 0) v = parts[0];
-                      }
-                      v = v.replace("@", "").split("?")[0].trim();
-                      setConfig((prev) => ({ ...prev, instagramHandle: v }));
-                      setConnectError(null);
-                    }}
-                  />
-                </div>
-                <Button
-                  variant="primary"
-                  loading={isSyncing}
-                  disabled={!config.instagramHandle.trim()}
-                  onClick={() => {
-                    const fd = new FormData();
-                    fd.append("handle", config.instagramHandle);
-                    fetcher.submit(fd, { method: "post" });
+              {!isConnected && (
+                <div
+                  style={{ flex: "1 1 320px", maxWidth: "480px" }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
+                      e.preventDefault();
+                      const fd = new FormData();
+                      fd.append("handle", config.instagramHandle);
+                      fetcher.submit(fd, { method: "post" });
+                    }
                   }}
                 >
-                  Connect
-                </Button>
-              </InlineStack>
-              {connectError && (
-                <div style={{ marginTop: "8px" }}>
-                  <Banner tone="critical">
-                    <Text variant="bodySm">{linkifyText(connectError)}</Text>
-                  </Banner>
+                  <InlineStack gap="200" wrap={false} blockAlign="center">
+                    <div style={{ flex: 1 }}>
+                      <TextField
+                        label="Instagram username"
+                        labelHidden
+                        prefix="@"
+                        placeholder="Your Instagram username or profile link"
+                        value={config.instagramHandle}
+                        autoComplete="off"
+                        clearButton
+                        onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
+                        onChange={(val) => {
+                          let v = val;
+                          if (v.includes("instagram.com/")) {
+                            const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
+                            if (parts.length > 0) v = parts[0];
+                          }
+                          v = v.replace("@", "").split("?")[0].trim();
+                          setConfig((prev) => ({ ...prev, instagramHandle: v }));
+                          setConnectError(null);
+                        }}
+                      />
+                    </div>
+                    <Button
+                      variant="primary"
+                      loading={isSyncing}
+                      disabled={!config.instagramHandle.trim()}
+                      onClick={() => {
+                        const fd = new FormData();
+                        fd.append("handle", config.instagramHandle);
+                        fetcher.submit(fd, { method: "post" });
+                      }}
+                    >
+                      Connect
+                    </Button>
+                  </InlineStack>
+                  {connectError && (
+                    <Box paddingBlockStart="200">
+                      <Banner tone="critical">
+                        <Text variant="bodySm">{linkifyText(connectError)}</Text>
+                      </Banner>
+                    </Box>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            {isConnected && (
-              <Button variant="plain" tone="critical" onClick={() => setIsDisconnectConfirmOpen(true)}>
-                {`Disconnect @${instaData?.username || config.instagramHandle}`}
-              </Button>
-            )}
-            {!isConnected ? (
-              <Button variant="plain" icon={MagicIcon} onClick={() => setIsSetupModalOpen(true)}>
-                Setup Your Instagram
-              </Button>
-            ) : !loaderData.dynamicAppEmbedEnabled ? (
-              <Button
-                variant="primary"
-                icon={ExternalIcon}
-                onClick={() => {
-                  const url = `https://${loaderData.shop}/admin/themes/${loaderData.themeId}/editor?context=apps&activateAppId=${loaderData.clientId}/app-embed&activateAppEmbed=${loaderData.clientId}/app-embed`;
-                  window.open(url, "_blank");
-                }}
-              >
-                Enable in Theme
-              </Button>
-            ) : (
-              <Button
-                icon={
-                  <span
-                    style={{
-                      width: "18px",
-                      height: "18px",
-                      borderRadius: "50%",
-                      background: "#16a34a",
-                      color: "#ffffff",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "11px",
-                      fontWeight: "bold",
+              <InlineStack gap="200" blockAlign="center">
+                {isConnected && (
+                  <Button variant="plain" tone="critical" onClick={() => setIsDisconnectConfirmOpen(true)}>
+                    {`Disconnect @${instaData?.username || config.instagramHandle}`}
+                  </Button>
+                )}
+                {!isConnected ? (
+                  <Button variant="plain" icon={MagicIcon} onClick={() => setIsSetupModalOpen(true)}>
+                    Setup Your Instagram
+                  </Button>
+                ) : !dynamicEmbedActive ? (
+                  <Button
+                    variant="primary"
+                    icon={ExternalIcon}
+                    onClick={() => {
+                      const url = `https://${loaderData.shop}/admin/themes/${loaderData.themeId}/editor?context=apps&activateAppId=${loaderData.clientId}/app-embed&activateAppEmbed=${loaderData.clientId}/app-embed`;
+                      window.open(url, "_blank");
                     }}
                   >
-                    ✓
-                  </span>
-                }
-                onClick={() => setIsSetupModalOpen(true)}
-              >
-                Setup Your Instagram
-              </Button>
-            )}
-          </div>
+                    Enable in Theme
+                  </Button>
+                ) : (
+                  <Button
+                    icon={CheckCircleIcon}
+                    onClick={() => setIsSetupModalOpen(true)}
+                  >
+                    View Setup Guide
+                  </Button>
+                )}
+              </InlineStack>
+            </InlineStack>
+          </Card>
         </div>
+
+        {/* ── App Embed Required Card (When connected but Embed not active) ── */}
+        {isConnected && !dynamicEmbedActive && (
+          <Card padding="500">
+            <AppEmbedRequiredCard
+              shop={loaderData.shop}
+              themeId={loaderData.themeId}
+              clientId={loaderData.clientId}
+              onVerify={handleVerifyEmbed}
+              isVerifying={isVerifyingEmbed}
+              statusMessage={verifyEmbedFetcher.data?.message}
+              statusTone={verifyEmbedFetcher.data?.dynamicAppEmbedEnabled ? "success" : "critical"}
+            />
+          </Card>
+        )}
 
         {/* ── Shoppable Tags (Top Bar - Only when Connected) ── */}
         {isConnected && (
           <Card padding="300">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+            <InlineStack align="space-between" blockAlign="center" wrap gap="300">
               {/* Left: Title & Live Metric Badges */}
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              <InlineStack gap="300" blockAlign="center" wrap>
                 <Text variant="headingSm" as="h3" fontWeight="bold">
                   Shoppable Tags
                 </Text>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                <InlineStack gap="150" blockAlign="center" wrap>
                   <Badge tone={taggingStats.taggedPosts > 0 ? "success" : "info"}>
                     {`${taggingStats.taggedPosts}/${taggingStats.totalPosts} Tagged (${taggingStats.shoppableRate}%)`}
                   </Badge>
@@ -3801,8 +4080,8 @@ export default function Index() {
                       {`${totalSuggestionsCount} AI Matches`}
                     </Badge>
                   )}
-                </div>
-              </div>
+                </InlineStack>
+              </InlineStack>
 
               {/* Right: Functional Action Buttons */}
               <InlineStack gap="200" wrap>
@@ -3831,7 +4110,7 @@ export default function Index() {
                   Tag Products
                 </Button>
               </InlineStack>
-            </div>
+            </InlineStack>
           </Card>
         )}
 
@@ -5359,9 +5638,9 @@ export default function Index() {
             setIsSetupModalOpen(false);
             if (typeof window !== "undefined") localStorage.setItem("setup_modal_dismissed", "1");
           }}
-          title="⚡ Quick Setup Guide"
+          title="🎉 Welcome to AI Instafeed Expert!"
           primaryAction={{
-            content: "Done",
+            content: isConnected ? "Go to Dashboard" : "Close",
             onAction: () => {
               setIsSetupModalOpen(false);
               if (typeof window !== "undefined") localStorage.setItem("setup_modal_dismissed", "1");
@@ -5371,7 +5650,7 @@ export default function Index() {
           <Modal.Section>
             <BlockStack gap="400">
               <Text variant="bodyMd" tone="subdued">
-                Complete these 2 simple steps to get your Instagram feed live on your store.
+                Welcome aboard! Complete these 2 quick steps to connect your Instagram account and activate your feed on your Shopify store.
               </Text>
 
               {/* Step 1: Connect Instagram */}
@@ -5498,30 +5777,46 @@ export default function Index() {
                     <Text variant="headingSm" as="h3" fontWeight="bold">
                       2. Enable in Shopify Theme
                     </Text>
-                    <Badge tone={loaderData.dynamicAppEmbedEnabled ? "success" : "attention"}>
-                      {loaderData.dynamicAppEmbedEnabled ? "Active in Theme" : "Action Needed"}
+                    <Badge tone={dynamicEmbedActive ? "success" : "attention"}>
+                      {dynamicEmbedActive ? "Active in Theme" : "Action Needed"}
                     </Badge>
                   </InlineStack>
 
-                  <Text variant="bodySm" tone="subdued">
-                    {loaderData.dynamicAppEmbedEnabled
-                      ? "App Embed is active and displaying feeds on your storefront."
-                      : "Activate the AI Instafeed App Embed in your Shopify Theme Editor."}
-                  </Text>
-
-                  {!loaderData.dynamicAppEmbedEnabled && (
-                    <div>
-                      <Button
-                        variant="primary"
-                        icon={ExternalIcon}
-                        onClick={() => {
-                          const url = `https://${loaderData.shop}/admin/themes/${loaderData.themeId}/editor?context=apps&activateAppId=${loaderData.clientId}/app-embed&activateAppEmbed=${loaderData.clientId}/app-embed`;
-                          window.open(url, "_blank");
-                        }}
-                      >
-                        Enable in Theme Editor
-                      </Button>
-                    </div>
+                  {dynamicEmbedActive ? (
+                    <BlockStack gap="200">
+                      <Banner tone="success">
+                        <p>App Embed is active and displaying feeds on your storefront.</p>
+                      </Banner>
+                      <InlineStack gap="200">
+                        <Button
+                          variant="plain"
+                          onClick={handleVerifyEmbed}
+                          loading={isVerifyingEmbed}
+                        >
+                          Re-verify Settings
+                        </Button>
+                        <Button
+                          variant="plain"
+                          icon={ExternalIcon}
+                          onClick={() => {
+                            const url = `https://${loaderData.shop}/admin/themes/${loaderData.themeId}/editor?context=apps&activateAppId=${loaderData.clientId}/app-embed&activateAppEmbed=${loaderData.clientId}/app-embed`;
+                            window.open(url, "_blank");
+                          }}
+                        >
+                          Open Theme Editor ↗
+                        </Button>
+                      </InlineStack>
+                    </BlockStack>
+                  ) : (
+                    <AppEmbedRequiredCard
+                      shop={loaderData.shop}
+                      themeId={loaderData.themeId}
+                      clientId={loaderData.clientId}
+                      onVerify={handleVerifyEmbed}
+                      isVerifying={isVerifyingEmbed}
+                      statusMessage={verifyEmbedFetcher.data?.message}
+                      statusTone={verifyEmbedFetcher.data?.dynamicAppEmbedEnabled ? "success" : "critical"}
+                    />
                   )}
                 </BlockStack>
               </Card>
@@ -5616,7 +5911,7 @@ export default function Index() {
                   <Box paddingBlockStart="400">
                     <Button
                       variant="primary"
-                      url="https://apps.shopify.com/ai-instafeed#modal-show=ReviewListingModal"
+                      url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
                       target="_blank"
                     >
                       Post on Shopify App Store ↗
@@ -5676,7 +5971,7 @@ export default function Index() {
                   </Text>
                   <Button
                     variant="plain"
-                    url="https://apps.shopify.com/ai-instafeed#modal-show=ReviewListingModal"
+                    url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
                     target="_blank"
                   >
                     Review directly on App Store ↗
@@ -5686,6 +5981,46 @@ export default function Index() {
             )}
           </Modal.Section>
         </Modal>
+
+        {/* ── Free Forever + Review Reward Card ── */}
+        {isConnected && !isReviewRewardCardDismissed && (
+          <Card padding="400">
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center" wrap>
+                <InlineStack gap="200" blockAlign="center" wrap>
+                  <Badge tone="magic">⭐ 100% Free Forever</Badge>
+                  <Badge tone="success">🎁 Bonus App Credits & AI Perks</Badge>
+                </InlineStack>
+                <Button
+                  variant="plain"
+                  icon={XIcon}
+                  onClick={handleDismissReviewRewardCard}
+                  accessibilityLabel="Dismiss review incentive banner"
+                />
+              </InlineStack>
+
+              <BlockStack gap="100">
+                <Text variant="headingMd" as="h3" fontWeight="bold">
+                  Enjoying the app? Leave a review & claim AI perks!
+                </Text>
+                <Text variant="bodySm" tone="subdued">
+                  AI Instafeed is <strong>100% Free Forever</strong>. Leave a quick 5-star review and we'll send free <strong>App Credits</strong> + unlock VIP <strong>AI Smart Tagging & Auto-Detection</strong>!
+                </Text>
+              </BlockStack>
+
+              <div>
+                <Button
+                  variant="primary"
+                  icon={StarIcon}
+                  url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
+                  target="_blank"
+                >
+                  Write a 5-Star Review & Claim Perks ⭐⭐⭐⭐⭐
+                </Button>
+              </div>
+            </BlockStack>
+          </Card>
+        )}
 
         {/* ── Footer ── */}
         <Box paddingBlock="600">
