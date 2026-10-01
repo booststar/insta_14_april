@@ -14,7 +14,7 @@
   const MAX_FEED_ITEMS = 500;
   const PROXY_URL = "/apps/instafeed/data";
   const ANALYTICS_URL = "/apps/instafeed/analytics";
-  const STORAGE_KEY = "ai_instafeed_cache_v3";
+  const STORAGE_KEY = "ai_instafeed_cache_v4";
   const CACHE_TTL_MS = 15 * 60 * 1000; // 15 mins
 
   let hasTrackedView = false;
@@ -213,12 +213,12 @@
     },
   ];
 
-  function getMedia(mediaData, count) {
+  function getMedia(mediaData, count, allowSampleFallback = false) {
     let validItems = [];
     if (mediaData && mediaData.length > 0) {
       validItems = mediaData.filter(i => i && (i.media_url || i.thumbnail_url));
     }
-    if (validItems.length === 0) {
+    if (validItems.length === 0 && allowSampleFallback) {
       validItems = SAMPLE_MEDIA;
     }
     return validItems.slice(0, Math.min(count, MAX_FEED_ITEMS));
@@ -507,9 +507,15 @@
       }
 
       // Smart Media Separation: Story media (images default) & Feed media (videos default)
-      const feedSource = (mediaData && mediaData.length > 0) ? mediaData : SAMPLE_MEDIA;
+      const isAccountConnected = Boolean(
+        (config && config.instagramHandle) ||
+        (this.instaData && (this.instaData.username || (this.instaData.user && this.instaData.user.username)))
+      );
+      const feedSource = (mediaData && mediaData.length > 0)
+        ? mediaData
+        : (isAccountConnected ? [] : SAMPLE_MEDIA);
       const totalPosts = feedSource.length;
-      const showStories = (totalPosts >= 6 || totalPosts === 0) && config.stories?.enable !== false;
+      const showStories = (totalPosts >= 6 || (!isAccountConnected && totalPosts === 0)) && config.stories?.enable !== false;
       let storyMedia = [];
       if (showStories) {
         storyMedia = feedSource.filter(i => {
@@ -538,7 +544,7 @@
       }
 
       const gap        = c.gap;
-      const mediaItems = getMedia(candidateFeed, limit);
+      const mediaItems = getMedia(candidateFeed, limit, !isAccountConnected);
       const trackId    = 'ai-fw-grid-track-' + Date.now();
 
       // 1. Header: Title & Description & Contextual Follow Button
@@ -762,10 +768,9 @@
     }
 
     renderMediaCard(item, c, width, extraClass = "", index = 0) {
-      const fallbackItem = SAMPLE_MEDIA[index % SAMPLE_MEDIA.length] || SAMPLE_MEDIA[0];
-      const rawType   = (item.media_type || fallbackItem.media_type || "").toUpperCase();
-      const mediaUrl  = item.media_url || fallbackItem.media_url || "";
-      const thumbUrl  = item.thumbnail_url || fallbackItem.thumbnail_url || "";
+      const rawType   = (item.media_type || "").toUpperCase();
+      const mediaUrl  = item.media_url || item.thumbnail_url || "";
+      const thumbUrl  = item.thumbnail_url || item.media_url || "";
       const isVideo   = rawType === "VIDEO" || rawType === "REEL" || (mediaUrl && mediaUrl.toLowerCase().includes(".mp4"));
       const isAlbum   = rawType === "CAROUSEL_ALBUM" || rawType === "ALBUM";
       const posterAttr = thumbUrl ? ` poster="${esc(thumbUrl)}"` : "";
@@ -773,20 +778,23 @@
       const loadAttr  = isPriority ? 'loading="eager" fetchpriority="high" decoding="async"' : 'loading="lazy" decoding="async"';
 
       let inner = "";
-      const defaultImg = "https://picsum.photos/id/1027/800/800";
-      const fallbackPoster = thumbUrl || fallbackItem.thumbnail_url || fallbackItem.media_url || defaultImg;
       if (isVideo && mediaUrl) {
+        const fallbackPoster = thumbUrl;
+        const fallbackOnError = fallbackPoster
+          ? `if(!this.dataset.errored){this.dataset.errored='1';this.outerHTML='<img ${loadAttr} src=\x22${esc(fallbackPoster)}\x22 style=\x22width:100%;height:100%;object-fit:cover;display:block;\x22 alt=\x22Instagram Media\x22>'}`
+          : `this.style.opacity='0.5'`;
+
         if (c.autoplay !== false) {
-          inner = `<video src="${esc(mediaUrl)}"${posterAttr} autoplay muted loop playsinline preload="metadata" onerror="if(!this.dataset.errored){this.dataset.errored='1';this.outerHTML='<img ${loadAttr} src=\x22${esc(fallbackPoster)}\x22 style=\x22width:100%;height:100%;object-fit:cover;display:block;\x22 alt=\x22Shopify Media\x22>'}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
+          inner = `<video src="${esc(mediaUrl)}"${posterAttr} autoplay muted loop playsinline preload="metadata" onerror="${fallbackOnError}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
         } else if (thumbUrl) {
-          inner = `<img ${loadAttr} src="${esc(thumbUrl)}" onerror="this.onerror=null;this.src='${defaultImg}'" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+          inner = `<img ${loadAttr} src="${esc(thumbUrl)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
         } else {
-          inner = `<video src="${esc(mediaUrl)}"${posterAttr} muted playsinline preload="metadata" onerror="if(!this.dataset.errored){this.dataset.errored='1';this.outerHTML='<img ${loadAttr} src=\x22${esc(fallbackPoster)}\x22 style=\x22width:100%;height:100%;object-fit:cover;display:block;\x22 alt=\x22Shopify Media\x22>'}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
+          inner = `<video src="${esc(mediaUrl)}"${posterAttr} muted playsinline preload="metadata" onerror="${fallbackOnError}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
         }
       } else if (mediaUrl) {
-        inner = `<img ${loadAttr} src="${esc(mediaUrl)}" onerror="this.onerror=null;this.src='${defaultImg}'" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+        inner = `<img ${loadAttr} src="${esc(mediaUrl)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
       } else {
-        inner = `<img ${loadAttr} src="${esc(fallbackItem.media_url || defaultImg)}" onerror="this.onerror=null;this.src='${defaultImg}'" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+        inner = `<div style="width:100%;height:100%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;">Media Unavailable</div>`;
       }
       const metrics = c.metrics ? `
         <div style="display:flex;align-items:center;gap:6px;">
@@ -1852,8 +1860,13 @@
     // Save to storage cache for instant subsequent loads
     setStoredCache(config, instaData);
 
+    const isAccountConnected = Boolean(
+      (config && config.instagramHandle) ||
+      (instaData && (instaData.username || (instaData.user && instaData.user.username)))
+    );
+
     let mediaData = instaData?.media?.data || [];
-    if (mediaData.length === 0 || !mediaData.some(i => i && (i.media_url || i.thumbnail_url))) {
+    if (!isAccountConnected && (mediaData.length === 0 || !mediaData.some(i => i && (i.media_url || i.thumbnail_url)))) {
       mediaData = SAMPLE_MEDIA;
     }
     

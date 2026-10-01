@@ -355,6 +355,7 @@ export const loader = async ({ request }) => {
       },
     ];
 
+    const isAccountConnected = Boolean(config.instagramHandle || (instaData && (instaData.username || instaData.user)));
     const hasLiveData = instaData && (instaData.media?.data?.length || 0) > 0;
     const minifiedData = hasLiveData ? {
       id: instaData.id,
@@ -384,6 +385,16 @@ export const loader = async ({ request }) => {
             })),
           } : undefined,
         })),
+      },
+    } : isAccountConnected ? {
+      id: instaData?.id || "connected_account",
+      username: instaData?.username || config.instagramHandle,
+      profile_picture_url: instaData?.profile_picture_url || "",
+      biography: instaData?.biography || "",
+      followers_count: instaData?.followers_count || 0,
+      media_count: 0,
+      media: {
+        data: [],
       },
     } : {
       id: "placeholder_shop",
