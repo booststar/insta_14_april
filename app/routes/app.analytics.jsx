@@ -194,9 +194,11 @@ export default function AnalyticsPage() {
     });
   }, [filteredData]);
 
+  const shopSub = (shop || "").replace(".myshopify.com", "");
+  const adminBase = shopSub ? `https://admin.shopify.com/store/${shopSub}` : `https://${shop}/admin`;
   const deepLinkUrl = themeId && clientId
-    ? `https://${shop}/admin/themes/${themeId}/editor?context=apps&activateAppId=${clientId}/instafeed-app-embed`
-    : `https://${shop}/admin/themes/current/editor`;
+    ? `${adminBase}/themes/${themeId}/editor?context=apps&activateAppId=${clientId}/app-embed&activateAppEmbed=${clientId}/app-embed`
+    : `${adminBase}/themes/current/editor`;
 
   return (
     <Page

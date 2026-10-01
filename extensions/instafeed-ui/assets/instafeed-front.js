@@ -14,7 +14,7 @@
   const MAX_FEED_ITEMS = 500;
   const PROXY_URL = "/apps/instafeed/data";
   const ANALYTICS_URL = "/apps/instafeed/analytics";
-  const STORAGE_KEY = "ai_instafeed_cache_v2";
+  const STORAGE_KEY = "ai_instafeed_cache_v3";
   const CACHE_TTL_MS = 15 * 60 * 1000; // 15 mins
 
   let hasTrackedView = false;
@@ -1428,6 +1428,10 @@
       const isPromoEnabled = this.config && this.config.stories && this.config.stories.promoEnable === true;
       const promoLabel = (this.config && this.config.stories && this.config.stories.promoLabel) || 'Get 10% Off';
 
+      const showMetrics = (this.source === 'story')
+        ? false
+        : ((this.config && this.config.postFeed && this.config.postFeed.metrics) !== false);
+
       const showBranding = (this.source === 'story') 
         ? !this.config.stories.removeWatermark 
         : !this.config.postFeed.removeWatermark;
@@ -1530,7 +1534,16 @@
 
         // 4. Update Footer Info
         const likesEl = this.shadowRoot.querySelector('.ai-modal-likes-count');
-        if (likesEl) likesEl.textContent = likes;
+        const likesLine = this.shadowRoot.querySelector('.ai-modal-likes-line');
+        const actionsEl = this.shadowRoot.querySelector('.ai-modal-actions');
+        if (showMetrics) {
+          if (likesEl) likesEl.textContent = likes;
+          if (likesLine) likesLine.style.display = 'block';
+          if (actionsEl) actionsEl.style.display = 'flex';
+        } else {
+          if (likesLine) likesLine.style.display = 'none';
+          if (actionsEl) actionsEl.style.display = 'none';
+        }
 
         const dateEl = this.shadowRoot.querySelector('.ai-modal-date');
         if (dateEl) dateEl.textContent = date;
@@ -1608,6 +1621,24 @@
           }
         </style>`;
 
+        const actionsHtml = showMetrics ? (
+          '<div class="ai-modal-actions">' +
+            '<div class="ai-modal-actions-left">' +
+              '<svg class="ai-action-icon" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' +
+              '<svg class="ai-action-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>' +
+              '<button type="button" class="ai-modal-share-btn" title="Share Post">' +
+                '<svg class="ai-action-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>' +
+              '</button>' +
+            '</div>' +
+            '<div class="ai-modal-actions-right">' +
+              '<svg class="ai-action-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>' +
+            '</div>' +
+          '</div>' +
+          '<div class="ai-modal-likes-line">' +
+            '<span class="ai-modal-likes-count">' + likes + '</span> likes' +
+          '</div>'
+        ) : '';
+
         this.shadowRoot.innerHTML =
           styleLink +
           embeddedModalStyles +
@@ -1640,21 +1671,7 @@
                   '</p>' +
                 '</div>' +
                 '<div class="ai-modal-footer">' +
-                  '<div class="ai-modal-actions">' +
-                    '<div class="ai-modal-actions-left">' +
-                      '<svg class="ai-action-icon" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' +
-                      '<svg class="ai-action-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>' +
-                      '<button type="button" class="ai-modal-share-btn" title="Share Post">' +
-                        '<svg class="ai-action-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>' +
-                      '</button>' +
-                    '</div>' +
-                    '<div class="ai-modal-actions-right">' +
-                      '<svg class="ai-action-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>' +
-                    '</div>' +
-                  '</div>' +
-                  '<div class="ai-modal-likes-line">' +
-                    '<span class="ai-modal-likes-count">' + likes + '</span> likes' +
-                  '</div>' +
+                  actionsHtml +
                   '<div class="ai-modal-date">' + date + '</div>' +
                   '<div style="margin-top:12px;">' +
                     '<button type="button" class="ai-modal-promo-link-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg, #e1306c 0%, #f77737 100%); color:white; border:none; padding:10px 16px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; box-sizing:border-box;">' +

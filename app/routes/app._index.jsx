@@ -357,24 +357,33 @@ export const action = async ({ request }) => {
     try {
       await invalidateResource(shop, `theme_embed_status:${shop}:${themeId}`);
       const clientId = process.env.SHOPIFY_API_KEY;
-      const { dynamicAppEmbedEnabled } = await getCachedThemeEmbedStatus(
+      const { dynamicAppEmbedEnabled, dynamicSections } = await getCachedThemeEmbedStatus(
         shop,
         themeId,
         session?.accessToken,
         clientId
       );
+      const isEmbedOk = !!dynamicAppEmbedEnabled;
+      const isSectionOk = !!dynamicSections?.grid;
+
       return {
         verifiedEmbed: true,
-        dynamicAppEmbedEnabled: !!dynamicAppEmbedEnabled,
-        message: dynamicAppEmbedEnabled
-          ? "🎉 App Embed is active and verified in your theme!"
-          : "App embed is still not enabled. Please make sure you clicked Save in the top right corner of your Theme Editor.",
+        dynamicAppEmbedEnabled: isEmbedOk,
+        dynamicSectionActive: isSectionOk,
+        message: isEmbedOk && isSectionOk
+          ? "🎉 Everything verified! Both the Feed Section and App Embed are active in your theme."
+          : isSectionOk && !isEmbedOk
+          ? "Feed Section found! Please also turn ON the 'Instafeed Activation' app embed in Theme Editor."
+          : !isSectionOk && isEmbedOk
+          ? "App Embed is active! Make sure you've added the 'Instafeed: Feed Grid' section in your Theme Editor."
+          : "Not detected yet. If you just saved in the Theme Editor, wait 5 seconds and click Verify again.",
       };
     } catch (e) {
       return {
         verifiedEmbed: true,
         dynamicAppEmbedEnabled: false,
-        message: "Could not verify theme embed status. Please try again.",
+        dynamicSectionActive: false,
+        message: "Could not verify theme status. Please try again.",
       };
     }
   }
@@ -1847,7 +1856,7 @@ function UnifiedConfigurator({
 
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
                         <Checkbox
-                          label="Show Likes & Comments on Hover"
+                          label="Show Likes & Comments (Hover & Popup Modal)"
                           checked={config.postFeed.metrics}
                           onChange={(val) => updateConfig("postFeed", "metrics", val)}
                         />
@@ -2351,6 +2360,8 @@ export default function Index() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isAppBridgeReady, setIsAppBridgeReady] = useState(false);
   const [dynamicEmbedActive, setDynamicEmbedActive] = useState(!!loaderData.dynamicAppEmbedEnabled);
+  const [dynamicSectionActive, setDynamicSectionActive] = useState(!!loaderData.dynamicSections?.grid);
+  const [showAccountSwitchGuide, setShowAccountSwitchGuide] = useState(false);
 
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const activeTab = selectedTabIndex === 0 ? "post" : "story";
@@ -2377,13 +2388,15 @@ export default function Index() {
     if (verifyEmbedFetcher.data?.verifiedEmbed) {
       if (verifyEmbedFetcher.data.dynamicAppEmbedEnabled) {
         setDynamicEmbedActive(true);
-        shopify?.toast?.show("App Embed is active & verified in your theme!");
-      } else {
-        shopify?.toast?.show(
-          verifyEmbedFetcher.data.message || "App Embed is not active yet. Please save in Theme Editor.",
-          { isError: true }
-        );
       }
+      if (verifyEmbedFetcher.data.dynamicSectionActive !== undefined) {
+        setDynamicSectionActive(verifyEmbedFetcher.data.dynamicSectionActive);
+      }
+      const isSuccess = verifyEmbedFetcher.data.dynamicAppEmbedEnabled || verifyEmbedFetcher.data.dynamicSectionActive;
+      shopify?.toast?.show(
+        verifyEmbedFetcher.data.message || "Theme verification completed.",
+        { isError: !isSuccess }
+      );
     }
   }, [verifyEmbedFetcher.data, shopify]);
 
@@ -2768,11 +2781,22 @@ export default function Index() {
   }, [instaData, config.instagramHandle]);
 
   const setupStep1 = isConnected;
-  const setupStep2 = !!dynamicEmbedActive;
-  const setupStep3 = !!loaderData.dynamicSections?.grid;
+  const setupStep2 = !!dynamicSectionActive;
+  const setupStep3 = !!dynamicEmbedActive;
   const welcomeCompletedSteps = (setupStep1 ? 1 : 0) + (setupStep2 ? 1 : 0) + (setupStep3 ? 1 : 0);
-  const allTasksDone = isConnected && !!dynamicEmbedActive;
+  const allTasksDone = setupStep1 && setupStep2 && setupStep3;
   const isAllSetupComplete = allTasksDone;
+
+  const shopSubdomain = (shop || "").replace(".myshopify.com", "");
+  const adminBaseUrl = shopSubdomain
+    ? `https://admin.shopify.com/store/${shopSubdomain}`
+    : `https://${shop}/admin`;
+  const activeThemeId = loaderData.themeId && loaderData.themeId !== "current" ? loaderData.themeId : "current";
+  const appClientId = loaderData.clientId || "";
+
+  const themeAddSectionUrl = `${adminBaseUrl}/themes/${activeThemeId}/editor?template=index&addAppBlockId=${appClientId}/feed-grid&target=newAppsSection`;
+  const themeActivateEmbedUrl = `${adminBaseUrl}/themes/${activeThemeId}/editor?context=apps&activateAppId=${appClientId}/app-embed&activateAppEmbed=${appClientId}/app-embed`;
+  const storefrontPreviewUrl = `https://${shop}`;
 
   const [wizardStep, setWizardStep] = useState(isConnected ? 2 : 1);
   const [isWizardMode, setIsWizardMode] = useState(!isAllSetupComplete);
@@ -3913,146 +3937,310 @@ export default function Index() {
           </InlineStack>
         </InlineStack>
 
-        {/* ── 2. Alert Banner (When Unlinked) ── */}
-        {!isConnected && (
-          <Banner tone="critical" title="Connect Instagram account">
-            <p>To continue, you need to connect your Instagram account.</p>
-          </Banner>
-        )}
-
-        {/* ── 3. Quick Setup Guide Banner (Polaris Card) ── */}
+        {/* ── 2. Compact 3-Step Setup Stepper ── */}
         <div id="welcome-widget-card">
           <Card padding="400">
-            <InlineStack align="space-between" blockAlign="center" wrap gap="400">
-              <InlineStack gap="300" blockAlign="center" wrap>
-                {!allTasksDone && (
-                  <Badge tone="info" size="large">
-                    ⚡ Setup
+            <BlockStack gap="300">
+              {/* Stepper Header */}
+              <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                <InlineStack gap="200" blockAlign="center" wrap>
+                  <Text variant="headingSm" as="h2" fontWeight="bold">
+                    {allTasksDone ? "🎉 Feed is Live on Store!" : "Quick Setup"}
+                  </Text>
+                  <Badge tone={allTasksDone ? "success" : welcomeCompletedSteps > 0 ? "info" : "attention"}>
+                    {`${welcomeCompletedSteps} of 3 completed`}
                   </Badge>
-                )}
-                <BlockStack gap="050">
-                  <InlineStack gap="200" blockAlign="center" wrap>
-                    <Text variant="headingSm" as="h2" fontWeight="bold">
-                      {allTasksDone ? "Setup completed" : "Quick Setup Guide"}
-                    </Text>
-                    <Badge tone={allTasksDone ? "success" : "attention"}>
-                      {`${(isConnected ? 1 : 0) + (dynamicEmbedActive ? 1 : 0)} of 2 steps completed`}
+                  {isConnected && (instaData?.username || config.instagramHandle) && (
+                    <Badge tone="success">
+                      {`@${instaData?.username || config.instagramHandle}`}
                     </Badge>
-                    {allTasksDone && (instaData?.username || config.instagramHandle) && (
-                      <Badge tone="info">
-                        {`@${instaData?.username || config.instagramHandle}`}
-                      </Badge>
-                    )}
-                  </InlineStack>
-                </BlockStack>
+                  )}
+                </InlineStack>
+
+                <Button
+                  variant="plain"
+                  icon={ExternalIcon}
+                  onClick={() => window.open(storefrontPreviewUrl, "_blank")}
+                >
+                  View on Live Store ↗
+                </Button>
               </InlineStack>
 
-              {!isConnected && (
-                <div
-                  style={{ flex: "1 1 320px", maxWidth: "480px" }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
-                      e.preventDefault();
-                      const fd = new FormData();
-                      fd.append("handle", config.instagramHandle);
-                      fetcher.submit(fd, { method: "post" });
-                    }
-                  }}
-                >
-                  <InlineStack gap="200" wrap={false} blockAlign="center">
-                    <div style={{ flex: 1 }}>
-                      <TextField
-                        label="Instagram username"
-                        labelHidden
-                        prefix="@"
-                        placeholder="Your Instagram username or profile link"
-                        value={config.instagramHandle}
-                        autoComplete="off"
-                        clearButton
-                        onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
-                        onChange={(val) => {
-                          let v = val;
-                          if (v.includes("instagram.com/")) {
-                            const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
-                            if (parts.length > 0) v = parts[0];
-                          }
-                          v = v.replace("@", "").split("?")[0].trim();
-                          setConfig((prev) => ({ ...prev, instagramHandle: v }));
-                          setConnectError(null);
-                        }}
-                      />
-                    </div>
-                    <Button
-                      variant="primary"
-                      loading={isSyncing}
-                      disabled={!config.instagramHandle.trim()}
-                      onClick={() => {
-                        const fd = new FormData();
-                        fd.append("handle", config.instagramHandle);
-                        fetcher.submit(fd, { method: "post" });
-                      }}
-                    >
-                      Connect
+              <ProgressBar
+                progress={(welcomeCompletedSteps / 3) * 100}
+                tone={allTasksDone ? "success" : "highlight"}
+                size="small"
+              />
+
+              {allTasksDone && (
+                <Banner tone="success">
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <Text variant="bodySm">
+                      Your Instagram feed is active and displaying on your theme.
+                    </Text>
+                    <Button variant="primary" icon={ExternalIcon} onClick={() => window.open(storefrontPreviewUrl, "_blank")}>
+                      Open Storefront
                     </Button>
                   </InlineStack>
-                  {connectError && (
-                    <Box paddingBlockStart="200">
-                      <Banner tone="critical">
-                        <Text variant="bodySm">{linkifyText(connectError)}</Text>
-                      </Banner>
-                    </Box>
-                  )}
-                </div>
+                </Banner>
               )}
 
-              <InlineStack gap="200" blockAlign="center">
-                {isConnected && (
-                  <Button variant="plain" tone="critical" onClick={() => setIsDisconnectConfirmOpen(true)}>
-                    {`Disconnect @${instaData?.username || config.instagramHandle}`}
-                  </Button>
-                )}
-                {!isConnected ? (
-                  <Button variant="plain" icon={MagicIcon} onClick={() => setIsSetupModalOpen(true)}>
-                    Setup Your Instagram
-                  </Button>
-                ) : !dynamicEmbedActive ? (
-                  <Button
-                    variant="primary"
-                    icon={ExternalIcon}
-                    onClick={() => {
-                      const url = `https://${loaderData.shop}/admin/themes/${loaderData.themeId}/editor?context=apps&activateAppId=${loaderData.clientId}/app-embed&activateAppEmbed=${loaderData.clientId}/app-embed`;
-                      window.open(url, "_blank");
-                    }}
-                  >
-                    Enable in Theme
-                  </Button>
-                ) : (
-                  <Button
-                    icon={CheckCircleIcon}
-                    onClick={() => setIsSetupModalOpen(true)}
-                  >
-                    View Setup Guide
-                  </Button>
-                )}
-              </InlineStack>
-            </InlineStack>
+              {/* Step 1: Connect Instagram Account */}
+              <Box
+                padding="300"
+                background={setupStep1 ? "bg-surface-secondary" : "bg-surface"}
+                borderRadius="200"
+                borderWidth="025"
+                borderColor={setupStep1 ? "border-success" : "border"}
+              >
+                <BlockStack gap="200">
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "50%",
+                          background: setupStep1 ? "#10b981" : "#4f46e5",
+                          color: "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {setupStep1 ? "✓" : "1"}
+                      </div>
+                      <InlineStack gap="150" blockAlign="baseline" wrap>
+                        <Text variant="bodyMd" as="h3" fontWeight="bold">
+                          1. Connect Instagram
+                        </Text>
+                        <Text variant="bodySm" tone="subdued">
+                          {setupStep1
+                            ? `@${instaData?.username || config.instagramHandle} (${instaData?.media?.data?.length || 0} posts)`
+                            : "Sync photos, reels & videos"}
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
+
+                    {setupStep1 ? (
+                      <InlineStack gap="200" blockAlign="center">
+                        <Badge tone="success">Connected</Badge>
+                        <Button
+                          size="slim"
+                          loading={isSyncing}
+                          onClick={() => {
+                            const fd = new FormData();
+                            fd.append("handle", config.instagramHandle);
+                            fetcher.submit(fd, { method: "post" });
+                          }}
+                        >
+                          Sync Feed
+                        </Button>
+                        <Button size="slim" tone="critical" variant="plain" onClick={() => setIsDisconnectConfirmOpen(true)}>
+                          Disconnect
+                        </Button>
+                      </InlineStack>
+                    ) : (
+                      <Badge tone="attention">Action Needed</Badge>
+                    )}
+                  </InlineStack>
+
+                  {!setupStep1 && (
+                    <BlockStack gap="150">
+                      <div
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
+                            e.preventDefault();
+                            const fd = new FormData();
+                            fd.append("handle", config.instagramHandle);
+                            fetcher.submit(fd, { method: "post" });
+                          }
+                        }}
+                      >
+                        <InlineStack gap="200" wrap={false} blockAlign="center">
+                          <div style={{ flex: 1, maxWidth: "340px" }}>
+                            <TextField
+                              label="Instagram username"
+                              labelHidden
+                              prefix="@"
+                              placeholder="yourbrand or profile link"
+                              value={config.instagramHandle}
+                              autoComplete="off"
+                              clearButton
+                              onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
+                              onChange={(val) => {
+                                let v = val;
+                                if (v.includes("instagram.com/")) {
+                                  const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
+                                  if (parts.length > 0) v = parts[0];
+                                }
+                                v = v.replace("@", "").split("?")[0].trim();
+                                setConfig((prev) => ({ ...prev, instagramHandle: v }));
+                                setConnectError(null);
+                              }}
+                            />
+                          </div>
+                          <Button
+                            variant="primary"
+                            loading={isSyncing}
+                            disabled={!config.instagramHandle.trim()}
+                            onClick={() => {
+                              const fd = new FormData();
+                              fd.append("handle", config.instagramHandle);
+                              fetcher.submit(fd, { method: "post" });
+                            }}
+                          >
+                            Connect
+                          </Button>
+                        </InlineStack>
+                      </div>
+
+                      {connectError && (
+                        <Banner tone="critical">
+                          <Text variant="bodySm">{linkifyText(connectError)}</Text>
+                        </Banner>
+                      )}
+
+                      <InlineStack gap="200" blockAlign="center" wrap>
+                        <Button
+                          variant="plain"
+                          size="slim"
+                          onClick={() => setShowAccountSwitchGuide(!showAccountSwitchGuide)}
+                        >
+                          {showAccountSwitchGuide ? "▲ Close tip" : "Personal account? Switch to free Creator in 15s"}
+                        </Button>
+                        <Text variant="bodySm" tone="subdued">
+                          • Sample posts active in theme preview
+                        </Text>
+                      </InlineStack>
+
+                      <Collapsible open={showAccountSwitchGuide} id="account-switch-guide-collapsible">
+                        <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+                          <Text variant="bodySm">
+                            Open Instagram app → <strong>Settings</strong> → <strong>Account type and tools</strong> → <strong>Switch to professional account</strong> (Select Creator/Business). Make sure account is Public.
+                          </Text>
+                        </Box>
+                      </Collapsible>
+                    </BlockStack>
+                  )}
+                </BlockStack>
+              </Box>
+
+              {/* Step 2: Add Feed Section */}
+              <Box
+                padding="300"
+                background={setupStep2 ? "bg-surface-secondary" : "bg-surface"}
+                borderRadius="200"
+                borderWidth="025"
+                borderColor={setupStep2 ? "border-success" : "border"}
+              >
+                <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                  <InlineStack gap="200" blockAlign="center">
+                    <div
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        background: setupStep2 ? "#10b981" : "#4f46e5",
+                        color: "#ffffff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: "bold",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {setupStep2 ? "✓" : "2"}
+                    </div>
+                    <InlineStack gap="150" blockAlign="baseline" wrap>
+                      <Text variant="bodyMd" as="h3" fontWeight="bold">
+                        2. Add to Homepage
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        Stage gallery section on theme
+                      </Text>
+                    </InlineStack>
+                  </InlineStack>
+
+                  <InlineStack gap="200" blockAlign="center">
+                    <Badge tone={setupStep2 ? "success" : "attention"}>
+                      {setupStep2 ? "Added" : "Action Needed"}
+                    </Badge>
+                    <Button
+                      variant={!setupStep2 ? "primary" : "secondary"}
+                      size="slim"
+                      icon={PlusIcon}
+                      onClick={() => window.open(themeAddSectionUrl, "_blank")}
+                    >
+                      {setupStep2 ? "Edit in Theme ↗" : "Add Section in Theme ↗"}
+                    </Button>
+                  </InlineStack>
+                </InlineStack>
+              </Box>
+
+              {/* Step 3: Enable App Embed */}
+              <Box
+                padding="300"
+                background={setupStep3 ? "bg-surface-secondary" : "bg-surface"}
+                borderRadius="200"
+                borderWidth="025"
+                borderColor={setupStep3 ? "border-success" : "border"}
+              >
+                <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                  <InlineStack gap="200" blockAlign="center">
+                    <div
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        background: setupStep3 ? "#10b981" : "#4f46e5",
+                        color: "#ffffff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: "bold",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {setupStep3 ? "✓" : "3"}
+                    </div>
+                    <InlineStack gap="150" blockAlign="baseline" wrap>
+                      <Text variant="bodyMd" as="h3" fontWeight="bold">
+                        3. Enable App Embed
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        Turn on script toggle in theme
+                      </Text>
+                    </InlineStack>
+                  </InlineStack>
+
+                  <InlineStack gap="200" blockAlign="center">
+                    <Badge tone={setupStep3 ? "success" : "attention"}>
+                      {setupStep3 ? "Active" : "Action Needed"}
+                    </Badge>
+                    <Button
+                      variant={setupStep2 && !setupStep3 ? "primary" : "secondary"}
+                      size="slim"
+                      icon={ExternalIcon}
+                      onClick={() => window.open(themeActivateEmbedUrl, "_blank")}
+                    >
+                      Enable Embed ↗
+                    </Button>
+                    <Button
+                      size="slim"
+                      loading={isVerifyingEmbed}
+                      onClick={handleVerifyEmbed}
+                    >
+                      Verify
+                    </Button>
+                  </InlineStack>
+                </InlineStack>
+              </Box>
+            </BlockStack>
           </Card>
         </div>
-
-        {/* ── App Embed Required Card (When connected but Embed not active) ── */}
-        {isConnected && !dynamicEmbedActive && (
-          <Card padding="500">
-            <AppEmbedRequiredCard
-              shop={loaderData.shop}
-              themeId={loaderData.themeId}
-              clientId={loaderData.clientId}
-              onVerify={handleVerifyEmbed}
-              isVerifying={isVerifyingEmbed}
-              statusMessage={verifyEmbedFetcher.data?.message}
-              statusTone={verifyEmbedFetcher.data?.dynamicAppEmbedEnabled ? "success" : "critical"}
-            />
-          </Card>
-        )}
 
         {/* ── Shoppable Tags (Top Bar - Only when Connected) ── */}
         {isConnected && (
@@ -5178,42 +5366,64 @@ export default function Index() {
 
                       {/* Footer */}
                       <div style={{ padding: "16px 20px", borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                            {/* Heart Icon */}
-                            <svg viewBox="0 0 24 24" width="22" height="22" fill="#e1306c" stroke="#e1306c" strokeWidth="2" style={{ cursor: "pointer" }}>
-                              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                            </svg>
-                            {/* Comment Icon */}
-                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#262626" strokeWidth="2" style={{ cursor: "pointer" }}>
-                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                            </svg>
-                            {/* Share Icon */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const url =
-                                  selectedPost.permalink ||
-                                  `https://instagram.com/${handle}`;
-                                if (navigator.clipboard?.writeText) {
-                                  navigator.clipboard.writeText(url);
-                                  shopify?.toast?.show("Post link copied to clipboard!");
-                                }
-                              }}
-                              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" }}
-                              title="Share Post"
-                            >
-                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#262626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="18" cy="5" r="3" />
-                                <circle cx="6" cy="12" r="3" />
-                                <circle cx="18" cy="19" r="3" />
-                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                              </svg>
-                            </button>
-                          </div>
+                        {config?.postFeed?.metrics !== false ? (
+                          <>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                                {/* Heart Icon */}
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="#e1306c" stroke="#e1306c" strokeWidth="2" style={{ cursor: "pointer" }}>
+                                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                                </svg>
+                                {/* Comment Icon */}
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#262626" strokeWidth="2" style={{ cursor: "pointer" }}>
+                                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                                </svg>
+                                {/* Share Icon */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url =
+                                      selectedPost.permalink ||
+                                      `https://instagram.com/${handle}`;
+                                    if (navigator.clipboard?.writeText) {
+                                      navigator.clipboard.writeText(url);
+                                      shopify?.toast?.show("Post link copied to clipboard!");
+                                    }
+                                  }}
+                                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" }}
+                                  title="Share Post"
+                                >
+                                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#262626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="18" cy="5" r="3" />
+                                    <circle cx="6" cy="12" r="3" />
+                                    <circle cx="18" cy="19" r="3" />
+                                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                                  </svg>
+                                </button>
+                              </div>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <Button
+                                  size="micro"
+                                  icon={ShoppableTagIcon}
+                                  onClick={() => {
+                                    const current = selectedPost;
+                                    setSelectedPost(null);
+                                    handleOpenTagging(current);
+                                  }}
+                                >
+                                  Tag Products
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>
+                              {selectedPost.like_count || 128} likes
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: "10px" }}>
                             <Button
                               size="micro"
                               icon={ShoppableTagIcon}
@@ -5226,11 +5436,7 @@ export default function Index() {
                               Tag Products
                             </Button>
                           </div>
-                        </div>
-
-                        <div style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>
-                          {selectedPost.like_count || 128} likes
-                        </div>
+                        )}
                         <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "12px" }}>
                           {selectedPost.timestamp
                             ? new Date(selectedPost.timestamp).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
@@ -5650,7 +5856,7 @@ export default function Index() {
           <Modal.Section>
             <BlockStack gap="400">
               <Text variant="bodyMd" tone="subdued">
-                Welcome aboard! Complete these 2 quick steps to connect your Instagram account and activate your feed on your Shopify store.
+                Welcome aboard! Complete these 3 quick steps to connect your Instagram account and activate your feed on your Shopify store.
               </Text>
 
               {/* Step 1: Connect Instagram */}
@@ -5693,10 +5899,9 @@ export default function Index() {
                     <BlockStack gap="300">
                       <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                         <BlockStack gap="100">
-                          <Text variant="bodySm" fontWeight="semibold">Where do I find my username?</Text>
+                          <Text variant="bodySm" fontWeight="semibold">Public Business/Creator account required</Text>
                           <Text variant="bodySm" tone="subdued">
-                            Open the Instagram app → tap your profile picture (bottom right) → your username is shown at the top.
-                            You can also paste your full profile link — we'll pick the username out of it.
+                            Instagram requires a public Professional (Creator or Business) account for API access. If you have a Personal account, switch for free in 15 seconds: Instagram app → Settings → Account type and tools → Switch to Professional account.
                           </Text>
                         </BlockStack>
                       </Box>
@@ -5770,56 +5975,80 @@ export default function Index() {
                 </BlockStack>
               </Card>
 
-              {/* Step 2: Enable in Theme */}
+              {/* Step 2: Add Section in Theme */}
               <Card>
                 <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text variant="headingSm" as="h3" fontWeight="bold">
-                      2. Enable in Shopify Theme
-                    </Text>
-                    <Badge tone={dynamicEmbedActive ? "success" : "attention"}>
-                      {dynamicEmbedActive ? "Active in Theme" : "Action Needed"}
-                    </Badge>
-                  </InlineStack>
-
-                  {dynamicEmbedActive ? (
-                    <BlockStack gap="200">
-                      <Banner tone="success">
-                        <p>App Embed is active and displaying feeds on your storefront.</p>
-                      </Banner>
-                      <InlineStack gap="200">
-                        <Button
-                          variant="plain"
-                          onClick={handleVerifyEmbed}
-                          loading={isVerifyingEmbed}
-                        >
-                          Re-verify Settings
-                        </Button>
-                        <Button
-                          variant="plain"
-                          icon={ExternalIcon}
-                          onClick={() => {
-                            const url = `https://${loaderData.shop}/admin/themes/${loaderData.themeId}/editor?context=apps&activateAppId=${loaderData.clientId}/app-embed&activateAppEmbed=${loaderData.clientId}/app-embed`;
-                            window.open(url, "_blank");
-                          }}
-                        >
-                          Open Theme Editor ↗
-                        </Button>
-                      </InlineStack>
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <BlockStack gap="050">
+                      <Text variant="headingSm" as="h3" fontWeight="bold">
+                        2. Add Instagram Section to Homepage
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        Adds the feed block onto your store's homepage layout.
+                      </Text>
                     </BlockStack>
-                  ) : (
-                    <AppEmbedRequiredCard
-                      shop={loaderData.shop}
-                      themeId={loaderData.themeId}
-                      clientId={loaderData.clientId}
-                      onVerify={handleVerifyEmbed}
-                      isVerifying={isVerifyingEmbed}
-                      statusMessage={verifyEmbedFetcher.data?.message}
-                      statusTone={verifyEmbedFetcher.data?.dynamicAppEmbedEnabled ? "success" : "critical"}
-                    />
-                  )}
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone={setupStep2 ? "success" : "attention"}>
+                        {setupStep2 ? "Added to Theme" : "Action Needed"}
+                      </Badge>
+                      <Button
+                        variant={!setupStep2 ? "primary" : "secondary"}
+                        icon={PlusIcon}
+                        onClick={() => window.open(themeAddSectionUrl, "_blank")}
+                      >
+                        {setupStep2 ? "Edit Section ↗" : "➕ 1-Click: Add Section ↗"}
+                      </Button>
+                    </InlineStack>
+                  </InlineStack>
                 </BlockStack>
               </Card>
+
+              {/* Step 3: Enable App Embed */}
+              <Card>
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <BlockStack gap="050">
+                      <Text variant="headingSm" as="h3" fontWeight="bold">
+                        3. Enable App Embed in Theme
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        Activates popup shopping modals and high-speed asset preloading.
+                      </Text>
+                    </BlockStack>
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone={setupStep3 ? "success" : "attention"}>
+                        {setupStep3 ? "Active in Theme" : "Action Needed"}
+                      </Badge>
+                      <Button
+                        variant={setupStep2 && !setupStep3 ? "primary" : "secondary"}
+                        icon={ExternalIcon}
+                        onClick={() => window.open(themeActivateEmbedUrl, "_blank")}
+                      >
+                        Turn ON Embed ↗
+                      </Button>
+                      <Button
+                        loading={isVerifyingEmbed}
+                        onClick={handleVerifyEmbed}
+                      >
+                        Verify Status
+                      </Button>
+                    </InlineStack>
+                  </InlineStack>
+                </BlockStack>
+              </Card>
+
+              {allTasksDone && (
+                <Banner tone="success">
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <Text variant="bodySm">
+                      Everything is configured and live on your store!
+                    </Text>
+                    <Button variant="primary" icon={ExternalIcon} onClick={() => window.open(storefrontPreviewUrl, "_blank")}>
+                      View on Live Storefront ↗
+                    </Button>
+                  </InlineStack>
+                </Banner>
+              )}
             </BlockStack>
           </Modal.Section>
         </Modal>

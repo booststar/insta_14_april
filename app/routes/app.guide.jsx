@@ -128,7 +128,9 @@ export default function Guide() {
         "Open your Shopify Theme Editor and turn ON the AI Instafeed App Embed toggle. This enables the feed to display securely on your store.",
       actionText: "Open Theme Editor",
       action: () => {
-        const url = `https://${shop}/admin/themes/${themeId}/editor?context=apps&activateAppId=${clientId}/app-embed&activateAppEmbed=${clientId}/app-embed`;
+        const shopSub = (shop || "").replace(".myshopify.com", "");
+        const adminBase = shopSub ? `https://admin.shopify.com/store/${shopSub}` : `https://${shop}/admin`;
+        const url = `${adminBase}/themes/${themeId}/editor?context=apps&activateAppId=${clientId}/app-embed&activateAppEmbed=${clientId}/app-embed`;
         window.open(url, "_blank");
       },
     },
@@ -143,7 +145,9 @@ export default function Guide() {
         "Click 'Add Section' in the Theme Editor, select 'Instagram Feed', and click 'Save' in the top right corner. Your gallery is now live!",
       actionText: "Add Section in Theme",
       action: () => {
-        const url = `https://${shop}/admin/themes/${themeId}/editor?addAppBlockId=${clientId}/feed-grid&target=newAppsSection`;
+        const shopSub = (shop || "").replace(".myshopify.com", "");
+        const adminBase = shopSub ? `https://admin.shopify.com/store/${shopSub}` : `https://${shop}/admin`;
+        const url = `${adminBase}/themes/${themeId}/editor?template=index&addAppBlockId=${clientId}/feed-grid&target=newAppsSection`;
         window.open(url, "_blank");
       },
     },
@@ -152,7 +156,7 @@ export default function Guide() {
   const faqs = [
     {
       q: "Do I need an Instagram Professional/Business account?",
-      a: "No! AI Instafeed Expert supports both Instagram Personal accounts (via standard login) and Instagram Business / Creator accounts (via Facebook Graph API). Both allow full syncing of photos, videos, and reels.",
+      a: "Yes, Meta requires public Professional (Creator or Business) accounts for live API syncing. If you have a Personal account, switching to Creator takes 15 seconds for free: open Instagram → Settings → Account type and tools → Switch to Professional account. You can also preview and test layouts using sample lookbook posts anytime.",
     },
     {
       q: "Can I add the Instagram feed to multiple pages?",

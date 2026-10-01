@@ -135,7 +135,6 @@ export const loader = async ({ request }) => {
         config.postFeed.removeWatermark = false; // Force watermark
         config.postFeed.load = false;           // Force no infinite scroll
         config.postFeed.sortBy = "latest";       // Force latest
-        if (config.postFeed.desktopColumns > 4) config.postFeed.desktopColumns = 4;
         if (config.postFeed.desktopLimit > 12)  config.postFeed.desktopLimit = 12;
       }
       if (config.stories) {
