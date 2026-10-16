@@ -191,8 +191,8 @@ export default function Support() {
         {/* Expert Consultation Banner Card */}
         <Card>
           <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-            <InlineStack align="space-between" blockAlign="center" wrap>
-              <InlineStack gap="300" blockAlign="center">
+            <InlineStack align="space-between" blockAlign="center" gap="300" wrap>
+              <InlineStack gap="300" blockAlign="center" wrap={false}>
                 <div
                   style={{
                     padding: "10px",
@@ -202,11 +202,12 @@ export default function Support() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    flexShrink: 0,
                   }}
                 >
                   <Icon source={PersonIcon} tone="inherit" />
                 </div>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <Text variant="headingMd" as="h3">
                     Need a Design Consultation?
                   </Text>

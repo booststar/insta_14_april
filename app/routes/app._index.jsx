@@ -2824,6 +2824,26 @@ export default function Index() {
   const [wizardStep, setWizardStep] = useState(isConnected ? 2 : 1);
   const [isWizardMode, setIsWizardMode] = useState(!isAllSetupComplete);
   const [isWelcomeExpanded, setIsWelcomeExpanded] = useState(!allTasksDone);
+  const [isOnboardingDismissed, setIsOnboardingDismissed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("onboarding_widget_dismissed") === "true";
+    }
+    return false;
+  });
+
+  const handleDismissOnboarding = () => {
+    setIsOnboardingDismissed(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("onboarding_widget_dismissed", "true");
+    }
+  };
+
+  const handleRestoreOnboarding = () => {
+    setIsOnboardingDismissed(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("onboarding_widget_dismissed");
+    }
+  };
 
   const [isConnectExpanded, setIsConnectExpanded] = useState(!isConnected);
   const [isSetupExpanded, setIsSetupExpanded] = useState(isConnected && !isAllSetupComplete);
@@ -3951,43 +3971,63 @@ export default function Index() {
           }
         `}</style>
         {/* ── 1. Top Header Bar ── */}
-        <InlineStack align="space-between" blockAlign="center">
+        <InlineStack align="space-between" blockAlign="center" wrap gap="200">
           <InlineStack gap="300" blockAlign="center">
             <Text variant="headingLg" as="h1" fontWeight="bold">
               Welcome to AI Instafeed Expert!
             </Text>
             <Badge tone="success">Free Forever</Badge>
           </InlineStack>
+          {isOnboardingDismissed && (
+            <Button
+              variant="plain"
+              size="slim"
+              onClick={handleRestoreOnboarding}
+            >
+              Show Setup Checklist ↗
+            </Button>
+          )}
         </InlineStack>
 
         {/* ── 2. Compact 3-Step Setup Stepper ── */}
-        <div id="welcome-widget-card">
-          <Card padding="400">
-            <BlockStack gap="300">
-              {/* Stepper Header */}
-              <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                <InlineStack gap="200" blockAlign="center" wrap>
-                  <Text variant="headingSm" as="h2" fontWeight="bold">
-                    {allTasksDone ? "🎉 Feed is Live on Store!" : "Quick Setup"}
-                  </Text>
-                  <Badge tone={allTasksDone ? "success" : welcomeCompletedSteps > 0 ? "info" : "attention"}>
-                    {`${welcomeCompletedSteps} of 3 completed`}
-                  </Badge>
-                  {isConnected && (instaData?.username || config.instagramHandle) && (
-                    <Badge tone="success">
-                      {`@${instaData?.username || config.instagramHandle}`}
+        {!isOnboardingDismissed && (
+          <div id="welcome-widget-card">
+            <Card padding="400">
+              <BlockStack gap="300">
+                {/* Stepper Header */}
+                <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                  <InlineStack gap="200" blockAlign="center" wrap>
+                    <Text variant="headingSm" as="h2" fontWeight="bold">
+                      {allTasksDone ? "🎉 Feed is Live on Store!" : "Quick Setup"}
+                    </Text>
+                    <Badge tone={allTasksDone ? "success" : welcomeCompletedSteps > 0 ? "info" : "attention"}>
+                      {`${welcomeCompletedSteps} of 3 completed`}
                     </Badge>
-                  )}
-                </InlineStack>
+                    {isConnected && (instaData?.username || config.instagramHandle) && (
+                      <Badge tone="success">
+                        {`@${instaData?.username || config.instagramHandle}`}
+                      </Badge>
+                    )}
+                  </InlineStack>
 
-                <Button
-                  variant="plain"
-                  icon={ExternalIcon}
-                  onClick={() => window.open(storefrontPreviewUrl, "_blank")}
-                >
-                  View on Live Store ↗
-                </Button>
-              </InlineStack>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Button
+                      variant="plain"
+                      icon={ExternalIcon}
+                      onClick={() => window.open(storefrontPreviewUrl, "_blank")}
+                    >
+                      View on Live Store ↗
+                    </Button>
+                    <Button
+                      variant="plain"
+                      size="slim"
+                      onClick={handleDismissOnboarding}
+                      accessibilityLabel="Dismiss onboarding checklist"
+                    >
+                      {allTasksDone ? "Dismiss" : "Hide"}
+                    </Button>
+                  </InlineStack>
+                </InlineStack>
 
               <ProgressBar
                 progress={(welcomeCompletedSteps / 3) * 100}
@@ -4264,6 +4304,7 @@ export default function Index() {
             </BlockStack>
           </Card>
         </div>
+        )}
 
         {/* ── Shoppable Tags (Top Bar - Only when Connected) ── */}
         {isConnected && (
@@ -4325,763 +4366,538 @@ export default function Index() {
           </Card>
         )}
 
-        {/* ── Key Performance Metrics Overview Card (Simplified monitoring in Admin) ── */}
-        <Card padding="400">
-          <BlockStack gap="300">
-            <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-              <InlineStack gap="200" blockAlign="center">
-                <Text variant="headingSm" as="h3" fontWeight="bold">
-                  Feed Performance & Monitoring
-                </Text>
-                <Badge tone="info">Last 30 Days</Badge>
-              </InlineStack>
-              <Button
-                size="slim"
-                variant="plain"
-                icon={ViewIcon}
-                onClick={() => navigate("/app/analytics")}
-              >
-                View Detailed Analytics & Reports →
-              </Button>
-            </InlineStack>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: "12px",
-              }}
-            >
-              {/* Metric 1: Storefront Impressions */}
-              <div
-                style={{
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "12px 14px",
-                }}
-              >
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodyXs" tone="subdued" fontWeight="medium">
-                    Storefront Views
-                  </Text>
-                  <span style={{ fontSize: "14px" }}>👀</span>
+        {/* ── Feed Performance & Monitoring & Live Storefront Preview (Only after Quick Setup is Completed) ── */}
+        {allTasksDone ? (
+          <>
+            {/* ── Key Performance Metrics Overview Card (Simplified monitoring in Admin) ── */}
+            <Card padding="400">
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text variant="headingSm" as="h3" fontWeight="bold">
+                      Feed Performance & Monitoring
+                    </Text>
+                    <Badge tone="info">Last 30 Days</Badge>
+                  </InlineStack>
+                  <Button
+                    size="slim"
+                    variant="plain"
+                    icon={ViewIcon}
+                    onClick={() => navigate("/app/analytics")}
+                  >
+                    View Detailed Analytics & Reports →
+                  </Button>
                 </InlineStack>
-                <div style={{ marginTop: "4px" }}>
-                  <Text variant="headingLg" as="p" fontWeight="bold">
-                    {(loaderData.analyticsSummary?.views || 0).toLocaleString()}
-                  </Text>
-                </div>
-                <Text variant="bodyXs" tone="subdued">
-                  Feed widget impressions
-                </Text>
-              </div>
 
-              {/* Metric 2: Product & Tag Clicks */}
-              <div
-                style={{
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "12px 14px",
-                }}
-              >
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodyXs" tone="subdued" fontWeight="medium">
-                    Product Clicks
-                  </Text>
-                  <span style={{ fontSize: "14px" }}>🛍️</span>
-                </InlineStack>
-                <div style={{ marginTop: "4px" }}>
-                  <Text variant="headingLg" as="p" fontWeight="bold">
-                    {(loaderData.analyticsSummary?.clicks || 0).toLocaleString()}
-                  </Text>
-                </div>
-                <Text variant="bodyXs" tone="subdued">
-                  Hotspot & popup link taps
-                </Text>
-              </div>
-
-              {/* Metric 3: Click-Through Rate */}
-              <div
-                style={{
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "12px 14px",
-                }}
-              >
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodyXs" tone="subdued" fontWeight="medium">
-                    Click-Through Rate
-                  </Text>
-                  <Badge tone={Number(loaderData.analyticsSummary?.ctr || 0) > 0 ? "success" : "subdued"}>
-                    {loaderData.analyticsSummary?.ctr || "0.0"}% CTR
-                  </Badge>
-                </InlineStack>
-                <div style={{ marginTop: "4px" }}>
-                  <Text variant="headingLg" as="p" fontWeight="bold">
-                    {loaderData.analyticsSummary?.ctr || "0.0"}%
-                  </Text>
-                </div>
-                <Text variant="bodyXs" tone="subdued">
-                  Clicks per impression
-                </Text>
-              </div>
-
-              {/* Metric 4: Shoppable Feed Status */}
-              <div
-                style={{
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "12px 14px",
-                }}
-              >
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodyXs" tone="subdued" fontWeight="medium">
-                    Shoppable Posts
-                  </Text>
-                  <Badge tone={taggingStats.taggedPosts > 0 ? "success" : "subdued"}>
-                    {taggingStats.shoppableRate}%
-                  </Badge>
-                </InlineStack>
-                <div style={{ marginTop: "4px" }}>
-                  <Text variant="headingLg" as="p" fontWeight="bold">
-                    {taggingStats.taggedPosts} / {taggingStats.totalPosts}
-                  </Text>
-                </div>
-                <Text variant="bodyXs" tone="subdued">
-                  {taggingStats.totalPins} active product tags
-                </Text>
-              </div>
-            </div>
-          </BlockStack>
-        </Card>
-
-        {/* ── 3. Main Dashboard Layout (Configurator & Live Preview) ── */}
-        <div
-          style={
-            isEditingDesign
-              ? {
-                  display: "grid",
-                  gridTemplateColumns: "minmax(340px, 42%) minmax(480px, 58%)",
-                  gap: "24px",
-                  alignItems: "flex-start",
-                  width: "100%",
-                }
-              : {
-                  width: "100%",
-                }
-          }
-          className={isEditingDesign ? "instafeed-main-dashboard-grid" : ""}
-        >
-          {/* ── Left Column: Unified Single-Tab Configurator (Only in Edit Mode) ── */}
-          {isEditingDesign && (
-            <div id="unified-configurator-card" style={{ minWidth: 0 }}>
-              <UnifiedConfigurator
-                config={config}
-                updateConfig={updateConfig}
-                setConfig={setConfig}
-                isPaid={isPaid}
-                isConnected={isConnected}
-                isHideMode={isHideMode}
-                setIsHideMode={setIsHideMode}
-                isTagMode={isTagMode}
-                setIsTagMode={setIsTagMode}
-                onAutoDetect={handleAutoDetect}
-                totalSuggestionsCount={totalSuggestionsCount}
-                onApproveAllHighConfidence={handleApproveAllHighConfidence}
-                showStorySection={showStorySection}
-                totalPostsCount={totalPostsCount}
-                shopify={shopify}
-                navigate={navigate}
-                onApplyTemplate={handleApplyTemplate}
-                handleSaveConfig={handleSaveConfig}
-                isSaving={isSaving}
-                hasUnsavedChanges={hasUnsavedChanges}
-                setIsSetupModalOpen={setIsSetupModalOpen}
-                onCloseEditor={() => setIsEditingDesign(false)}
-              />
-            </div>
-          )}
-
-          {/* ── Live Storefront Preview (Expanded Width & Sticky when Editing, Full Width when Saved) ── */}
-          <div
-            id="feed-preview-container"
-            style={{
-              position: isEditingDesign ? "sticky" : "static",
-              top: isEditingDesign ? "20px" : undefined,
-              zIndex: 25,
-              minWidth: 0,
-              width: "100%",
-            }}
-          >
-            <Card>
-              <div style={{ position: "relative" }}>
-                {isApplyingTemplate && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: "12px",
+                  }}
+                >
+                  {/* Metric 1: Storefront Impressions */}
                   <div
                     style={{
-                      position: "absolute",
-                      inset: "-12px",
-                      background: "rgba(255, 255, 255, 0.85)",
-                      backdropFilter: "blur(6px)",
-                      WebkitBackdropFilter: "blur(6px)",
-                      zIndex: 100,
-                      borderRadius: "12px",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "14px",
-                      pointerEvents: "all",
-                      animation: "fadeIn 0.15s ease-out",
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
                     }}
                   >
-                    <div
-                      style={{
-                        padding: "18px 24px",
-                        background: "#ffffff",
-                        borderRadius: "14px",
-                        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)",
-                        border: "1px solid #e2e8f0",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "10px",
-                        textAlign: "center",
-                        minWidth: "200px",
-                      }}
-                    >
-                      <Spinner accessibilityLabel="Applying design template" size="large" />
-                      <div>
-                        <Text variant="headingSm" as="h4">
-                          Applying Design
-                        </Text>
-                        {applyingTemplateName && (
-                          <div style={{ marginTop: "3px" }}>
-                            <Text variant="bodyXs" tone="subdued">
-                              {applyingTemplateName}
-                            </Text>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="center" wrap={false}>
-                    <InlineStack gap="200" blockAlign="center">
-                      <Text variant="headingSm" as="h3">
-                        {isEditingDesign ? "Live Preview" : "Live Storefront Preview"}
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                        Storefront Views
                       </Text>
-                      {!isEditingDesign && (
-                        <Badge tone="success">Saved & Live</Badge>
-                      )}
-                      {isEditingDesign && (
-                        <Badge tone="info">Editing</Badge>
-                      )}
+                      <span style={{ fontSize: "14px" }}>👀</span>
                     </InlineStack>
+                    <div style={{ marginTop: "4px" }}>
+                      <Text variant="headingLg" as="p" fontWeight="bold">
+                        {(loaderData.analyticsSummary?.views || 0).toLocaleString()}
+                      </Text>
+                    </div>
+                    <Text variant="bodyXs" tone="subdued">
+                      Feed widget impressions
+                    </Text>
+                  </div>
 
-                    <InlineStack gap="200" blockAlign="center">
-                      <ButtonGroup variant="segmented">
-                        <Button
-                          pressed={previewDevice === "mobile"}
-                          icon={MobileIcon}
-                          onClick={() => setPreviewDevice("mobile")}
-                          accessibilityLabel="Mobile View"
-                        />
-                        <Button
-                          pressed={previewDevice === "desktop"}
-                          icon={DesktopIcon}
-                          onClick={() => setPreviewDevice("desktop")}
-                          accessibilityLabel="Desktop View"
-                        />
-                      </ButtonGroup>
-
-                      {isEditingDesign ? (
-                        <Button
-                          size="slim"
-                          onClick={() => setIsEditingDesign(false)}
-                        >
-                          Close Editor
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="primary"
-                          icon={EditIcon}
-                          onClick={() => setIsEditingDesign(true)}
-                        >
-                          Edit Design
-                        </Button>
-                      )}
+                  {/* Metric 2: Product & Tag Clicks */}
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                        Product Clicks
+                      </Text>
+                      <span style={{ fontSize: "14px" }}>🛍️</span>
                     </InlineStack>
-                  </InlineStack>
+                    <div style={{ marginTop: "4px" }}>
+                      <Text variant="headingLg" as="p" fontWeight="bold">
+                        {(loaderData.analyticsSummary?.clicks || 0).toLocaleString()}
+                      </Text>
+                    </div>
+                    <Text variant="bodyXs" tone="subdued">
+                      Hotspot & popup link taps
+                    </Text>
+                  </div>
 
-                    {!isConnected && (
-                      <Box padding="200" background="bg-surface-secondary" borderRadius="150">
-                        <InlineStack align="space-between" blockAlign="center">
-                          <Text variant="bodyXs" tone="subdued">
-                            ✨ <strong>Sample Lookbook Preview:</strong> Connect your Instagram account to sync your actual posts.
-                          </Text>
-                          <Button
-                            size="micro"
-                            variant="plain"
-                            onClick={() => {
-                              const el = document.getElementById("welcome-widget-card");
-                              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                            }}
-                          >
-                            Connect →
-                          </Button>
-                        </InlineStack>
-                      </Box>
-                    )}
+                  {/* Metric 3: Click-Through Rate */}
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                        Click-Through Rate
+                      </Text>
+                      <Badge tone={Number(loaderData.analyticsSummary?.ctr || 0) > 0 ? "success" : "subdued"}>
+                        {loaderData.analyticsSummary?.ctr || "0.0"}% CTR
+                      </Badge>
+                    </InlineStack>
+                    <div style={{ marginTop: "4px" }}>
+                      <Text variant="headingLg" as="p" fontWeight="bold">
+                        {loaderData.analyticsSummary?.ctr || "0.0"}%
+                      </Text>
+                    </div>
+                    <Text variant="bodyXs" tone="subdued">
+                      Clicks per impression
+                    </Text>
+                  </div>
 
-                    {isHideMode && (
-                      <Banner tone="info">
-                        <strong>Hide Mode Active:</strong> Click any post in the preview below to toggle hidden status.
-                      </Banner>
-                    )}
+                  {/* Metric 4: Shoppable Feed Status */}
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                        Shoppable Posts
+                      </Text>
+                      <Badge tone={taggingStats.taggedPosts > 0 ? "success" : "subdued"}>
+                        {taggingStats.shoppableRate}%
+                      </Badge>
+                    </InlineStack>
+                    <div style={{ marginTop: "4px" }}>
+                      <Text variant="headingLg" as="p" fontWeight="bold">
+                        {taggingStats.taggedPosts} / {taggingStats.totalPosts}
+                      </Text>
+                    </div>
+                    <Text variant="bodyXs" tone="subdued">
+                      {taggingStats.totalPins} active product tags
+                    </Text>
+                  </div>
+                </div>
+              </BlockStack>
+            </Card>
 
-                    {isTagMode && (
-                      <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "12px 16px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontSize: "16px" }}>🏷️</span>
-                          <div>
-                            <div style={{ fontSize: "13px", fontWeight: "700", color: "#166534" }}>
-                              Tag Mode Active {totalSuggestionsCount > 0 ? `· ⚡ ${totalSuggestionsCount} Matches Detected` : ""}
-                            </div>
-                            <div style={{ fontSize: "12px", color: "#15803d" }}>
-                              Click any post below to review suggestions or drop new pins.
-                            </div>
-                          </div>
-                        </div>
-                        <InlineStack gap="200">
-                          <Button size="slim" onClick={handleAutoDetect}>
-                            ⚡ Auto-Detect Matches
-                          </Button>
-                          {totalSuggestionsCount > 0 && (
-                            <Button size="slim" variant="primary" onClick={handleApproveAllHighConfidence}>
-                              ✓ Approve All ({totalSuggestionsCount})
-                            </Button>
-                          )}
-                        </InlineStack>
+            {/* ── 3. Main Dashboard Layout (Configurator & Live Storefront Preview) ── */}
+            <div
+              style={
+                isEditingDesign
+                  ? {
+                      display: "grid",
+                      gridTemplateColumns: "minmax(340px, 42%) minmax(480px, 58%)",
+                      gap: "24px",
+                      alignItems: "flex-start",
+                      width: "100%",
+                    }
+                  : {
+                      width: "100%",
+                    }
+              }
+              className={isEditingDesign ? "instafeed-main-dashboard-grid" : ""}
+            >
+              {/* ── Left Column: Unified Single-Tab Configurator (Only in Edit Mode) ── */}
+              {isEditingDesign && (
+                <div id="unified-configurator-card" style={{ minWidth: 0 }}>
+                  <UnifiedConfigurator
+                    config={config}
+                    updateConfig={updateConfig}
+                    setConfig={setConfig}
+                    isPaid={isPaid}
+                    isConnected={isConnected}
+                    isHideMode={isHideMode}
+                    setIsHideMode={setIsHideMode}
+                    isTagMode={isTagMode}
+                    setIsTagMode={setIsTagMode}
+                    onAutoDetect={handleAutoDetect}
+                    totalSuggestionsCount={totalSuggestionsCount}
+                    onApproveAllHighConfidence={handleApproveAllHighConfidence}
+                    showStorySection={showStorySection}
+                    totalPostsCount={totalPostsCount}
+                    shopify={shopify}
+                    navigate={navigate}
+                    onApplyTemplate={handleApplyTemplate}
+                    handleSaveConfig={handleSaveConfig}
+                    isSaving={isSaving}
+                    hasUnsavedChanges={hasUnsavedChanges}
+                    setIsSetupModalOpen={setIsSetupModalOpen}
+                    onCloseEditor={() => setIsEditingDesign(false)}
+                  />
+                </div>
+              )}
+
+              {/* ── Live Storefront Preview (Expanded Width & Sticky when Editing, Full Width when Saved) ── */}
+              <div
+                id="feed-preview-container"
+                style={{
+                  position: isEditingDesign ? "sticky" : "static",
+                  top: isEditingDesign ? "20px" : undefined,
+                  zIndex: 25,
+                  minWidth: 0,
+                  width: "100%",
+                }}
+              >
+                <Card>
+                  <div style={{ position: "relative" }}>
+                    {isApplyingTemplate && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background: "rgba(255, 255, 255, 0.75)",
+                          backdropFilter: "blur(4px)",
+                          zIndex: 50,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "10px",
+                          borderRadius: "12px",
+                        }}
+                      >
+                        <Spinner size="large" />
+                        <Text variant="headingSm" fontWeight="bold">
+                          Applying {applyingTemplateName || "Template"}...
+                        </Text>
                       </div>
                     )}
-
-                    {/* Frame Simulators */}
-                    {(() => {
-                      const followButtonPos = config.postFeed.followButtonPosition || (config.appliedTemplateId?.includes("profile") ? "header" : (config.postFeed.heading?.startsWith("@") ? "header" : "bottom"));
-                      const showHeaderFollow = config.postFeed.showFollowButton !== false && followButtonPos === "header";
-                      const showBottomFollow = config.postFeed.showFollowButton !== false && followButtonPos === "bottom";
-                      const isProfileLayout = Boolean(
-                        config.appliedTemplateId?.includes("profile") ||
-                        (followButtonPos === "header" && (
-                          config.postFeed.heading?.startsWith("@") ||
-                          config.postFeed.heading?.toLowerCase().includes("@account") ||
-                          config.postFeed.heading?.toLowerCase().includes("follow @") ||
-                          config.postFeed.heading?.toLowerCase().includes("connect with @") ||
-                          config.postFeed.heading?.toLowerCase().includes("welcome to @")
-                        ))
-                      );
-                      const profilePic = instaData?.profile_picture_url || instaData?.user?.profile_picture_url || "";
-                      const handle = (instaData?.username || config.instagramHandle || "").replace("@", "").trim();
-
-                      return previewDevice === "mobile" ? (
-                        <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                    <BlockStack gap="400">
+                      {/* Live Preview Controls Header */}
+                      <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                        <InlineStack gap="200" blockAlign="center" wrap>
+                          <Text variant="headingSm" as="h3" fontWeight="bold">
+                            Live Storefront Preview
+                          </Text>
+                          {hasUnsavedChanges ? (
+                            <Badge tone="attention">Unsaved Changes</Badge>
+                          ) : isEditingDesign ? (
+                            <Badge tone="info">Editing</Badge>
+                          ) : (
+                            <Badge tone="success">Saved & Live</Badge>
+                          )}
                           <div
                             style={{
-                              width: "280px",
-                              height: "560px",
-                              background: "white",
-                              borderRadius: "36px",
-                              border: "10px solid #1e293b",
-                              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
-                              position: "relative",
-                              overflow: "hidden",
-                              flexShrink: 0,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                              background: "#f0fdf4",
+                              border: "1px solid #bbf7d0",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              color: "#166534",
                             }}
                           >
-                            <div
+                            <span
                               style={{
-                                height: "36px",
-                                padding: "10px 16px 0",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                fontSize: "10px",
-                                fontWeight: "700",
-                                background: "white",
+                                width: "6px",
+                                height: "6px",
+                                borderRadius: "50%",
+                                background: "#16a34a",
+                                display: "inline-block",
                               }}
-                            >
-                              <span>9:41</span>
-                              <div>📶 🔋</div>
-                            </div>
-
-                            <div
-                              style={{ height: "calc(100% - 36px)", overflowY: "auto", paddingBottom: "8px" }}
-                            >
-                              <div
-                                style={{
-                                  paddingTop: `${Math.min(config.postFeed.paddingTop || 12, 12)}px`,
-                                  paddingBottom: `${Math.min(config.postFeed.paddingBottom || 12, 12)}px`,
-                                }}
-                              >
-                                {/* 1. Header: Title & Description & Contextual Follow Button */}
-                                {isProfileLayout ? (
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "space-between",
-                                      padding: "4px 8px 6px",
-                                      gap: "8px",
-                                    }}
-                                  >
-                                    {/* Left: Avatar + Heading & Subheading */}
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
-                                      <div
-                                        style={{
-                                          width: "34px",
-                                          height: "34px",
-                                          minWidth: "34px",
-                                          minHeight: "34px",
-                                          borderRadius: "50%",
-                                          overflow: "hidden",
-                                          flexShrink: 0,
-                                          background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)",
-                                          padding: "2px",
-                                          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                          boxSizing: "border-box",
-                                        }}
-                                      >
-                                        {profilePic ? (
-                                          <img
-                                            src={profilePic}
-                                            alt={handle || "Profile"}
-                                            style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", display: "block" }}
-                                          />
-                                        ) : (
-                                          <div
-                                            style={{
-                                              width: "100%",
-                                              height: "100%",
-                                              borderRadius: "50%",
-                                              background: "#ffffff",
-                                              display: "flex",
-                                              alignItems: "center",
-                                              justifyContent: "center",
-                                            }}
-                                          >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#833ab4">
-                                              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                                            </svg>
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
-                                        {config.postFeed.header && config.postFeed.heading?.trim() && (
-                                          <h4
-                                            style={{
-                                              fontSize: `${Math.min(config.postFeed.typography.heading.size, 13)}px`,
-                                              fontWeight: config.postFeed.typography.heading.weight || "700",
-                                              color: config.postFeed.typography.heading.color,
-                                              margin: 0,
-                                              lineHeight: 1.25,
-                                              wordBreak: "break-word",
-                                            }}
-                                          >
-                                            {formatDynamicAccountText(config.postFeed.heading)}
-                                          </h4>
-                                        )}
-                                        {config.postFeed.header && config.postFeed.subheading?.trim() && (
-                                          <p
-                                            style={{
-                                              fontSize: `${Math.min(config.postFeed.typography.subheading.size, 10.5)}px`,
-                                              color: config.postFeed.typography.subheading.color,
-                                              margin: "2px 0 0 0",
-                                              lineHeight: 1.3,
-                                              wordBreak: "break-word",
-                                            }}
-                                          >
-                                            {formatDynamicAccountText(config.postFeed.subheading)}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* Right: Follow Button */}
-                                    {showHeaderFollow && (
-                                      <div style={{ flexShrink: 0, marginLeft: "auto" }}>
-                                        <a
-                                          href={`https://instagram.com/${handle}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="ai-follow-btn"
-                                          style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: "5px",
-                                            padding: "4px 9px",
-                                            borderRadius: "16px",
-                                            background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)",
-                                            color: "#ffffff",
-                                            fontWeight: "700",
-                                            fontSize: "9.5px",
-                                            textDecoration: "none",
-                                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                                            whiteSpace: "nowrap",
-                                          }}
-                                        >
-                                          <svg width="11" height="11" viewBox="0 0 24 24" fill="white">
-                                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                                          </svg>
-                                          <span>Follow</span>
-                                        </a>
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  (config.postFeed.header || showHeaderFollow) && (
-                                    <div style={{ padding: "4px 8px 0", textAlign: config.postFeed.alignment }}>
-                                      {config.postFeed.header && config.postFeed.heading?.trim() && (
-                                        <h4
-                                          style={{
-                                            fontSize: `${config.postFeed.typography.heading.size}px`,
-                                            fontWeight: config.postFeed.typography.heading.weight,
-                                            color: config.postFeed.typography.heading.color,
-                                            margin: "0 0 2px 0",
-                                          }}
-                                        >
-                                          {formatDynamicAccountText(config.postFeed.heading)}
-                                        </h4>
-                                      )}
-                                      {config.postFeed.header && config.postFeed.subheading?.trim() && (
-                                        <p
-                                          style={{
-                                            fontSize: `${config.postFeed.typography.subheading.size}px`,
-                                            color: config.postFeed.typography.subheading.color,
-                                            margin: 0,
-                                          }}
-                                        >
-                                          {formatDynamicAccountText(config.postFeed.subheading)}
-                                        </p>
-                                      )}
-                                      {showHeaderFollow && renderFollowButton(true)}
-                                    </div>
-                                  )
-                                )}
-
-                                {/* 2. Story Highlights Bar (images by default, threshold >= 6 posts) */}
-                                {showStorySection && storyMedia.length > 0 && (
-                                  <div style={{ display: "flex", gap: "6px", padding: "4px 6px 4px", overflowX: "auto" }}>
-                                    {config.stories.promoEnable !== false && renderPromoStoryItem()}
-                                    {storyMedia.slice(0, 8).map((item, i) => renderStoryItem(item, i))}
-                                  </div>
-                                )}
-
-                                {/* 3. Feed Display (Grid, Carousel, Masonry, Highlight, Reels, Marquee) */}
-                                {renderPreviewFeed(true)}
-
-                                {/* 4. Bottom Follow Button (when configured for bottom) */}
-                                {showBottomFollow && renderFollowButton(false)}
-                              </div>
-                            </div>
+                            />
+                            Live Sync Active
                           </div>
-                        </div>
-                      ) : (
-                        /* Desktop Frame Simulator */
-                        <div
-                          style={{
-                            width: "100%",
-                            background: "white",
-                            borderRadius: "12px",
-                            border: "1px solid #e2e8f0",
-                            padding: "12px",
-                            overflowY: "auto",
-                            maxHeight: "560px",
-                          }}
-                        >
-                          <div>
-                            {/* 1. Header: Title & Description & Contextual Follow Button */}
-                            {isProfileLayout ? (
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  padding: "4px 4px 12px",
-                                  gap: "14px",
-                                  marginBottom: "8px",
-                                }}
-                              >
-                                {/* Left: Avatar + Heading & Subheading */}
-                                <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
-                                  <div
-                                    style={{
-                                      width: "42px",
-                                      height: "42px",
-                                      minWidth: "42px",
-                                      minHeight: "42px",
-                                      borderRadius: "50%",
-                                      overflow: "hidden",
-                                      flexShrink: 0,
-                                      background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)",
-                                      padding: "2px",
-                                      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      boxSizing: "border-box",
-                                    }}
-                                  >
-                                    {profilePic ? (
-                                      <img
-                                        src={profilePic}
-                                        alt={handle || "Profile"}
-                                        style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", display: "block" }}
-                                      />
-                                    ) : (
-                                      <div
-                                        style={{
-                                          width: "100%",
-                                          height: "100%",
-                                          borderRadius: "50%",
-                                          background: "#ffffff",
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                        }}
-                                      >
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#833ab4">
-                                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                                        </svg>
-                                      </div>
-                                    )}
-                                  </div>
+                        </InlineStack>
 
-                                  <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
-                                    {config.postFeed.header && config.postFeed.heading?.trim() && (
-                                      <h4
-                                        style={{
-                                          fontSize: `${config.postFeed.typography.heading.size}px`,
-                                          fontWeight: config.postFeed.typography.heading.weight || "700",
-                                          color: config.postFeed.typography.heading.color,
-                                          margin: "0 0 2px 0",
-                                          lineHeight: 1.25,
-                                          wordBreak: "break-word",
-                                        }}
-                                      >
-                                        {formatDynamicAccountText(config.postFeed.heading)}
-                                      </h4>
-                                    )}
-                                    {config.postFeed.header && config.postFeed.subheading?.trim() && (
-                                      <p
-                                        style={{
-                                          fontSize: `${config.postFeed.typography.subheading.size}px`,
-                                          color: config.postFeed.typography.subheading.color,
-                                          margin: 0,
-                                          lineHeight: 1.3,
-                                          wordBreak: "break-word",
-                                        }}
-                                      >
-                                        {formatDynamicAccountText(config.postFeed.subheading)}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
+                        <InlineStack gap="200" blockAlign="center" wrap>
+                          <ButtonGroup variant="segmented">
+                            <Button
+                              pressed={previewDevice === "desktop"}
+                              icon={DesktopIcon}
+                              size="slim"
+                              onClick={() => setPreviewDevice("desktop")}
+                              accessibilityLabel="Desktop view"
+                            />
+                            <Button
+                              pressed={previewDevice === "mobile"}
+                              icon={MobileIcon}
+                              size="slim"
+                              onClick={() => setPreviewDevice("mobile")}
+                              accessibilityLabel="Mobile view"
+                            />
+                          </ButtonGroup>
 
-                                {/* Right: Follow Button */}
-                                {showHeaderFollow && (
-                                  <div style={{ flexShrink: 0, marginLeft: "auto" }}>
-                                    <a
-                                      href={`https://instagram.com/${handle}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="ai-follow-btn"
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "6px",
-                                        padding: "5px 14px",
-                                        borderRadius: "18px",
-                                        background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)",
-                                        color: "#ffffff",
-                                        fontWeight: "700",
-                                        fontSize: "11px",
-                                        textDecoration: "none",
-                                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
-                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
-                                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                                      </svg>
-                                      <span>Follow</span>
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              (config.postFeed.header || showHeaderFollow) && (
-                                <div style={{ textAlign: config.postFeed.alignment, marginBottom: "8px" }}>
-                                  {config.postFeed.header && config.postFeed.heading?.trim() && (
-                                    <h4
-                                      style={{
-                                        fontSize: `${config.postFeed.typography.heading.size}px`,
-                                        fontWeight: config.postFeed.typography.heading.weight,
-                                        color: config.postFeed.typography.heading.color,
-                                        margin: "0 0 4px 0",
-                                      }}
-                                    >
-                                      {formatDynamicAccountText(config.postFeed.heading)}
-                                    </h4>
-                                  )}
-                                  {config.postFeed.header && config.postFeed.subheading?.trim() && (
-                                    <p style={{ fontSize: `${config.postFeed.typography.subheading.size}px`, color: config.postFeed.typography.subheading.color, margin: 0 }}>
-                                      {formatDynamicAccountText(config.postFeed.subheading)}
-                                    </p>
-                                  )}
-                                  {showHeaderFollow && renderFollowButton(true)}
-                                </div>
-                              )
-                            )}
+                          <Button
+                            size="slim"
+                            variant={isEditingDesign ? "secondary" : "primary"}
+                            icon={EditIcon}
+                            onClick={() => setIsEditingDesign(!isEditingDesign)}
+                          >
+                            {isEditingDesign ? "Close Editor" : "Customize Feed"}
+                          </Button>
+                        </InlineStack>
+                      </InlineStack>
 
-                            {/* 2. Story Highlights Bar (images by default, threshold >= 6 posts) */}
-                            {showStorySection && storyMedia.length > 0 && (
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: "8px",
-                                  justifyContent: config.postFeed.alignment === "center" ? "center" : "flex-start",
-                                  overflowX: "auto",
-                                  padding: "4px 0 8px",
-                                }}
-                              >
-                                {config.stories.promoEnable !== false && renderPromoStoryItem()}
-                                {storyMedia.slice(0, 10).map((item, i) => renderStoryItem(item, i))}
-                              </div>
-                            )}
+                      <Divider />
 
-                            {/* 3. Feed Display (Grid, Carousel, Masonry, Highlight, Reels, Marquee) */}
-                            {renderPreviewFeed(false)}
+                      {/* Storefront Embed Frame */}
+                      <div
+                        id="storefront-feed-frame-wrapper"
+                        style={{
+                          width: "100%",
+                          maxWidth: previewDevice === "mobile" ? "390px" : "100%",
+                          margin: "0 auto",
+                          transition: "max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                          background: "#ffffff",
+                          borderRadius: "12px",
+                          boxShadow: previewDevice === "mobile" ? "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" : "none",
+                          border: previewDevice === "mobile" ? "1px solid #e2e8f0" : "none",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {renderStorefrontEmbedFeed()}
+                      </div>
+                    </BlockStack>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </>
+        ) : (
+          <Card padding="500">
+            <div
+              style={{
+                maxWidth: "520px",
+                margin: "0 auto",
+                textAlign: "center",
+                padding: "16px 8px",
+              }}
+            >
+              {/* ── Visual Illustration (Matching User Screenshot Graphic) ── */}
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+                <svg width="220" height="145" viewBox="0 0 220 145" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Soft background arch base */}
+                  <path d="M15 145C15 92.5329 57.5329 50 110 50C162.467 50 205 92.5329 205 145H15Z" fill="#F1F5F9" />
 
-                            {/* 4. Bottom Follow Button (when configured for bottom) */}
-                            {showBottomFollow && renderFollowButton(false)}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </BlockStack>
+                  {/* Gradient Definitions */}
+                  <defs>
+                    <linearGradient id="quickSetupArchGrad" x1="110" y1="16" x2="110" y2="120" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#4F46E5" />
+                      <stop offset="50%" stopColor="#7C3AED" />
+                      <stop offset="100%" stopColor="#A855F7" />
+                    </linearGradient>
+                    <filter id="quickSetupYellowBadgeShadow" x="38" y="4" width="36" height="36" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.18" />
+                    </filter>
+                  </defs>
+
+                  {/* Main Arched Purple Pill */}
+                  <path d="M60 62C60 34.3858 82.3858 12 110 12C137.614 12 160 34.3858 160 62V105C160 110.523 155.523 115 150 115H70C64.4772 115 60 110.523 60 105V62Z" fill="url(#quickSetupArchGrad)" />
+
+                  {/* 4-Point Star Sparkles */}
+                  <path d="M146 32C146 32 147.5 36.5 151 36.5C147.5 36.5 146 41 146 41C146 41 144.5 36.5 141 36.5C144.5 36.5 146 32 146 32Z" fill="white" opacity="0.95" />
+                  <path d="M126 18C126 18 127.2 21.5 129.5 21.5C127.2 21.5 126 25 126 25C126 25 124.8 21.5 122.5 21.5C124.8 21.5 126 18 126 18Z" fill="white" opacity="0.85" />
+                  <circle cx="154" cy="46" r="1.5" fill="white" opacity="0.8" />
+
+                  {/* Stacked Disc Platforms at bottom */}
+                  <ellipse cx="110" cy="116" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
+                  <ellipse cx="110" cy="113" rx="34" ry="7" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="1.5" />
+                  <ellipse cx="110" cy="103" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
+                  <ellipse cx="110" cy="100" rx="34" ry="7" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1.5" />
+                  <ellipse cx="110" cy="90" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
+                  <ellipse cx="110" cy="87" rx="34" ry="7" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1.5" />
+
+                  {/* Window / App Embed card icon */}
+                  <rect x="80" y="38" width="34" height="26" rx="3" fill="#FFFFFF" opacity="0.35" />
+                  <rect x="85" y="43" width="38" height="28" rx="4" fill="#FFFFFF" stroke="#6366F1" strokeWidth="1.5" />
+                  <path d="M85 50H123" stroke="#CBD5E1" strokeWidth="1.5" />
+                  <circle cx="90" cy="47" r="1.2" fill="#94A3B8" />
+                  <circle cx="94" cy="47" r="1.2" fill="#94A3B8" />
+                  <circle cx="98" cy="47" r="1.2" fill="#94A3B8" />
+
+                  {/* Mouse Cursor Click */}
+                  <g transform="translate(112, 54)">
+                    <path d="M0 0L4 12L7.5 8.5L12 13L13.5 11.5L9 7L13 5L0 0Z" fill="#6366F1" stroke="#FFFFFF" strokeWidth="1.5" strokeLinejoin="round" />
+                  </g>
+
+                  {/* Yellow Warning Exclamation Badge Top Left */}
+                  <g filter="url(#quickSetupYellowBadgeShadow)">
+                    <circle cx="56" cy="18" r="14" fill="#FDE047" stroke="#FEF08A" strokeWidth="2" />
+                    <text x="56" y="23" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontWeight="900" fontSize="16" fill="#854D0E" textAnchor="middle">!</text>
+                  </g>
+                </svg>
+              </div>
+
+              {/* ── Title & Subtitle ── */}
+              <div style={{ marginBottom: "20px" }}>
+                <h2
+                  style={{
+                    margin: "0 0 6px",
+                    fontSize: "20px",
+                    fontWeight: "700",
+                    color: "#18181b",
+                    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                  }}
+                >
+                  Quick Setup is required
+                </h2>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "14px",
+                    color: "#64748b",
+                    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                  }}
+                >
+                  Please follow the steps below to activate this feature
+                </p>
+              </div>
+
+              {/* ── Step Container Box ── */}
+              <div
+                style={{
+                  border: "1px solid #bae6fd",
+                  borderRadius: "12px",
+                  background: "#ffffff",
+                  padding: "20px 22px",
+                  textAlign: "left",
+                  marginBottom: "20px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {/* Step 1 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                    <div
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "50%",
+                        background: setupStep3 ? "#dcfce7" : "#eff6ff",
+                        color: setupStep3 ? "#16a34a" : "#2563eb",
+                        fontWeight: "700",
+                        fontSize: "14px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {setupStep3 ? "✓" : "1"}
+                    </div>
+                    <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
+                      Go to{" "}
+                      <a
+                        href={themeActivateEmbedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#2563eb", textDecoration: "underline", fontWeight: "600" }}
+                      >
+                        App embed
+                      </a>{" "}
+                      in your Theme Editor
+                    </div>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                    <div
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "50%",
+                        background: "#eff6ff",
+                        color: "#2563eb",
+                        fontWeight: "700",
+                        fontSize: "14px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      2
+                    </div>
+                    <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
+                      Click <strong>Save</strong> at top right corner
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                    <div
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "50%",
+                        background: "#eff6ff",
+                        color: "#2563eb",
+                        fontWeight: "700",
+                        fontSize: "14px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      3
+                    </div>
+                    <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
+                      Click below button to verify your settings
+                    </div>
+                  </div>
                 </div>
-              </Card>
-          </div>
-        </div>
+              </div>
+
+              {/* ── Action Button ── */}
+              <button
+                type="button"
+                onClick={handleVerifyEmbed}
+                disabled={isVerifyingEmbed}
+                style={{
+                  background: isVerifyingEmbed ? "#52525b" : "#27272a",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 28px",
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  cursor: isVerifyingEmbed ? "not-allowed" : "pointer",
+                  boxShadow: "0 4px 8px rgba(0, 0, 0, 0.18)",
+                  transition: "all 0.15s ease",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isVerifyingEmbed) e.currentTarget.style.background = "#18181b";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isVerifyingEmbed) e.currentTarget.style.background = "#27272a";
+                }}
+              >
+                {isVerifyingEmbed ? "Verifying..." : "Verify Now"}
+              </button>
+            </div>
+          </Card>
+        )}
 
         {/* ── High-Fidelity Instagram Storefront Modal (Identical to Storefront) ── */}
         {selectedPost && (() => {

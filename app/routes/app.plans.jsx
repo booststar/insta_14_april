@@ -399,7 +399,7 @@ export default function Plans() {
 
             <Divider />
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
               {featureCategories.map((cat, idx) => (
                 <Box key={idx} padding="300" background="bg-surface-secondary" borderRadius="200">
                   <BlockStack gap="300">

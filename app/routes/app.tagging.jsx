@@ -610,37 +610,39 @@ export default function ProductTaggingPage() {
         {/* Filter Toolbar & Grid */}
         <Card padding="400">
           <BlockStack gap="400">
-            <InlineStack align="space-between" blockAlign="center" gap="400">
-              <ButtonGroup variant="segmented">
-                <Button
-                  pressed={activeFilter === "all"}
-                  onClick={() => setActiveFilter("all")}
-                >
-                  All Posts ({totalPostsCount})
-                </Button>
-                <Button
-                  pressed={activeFilter === "tagged"}
-                  onClick={() => setActiveFilter("tagged")}
-                >
-                  Tagged ({taggedPostsCount})
-                </Button>
-                <Button
-                  pressed={activeFilter === "untagged"}
-                  onClick={() => setActiveFilter("untagged")}
-                >
-                  Untagged ({untaggedPostsCount})
-                </Button>
-                {totalSmartMatchesCount > 0 && (
+            <InlineStack align="space-between" blockAlign="center" gap="400" wrap>
+              <div style={{ maxWidth: "100%", overflowX: "auto", paddingBottom: "2px" }}>
+                <ButtonGroup variant="segmented">
                   <Button
-                    pressed={activeFilter === "suggested"}
-                    onClick={() => setActiveFilter("suggested")}
+                    pressed={activeFilter === "all"}
+                    onClick={() => setActiveFilter("all")}
                   >
-                    Suggested ({totalSmartMatchesCount})
+                    All Posts ({totalPostsCount})
                   </Button>
-                )}
-              </ButtonGroup>
+                  <Button
+                    pressed={activeFilter === "tagged"}
+                    onClick={() => setActiveFilter("tagged")}
+                  >
+                    Tagged ({taggedPostsCount})
+                  </Button>
+                  <Button
+                    pressed={activeFilter === "untagged"}
+                    onClick={() => setActiveFilter("untagged")}
+                  >
+                    Untagged ({untaggedPostsCount})
+                  </Button>
+                  {totalSmartMatchesCount > 0 && (
+                    <Button
+                      pressed={activeFilter === "suggested"}
+                      onClick={() => setActiveFilter("suggested")}
+                    >
+                      Suggested ({totalSmartMatchesCount})
+                    </Button>
+                  )}
+                </ButtonGroup>
+              </div>
 
-              <div style={{ width: "300px" }}>
+              <div style={{ width: "100%", maxWidth: "300px", minWidth: "220px", flex: "1 1 220px" }}>
                 <TextField
                   placeholder="Search caption or tagged product..."
                   value={searchQuery}
@@ -670,56 +672,58 @@ export default function ProductTaggingPage() {
                   flexDirection: "column",
                   border: "1px solid #e2e8f0",
                   borderRadius: "10px",
-                  overflow: "hidden",
+                  overflowX: "auto",
+                  WebkitOverflowScrolling: "touch",
                   background: "#ffffff",
                 }}
               >
-                {/* List Table Header */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "64px minmax(200px, 1.8fr) minmax(220px, 2fr) 140px",
-                    gap: "16px",
-                    padding: "10px 16px",
-                    background: "#f8fafc",
-                    borderBottom: "1px solid #e2e8f0",
-                    fontSize: "12px",
-                    fontWeight: "600",
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.03em",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>Media</div>
-                  <div>Post Caption</div>
-                  <div>Tagged Products / Match</div>
-                  <div style={{ textAlign: "right" }}>Actions</div>
-                </div>
+                <div style={{ minWidth: "680px", display: "flex", flexDirection: "column" }}>
+                  {/* List Table Header */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "64px minmax(180px, 1.8fr) minmax(220px, 2fr) 140px",
+                      gap: "16px",
+                      padding: "10px 16px",
+                      background: "#f8fafc",
+                      borderBottom: "1px solid #e2e8f0",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#64748b",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.03em",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div>Media</div>
+                    <div>Post Caption</div>
+                    <div>Tagged Products / Match</div>
+                    <div style={{ textAlign: "right" }}>Actions</div>
+                  </div>
 
-                {/* List Rows */}
-                {filteredMedia.map((post, index) => {
-                  const postId = post.id || post.media_url;
-                  const tags = taggedProducts[postId] || [];
-                  const suggestions = smartMatches[postId] || [];
-                  const rawType = (post.media_type || "").toUpperCase();
-                  const isVideo =
-                    rawType === "VIDEO" ||
-                    rawType === "REEL" ||
-                    (post.media_url && post.media_url.toLowerCase().includes(".mp4"));
+                  {/* List Rows */}
+                  {filteredMedia.map((post, index) => {
+                    const postId = post.id || post.media_url;
+                    const tags = taggedProducts[postId] || [];
+                    const suggestions = smartMatches[postId] || [];
+                    const rawType = (post.media_type || "").toUpperCase();
+                    const isVideo =
+                      rawType === "VIDEO" ||
+                      rawType === "REEL" ||
+                      (post.media_url && post.media_url.toLowerCase().includes(".mp4"));
 
-                  return (
-                    <div
-                      key={postId}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "64px minmax(200px, 1.8fr) minmax(220px, 2fr) 140px",
-                        gap: "16px",
-                        padding: "10px 16px",
-                        borderBottom: index < filteredMedia.length - 1 ? "1px solid #f1f5f9" : "none",
-                        alignItems: "center",
-                        transition: "background-color 0.15s ease",
-                      }}
+                    return (
+                      <div
+                        key={postId}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "64px minmax(180px, 1.8fr) minmax(220px, 2fr) 140px",
+                          gap: "16px",
+                          padding: "10px 16px",
+                          borderBottom: index < filteredMedia.length - 1 ? "1px solid #f1f5f9" : "none",
+                          alignItems: "center",
+                          transition: "background-color 0.15s ease",
+                        }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f8fafc")}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                     >
@@ -886,6 +890,7 @@ export default function ProductTaggingPage() {
                     </div>
                   );
                 })}
+                </div>
               </div>
             )}
           </BlockStack>
@@ -908,7 +913,7 @@ export default function ProductTaggingPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.1fr 1fr",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
                 gap: "24px",
                 minHeight: "480px",
               }}
