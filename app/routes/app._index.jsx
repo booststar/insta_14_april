@@ -7,6 +7,7 @@ import { withRateLimit, trackApiResponse } from "../rateLimiter.server";
 import { invalidateResource, cacheGetOrSet } from "../cache.server";
 import { detectProductMatches } from "../utils/productMatcher";
 import { sendSupportEmail } from "../utils/email.server";
+import prisma from "../db.server.js";
 import {
   Page,
   Layout,
@@ -311,6 +312,28 @@ export const loader = async ({ request }) => {
     clientId
   );
 
+  let analyticsSummary = { views: 0, clicks: 0, ctr: "0.0", recentDaysCount: 0 };
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const metrics = await prisma.feedMetric.findMany({
+      where: {
+        shop,
+        date: { gte: thirtyDaysAgo },
+      },
+      orderBy: { date: "desc" },
+    });
+    let views = 0;
+    let clicks = 0;
+    for (const m of metrics) {
+      views += m.views || 0;
+      clicks += m.clicks || 0;
+    }
+    const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : "0.0";
+    analyticsSummary = { views, clicks, ctr, recentDaysCount: metrics.length };
+  } catch (err) {
+    console.warn("[app._index] Failed to fetch feed metrics summary:", err.message);
+  }
+
   return {
     config: config ? JSON.stringify(config) : null,
     instaData: instaData ? JSON.stringify(instaData) : null,
@@ -323,6 +346,7 @@ export const loader = async ({ request }) => {
     clientId,
     dynamicAppEmbedEnabled,
     dynamicSections,
+    analyticsSummary,
   };
 };
 
@@ -1527,8 +1551,8 @@ function UnifiedConfigurator({
                   key={template.id}
                   onClick={() => onApplyTemplate(template)}
                   style={{
-                    border: isMatching ? "2px solid #16a34a" : "1px solid #e1e3e5",
-                    background: isMatching ? "#f0fdf4" : "#ffffff",
+                    border: isMatching ? "2px solid #303030" : "1px solid #e1e3e5",
+                    background: isMatching ? "#f8fafc" : "#ffffff",
                     borderRadius: "8px",
                     padding: "12px",
                     cursor: "pointer",
@@ -1536,7 +1560,7 @@ function UnifiedConfigurator({
                     flexDirection: "column",
                     justifyContent: "space-between",
                     gap: "10px",
-                    boxShadow: isMatching ? "0 0 0 1px #16a34a" : "none",
+                    boxShadow: isMatching ? "0 0 0 1px #303030" : "none",
                     transition: "all 0.15s ease",
                   }}
                 >
@@ -1558,7 +1582,6 @@ function UnifiedConfigurator({
                     size="slim"
                     fullWidth
                     variant={isMatching ? "primary" : "secondary"}
-                    tone={isMatching ? "success" : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
                       onApplyTemplate(template);
@@ -4285,7 +4308,7 @@ export default function Index() {
                 {totalSuggestionsCount > 0 && (
                   <Button
                     size="slim"
-                    tone="success"
+                    variant="primary"
                     onClick={handleApproveAllHighConfidence}
                   >
                     {`Approve AI Tags (${totalSuggestionsCount})`}
@@ -4301,6 +4324,140 @@ export default function Index() {
             </InlineStack>
           </Card>
         )}
+
+        {/* ── Key Performance Metrics Overview Card (Simplified monitoring in Admin) ── */}
+        <Card padding="400">
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+              <InlineStack gap="200" blockAlign="center">
+                <Text variant="headingSm" as="h3" fontWeight="bold">
+                  Feed Performance & Monitoring
+                </Text>
+                <Badge tone="info">Last 30 Days</Badge>
+              </InlineStack>
+              <Button
+                size="slim"
+                variant="plain"
+                icon={ViewIcon}
+                onClick={() => navigate("/app/analytics")}
+              >
+                View Detailed Analytics & Reports →
+              </Button>
+            </InlineStack>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "12px",
+              }}
+            >
+              {/* Metric 1: Storefront Impressions */}
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "12px 14px",
+                }}
+              >
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                    Storefront Views
+                  </Text>
+                  <span style={{ fontSize: "14px" }}>👀</span>
+                </InlineStack>
+                <div style={{ marginTop: "4px" }}>
+                  <Text variant="headingLg" as="p" fontWeight="bold">
+                    {(loaderData.analyticsSummary?.views || 0).toLocaleString()}
+                  </Text>
+                </div>
+                <Text variant="bodyXs" tone="subdued">
+                  Feed widget impressions
+                </Text>
+              </div>
+
+              {/* Metric 2: Product & Tag Clicks */}
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "12px 14px",
+                }}
+              >
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                    Product Clicks
+                  </Text>
+                  <span style={{ fontSize: "14px" }}>🛍️</span>
+                </InlineStack>
+                <div style={{ marginTop: "4px" }}>
+                  <Text variant="headingLg" as="p" fontWeight="bold">
+                    {(loaderData.analyticsSummary?.clicks || 0).toLocaleString()}
+                  </Text>
+                </div>
+                <Text variant="bodyXs" tone="subdued">
+                  Hotspot & popup link taps
+                </Text>
+              </div>
+
+              {/* Metric 3: Click-Through Rate */}
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "12px 14px",
+                }}
+              >
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                    Click-Through Rate
+                  </Text>
+                  <Badge tone={Number(loaderData.analyticsSummary?.ctr || 0) > 0 ? "success" : "subdued"}>
+                    {loaderData.analyticsSummary?.ctr || "0.0"}% CTR
+                  </Badge>
+                </InlineStack>
+                <div style={{ marginTop: "4px" }}>
+                  <Text variant="headingLg" as="p" fontWeight="bold">
+                    {loaderData.analyticsSummary?.ctr || "0.0"}%
+                  </Text>
+                </div>
+                <Text variant="bodyXs" tone="subdued">
+                  Clicks per impression
+                </Text>
+              </div>
+
+              {/* Metric 4: Shoppable Feed Status */}
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "12px 14px",
+                }}
+              >
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                    Shoppable Posts
+                  </Text>
+                  <Badge tone={taggingStats.taggedPosts > 0 ? "success" : "subdued"}>
+                    {taggingStats.shoppableRate}%
+                  </Badge>
+                </InlineStack>
+                <div style={{ marginTop: "4px" }}>
+                  <Text variant="headingLg" as="p" fontWeight="bold">
+                    {taggingStats.taggedPosts} / {taggingStats.totalPosts}
+                  </Text>
+                </div>
+                <Text variant="bodyXs" tone="subdued">
+                  {taggingStats.totalPins} active product tags
+                </Text>
+              </div>
+            </div>
+          </BlockStack>
+        </Card>
 
         {/* ── 3. Main Dashboard Layout (Configurator & Live Preview) ── */}
         <div
@@ -4506,7 +4663,7 @@ export default function Index() {
                             ⚡ Auto-Detect Matches
                           </Button>
                           {totalSuggestionsCount > 0 && (
-                            <Button size="slim" variant="primary" tone="success" onClick={handleApproveAllHighConfidence}>
+                            <Button size="slim" variant="primary" onClick={handleApproveAllHighConfidence}>
                               ✓ Approve All ({totalSuggestionsCount})
                             </Button>
                           )}
@@ -5656,7 +5813,6 @@ export default function Index() {
                                       <Button
                                         size="micro"
                                         variant="primary"
-                                        tone="success"
                                         onClick={() => handleApproveSuggestion(postId, sug)}
                                       >
                                         Add Tag

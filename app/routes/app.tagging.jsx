@@ -533,7 +533,6 @@ export default function ProductTaggingPage() {
                   <Button
                     size="slim"
                     variant="primary"
-                    tone="success"
                     icon={CheckCircleIcon}
                     onClick={handleApproveAllMatches}
                   >
@@ -1001,7 +1000,6 @@ export default function ProductTaggingPage() {
                       </div>
                       <Button
                         size="micro"
-                        tone="success"
                         variant="primary"
                         onClick={() =>
                           handleApproveMatch(
@@ -1070,36 +1068,59 @@ export default function ProductTaggingPage() {
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "space-between",
-                                  padding: "8px",
+                                  padding: "8px 12px",
+                                  gap: "12px",
                                   background: isAlreadyTagged ? "#f8fafc" : "#ffffff",
                                   border: "1px solid #e2e8f0",
-                                  borderRadius: "6px",
+                                  borderRadius: "8px",
                                   cursor: isAlreadyTagged ? "not-allowed" : "pointer",
                                   opacity: isAlreadyTagged ? 0.7 : 1,
+                                  transition: "background 0.15s ease, border-color 0.15s ease",
                                 }}
                               >
-                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
                                   {p.image ? (
                                     <img
                                       src={p.image}
                                       alt={p.title}
-                                      style={{ width: "32px", height: "32px", borderRadius: "4px", objectFit: "cover" }}
+                                      style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover", flexShrink: 0 }}
                                     />
                                   ) : (
-                                    <div style={{ width: "32px", height: "32px", borderRadius: "4px", background: "#e2e8f0" }} />
+                                    <div style={{ width: "36px", height: "36px", borderRadius: "6px", background: "#e2e8f0", flexShrink: 0 }} />
                                   )}
-                                  <div>
-                                    <div style={{ fontSize: "13px", fontWeight: "600", color: "#0f172a" }}>{p.title}</div>
-                                    <div style={{ fontSize: "11px", color: "#64748b" }}>${p.price}</div>
+                                  <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div
+                                      style={{
+                                        fontSize: "13px",
+                                        fontWeight: "600",
+                                        color: "#0f172a",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                      title={p.title}
+                                    >
+                                      {p.title}
+                                    </div>
+                                    <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>${p.price}</div>
                                   </div>
                                 </div>
-                                {isAlreadyTagged ? (
-                                  <Badge tone="success">Tagged</Badge>
-                                ) : (
-                                  <Button size="micro" variant="primary">
-                                    Select
-                                  </Button>
-                                )}
+                                <div style={{ flexShrink: 0 }}>
+                                  {isAlreadyTagged ? (
+                                    <Badge tone="success">Tagged</Badge>
+                                  ) : (
+                                    <Button
+                                      size="slim"
+                                      variant="secondary"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddProductPin(p);
+                                      }}
+                                    >
+                                      Select
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             );
                           })
