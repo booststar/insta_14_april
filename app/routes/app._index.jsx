@@ -54,6 +54,7 @@ import {
   CheckCircleIcon,
   EditIcon,
   MagicIcon,
+  SettingsIcon,
 } from "@shopify/polaris-icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2803,12 +2804,36 @@ export default function Index() {
     return config.instagramHandle.trim().toLowerCase() === instaData.username?.toLowerCase();
   }, [instaData, config.instagramHandle]);
 
+  // Top 3-step essential setup: Connect -> Add Section -> Enable Embed
   const setupStep1 = isConnected;
-  const setupStep2 = !!dynamicSectionActive;
-  const setupStep3 = !!dynamicEmbedActive;
-  const welcomeCompletedSteps = (setupStep1 ? 1 : 0) + (setupStep2 ? 1 : 0) + (setupStep3 ? 1 : 0);
+  const setupStep2 = !!dynamicSectionActive; // Add to Homepage
+  const setupStep3 = !!dynamicEmbedActive; // Enable App Embed
+
+  // 5-step comprehensive onboarding guide (includes optional steps):
+  const onboardingStep1Done = isConnected;
+  const onboardingStep2Done = true; // Choose Design & Layout (active template ready)
+  const onboardingStep3Done = Object.values(config?.taggedProducts || {}).some((pins) => Array.isArray(pins) && pins.length > 0); // Tag Products (Optional)
+  const onboardingStep4Done = !!dynamicEmbedActive; // Enable App Embed
+  const onboardingStep5Done = !!dynamicSectionActive; // Add Section to Theme
+
+  // Core requirements to unlock analytics and preview: connect, embed, section
   const allTasksDone = setupStep1 && setupStep2 && setupStep3;
   const isAllSetupComplete = allTasksDone;
+
+  const welcomeCompletedSteps =
+    (setupStep1 ? 1 : 0) +
+    (setupStep2 ? 1 : 0) +
+    (setupStep3 ? 1 : 0);
+
+  const onboardingCompletedCount =
+    (onboardingStep1Done ? 1 : 0) +
+    (onboardingStep2Done ? 1 : 0) +
+    (onboardingStep3Done ? 1 : 0) +
+    (onboardingStep4Done ? 1 : 0) +
+    (onboardingStep5Done ? 1 : 0);
+
+  const [onboardingActiveStep, setOnboardingActiveStep] = useState(1);
+  const [onboardingFaqOpen, setOnboardingFaqOpen] = useState(null);
 
   const shopSubdomain = (shop || "").replace(".myshopify.com", "");
   const adminBaseUrl = shopSubdomain
@@ -2864,16 +2889,6 @@ export default function Index() {
     setIsConnectExpanded(!isConnected);
     setIsSetupExpanded(isConnected && !isAllSetupComplete);
   }, [isConnected, isAllSetupComplete]);
-
-  // Auto-open Welcome / Setup Guide Modal for new installs or unlinked merchants
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const isDismissed = localStorage.getItem("setup_modal_dismissed") === "1";
-      if (!isDismissed && !isConnected) {
-        setIsSetupModalOpen(true);
-      }
-    }
-  }, [isConnected]);
 
   // ── Handle Fetcher Responses ──
   useEffect(() => {
@@ -6219,6 +6234,290 @@ export default function Index() {
                   Write a 5-Star Review & Claim Perks ⭐⭐⭐⭐⭐
                 </Button>
               </div>
+            </BlockStack>
+          </Card>
+        )}
+
+        {/* ── 8. Onboarding Guide (Bottom of Page - Minimal Text & Optional Steps) ── */}
+        {!isOnboardingDismissed && (
+          <Card padding="400">
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                <InlineStack gap="200" blockAlign="center" wrap>
+                  <Text variant="headingSm" as="h3" fontWeight="bold">
+                    Setup & Onboarding Guide
+                  </Text>
+                  <Badge tone={onboardingCompletedCount === 5 ? "success" : "info"}>
+                    {`${onboardingCompletedCount} of 5 completed`}
+                  </Badge>
+                  <Badge tone="subdued">Optional steps included</Badge>
+                </InlineStack>
+                <InlineStack gap="200" blockAlign="center">
+                  <Button
+                    variant="plain"
+                    size="slim"
+                    onClick={handleDismissOnboarding}
+                    accessibilityLabel="Dismiss onboarding guide"
+                  >
+                    Dismiss
+                  </Button>
+                </InlineStack>
+              </InlineStack>
+
+              <ProgressBar
+                progress={(onboardingCompletedCount / 5) * 100}
+                tone={onboardingCompletedCount === 5 ? "success" : "highlight"}
+                size="small"
+              />
+
+              <BlockStack gap="200">
+                {/* Step 1: Connect Instagram */}
+                <Box
+                  padding="200"
+                  background={onboardingStep1Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep1Done ? "border-success" : "border"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: onboardingStep1Done ? "#10b981" : "#4f46e5",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {onboardingStep1Done ? "✓" : "1"}
+                      </div>
+                      <InlineStack gap="100" blockAlign="baseline" wrap>
+                        <Text variant="bodySm" fontWeight="bold">1. Connect Instagram</Text>
+                        <Text variant="bodyXs" tone="subdued">
+                          {onboardingStep1Done ? `@${instaData?.username || config.instagramHandle}` : "Sync posts"}
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
+                    <InlineStack gap="150" blockAlign="center">
+                      <Badge tone={onboardingStep1Done ? "success" : "attention"}>
+                        {onboardingStep1Done ? "Connected" : "Required"}
+                      </Badge>
+                      {!onboardingStep1Done && (
+                        <Button
+                          size="micro"
+                          variant="primary"
+                          onClick={() => {
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                        >
+                          Connect
+                        </Button>
+                      )}
+                    </InlineStack>
+                  </InlineStack>
+                </Box>
+
+                {/* Step 2: Choose Design */}
+                <Box
+                  padding="200"
+                  background={onboardingStep2Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep2Done ? "border-success" : "border"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: onboardingStep2Done ? "#10b981" : "#4f46e5",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {onboardingStep2Done ? "✓" : "2"}
+                      </div>
+                      <InlineStack gap="100" blockAlign="baseline" wrap>
+                        <Text variant="bodySm" fontWeight="bold">2. Choose Design</Text>
+                        <Text variant="bodyXs" tone="subdued">
+                          {config.layoutType || "Grid"} layout selected
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
+                    <InlineStack gap="150" blockAlign="center">
+                      <Badge tone="success">Ready</Badge>
+                      <Button
+                        size="micro"
+                        onClick={() => {
+                          const el = document.getElementById("layout-style-selector");
+                          if (el) el.scrollIntoView({ behavior: "smooth" });
+                        }}
+                      >
+                        Customize
+                      </Button>
+                    </InlineStack>
+                  </InlineStack>
+                </Box>
+
+                {/* Step 3: Tag Products (Optional) */}
+                <Box
+                  padding="200"
+                  background={onboardingStep3Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep3Done ? "border-success" : "border"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: onboardingStep3Done ? "#10b981" : "#8c9196",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {onboardingStep3Done ? "✓" : "3"}
+                      </div>
+                      <InlineStack gap="100" blockAlign="baseline" wrap>
+                        <Text variant="bodySm" fontWeight="bold">3. Tag Products</Text>
+                        <Badge tone="subdued" size="small">Optional</Badge>
+                        <Text variant="bodyXs" tone="subdued">Shoppable hotspots on posts</Text>
+                      </InlineStack>
+                    </InlineStack>
+                    <InlineStack gap="150" blockAlign="center">
+                      <Badge tone={onboardingStep3Done ? "success" : "subdued"}>
+                        {onboardingStep3Done ? "Tagged" : "Optional"}
+                      </Badge>
+                      <Button
+                        size="micro"
+                        onClick={() => setIsTaggingModalOpen(true)}
+                      >
+                        Tag Products
+                      </Button>
+                    </InlineStack>
+                  </InlineStack>
+                </Box>
+
+                {/* Step 4: Add Section to Homepage */}
+                <Box
+                  padding="200"
+                  background={onboardingStep5Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep5Done ? "border-success" : "border"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: onboardingStep5Done ? "#10b981" : "#4f46e5",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {onboardingStep5Done ? "✓" : "4"}
+                      </div>
+                      <InlineStack gap="100" blockAlign="baseline" wrap>
+                        <Text variant="bodySm" fontWeight="bold">4. Add Section to Theme</Text>
+                        <Text variant="bodyXs" tone="subdued">Place feed block on storefront</Text>
+                      </InlineStack>
+                    </InlineStack>
+                    <InlineStack gap="150" blockAlign="center">
+                      <Badge tone={onboardingStep5Done ? "success" : "attention"}>
+                        {onboardingStep5Done ? "Added" : "Required"}
+                      </Badge>
+                      <Button
+                        size="micro"
+                        variant={!onboardingStep5Done ? "primary" : "secondary"}
+                        icon={PlusIcon}
+                        onClick={() => window.open(themeAddSectionUrl, "_blank")}
+                      >
+                        {onboardingStep5Done ? "Edit ↗" : "Add Section ↗"}
+                      </Button>
+                    </InlineStack>
+                  </InlineStack>
+                </Box>
+
+                {/* Step 5: Enable App Embed */}
+                <Box
+                  padding="200"
+                  background={onboardingStep4Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep4Done ? "border-success" : "border"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: onboardingStep4Done ? "#10b981" : "#4f46e5",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {onboardingStep4Done ? "✓" : "5"}
+                      </div>
+                      <InlineStack gap="100" blockAlign="baseline" wrap>
+                        <Text variant="bodySm" fontWeight="bold">5. Enable App Embed</Text>
+                        <Text variant="bodyXs" tone="subdued">Activate app script toggle</Text>
+                      </InlineStack>
+                    </InlineStack>
+                    <InlineStack gap="150" blockAlign="center">
+                      <Badge tone={onboardingStep4Done ? "success" : "attention"}>
+                        {onboardingStep4Done ? "Active" : "Required"}
+                      </Badge>
+                      <Button
+                        size="micro"
+                        variant={!onboardingStep4Done ? "primary" : "secondary"}
+                        icon={ExternalIcon}
+                        onClick={() => window.open(themeActivateEmbedUrl, "_blank")}
+                      >
+                        Enable ↗
+                      </Button>
+                      <Button
+                        size="micro"
+                        loading={isVerifyingEmbed}
+                        onClick={handleVerifyEmbed}
+                      >
+                        Verify
+                      </Button>
+                    </InlineStack>
+                  </InlineStack>
+                </Box>
+              </BlockStack>
             </BlockStack>
           </Card>
         )}
