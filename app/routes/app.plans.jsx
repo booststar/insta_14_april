@@ -349,7 +349,7 @@ export default function Plans() {
             </Text>
 
             <Button variant="primary" disabled fullWidth>
-              ✓ Currently Active on Your Store
+              Currently Active on Your Store
             </Button>
           </BlockStack>
         </Card>
@@ -358,8 +358,8 @@ export default function Plans() {
         <Card padding="400">
           <BlockStack gap="300">
             <InlineStack gap="200" blockAlign="center" wrap>
-              <Badge tone="magic">⭐ 100% Free Forever</Badge>
-              <Badge tone="success">🎁 Bonus App Credits & AI Perks</Badge>
+              <Badge tone="magic">100% Free Forever</Badge>
+              <Badge tone="success">Bonus App Credits & AI Perks</Badge>
             </InlineStack>
 
             <BlockStack gap="100">
@@ -378,7 +378,7 @@ export default function Plans() {
                 url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
                 target="_blank"
               >
-                Write a 5-Star Review & Claim Perks ⭐⭐⭐⭐⭐
+                Write a 5-Star Review & Claim Perks
               </Button>
             </div>
           </BlockStack>

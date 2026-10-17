@@ -186,7 +186,7 @@ async function getCache() {
       });
       await client.connect();
       _cacheInstance = new RedisCache(client);
-      console.info("[Cache] ✅ Redis connected:", redisUrl);
+      console.info("[Cache] Redis connected:", redisUrl);
     } catch (err) {
       console.warn("[Cache] Redis unavailable, using in-memory cache:", err.message);
       _cacheInstance = new MemoryCache();

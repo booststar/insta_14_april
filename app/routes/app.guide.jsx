@@ -90,7 +90,7 @@ export default function Guide() {
       badgeTone: isConnected ? "success" : "attention",
       description:
         "Connect your Instagram account to sync your latest posts, reels, and videos to your store. You can also preview your layout with sample posts anytime.",
-      actionText: isConnected ? "Manage Account" : "⚡ Connect Account",
+      actionText: isConnected ? "Manage Account" : "Connect Account",
       action: () => navigate("/app"),
     },
     {
@@ -172,7 +172,7 @@ export default function Guide() {
     },
     {
       q: "How often does my Instagram feed refresh with new posts?",
-      a: "Your feed automatically syncs new posts in real-time. You can also click the '⚡ Sync Feed Now' button in the Dashboard anytime to instantly fetch your latest posts.",
+      a: "Your feed automatically syncs new posts in real-time. You can also click the 'Sync Feed Now' button in the Dashboard anytime to instantly fetch your latest posts.",
     },
   ];
 
@@ -272,7 +272,7 @@ export default function Guide() {
               <Card>
                 <BlockStack gap="200">
                   <InlineStack gap="200" blockAlign="center">
-                    <span style={{ fontSize: "16px" }}>🛠️</span>
+                    <Icon source={SettingsIcon} tone="subdued" />
                     <Text variant="headingSm" as="h3">
                       Need Free Setup Assistance?
                     </Text>

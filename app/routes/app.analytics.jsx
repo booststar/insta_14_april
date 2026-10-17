@@ -19,6 +19,7 @@ import {
   Select,
   EmptyState,
   Banner,
+  Icon,
 } from "@shopify/polaris";
 import {
   ExternalIcon,
@@ -270,7 +271,7 @@ export default function AnalyticsPage() {
                 <Text variant="bodySm" tone="subdued" fontWeight="medium">
                   Storefront Views
                 </Text>
-                <span style={{ fontSize: "16px" }}>👀</span>
+                <Icon source={ViewIcon} tone="subdued" />
               </InlineStack>
               <Text variant="headingXl" as="p" fontWeight="bold">
                 {totals.views.toLocaleString()}
@@ -386,8 +387,8 @@ export default function AnalyticsPage() {
         <Card padding="400">
           <BlockStack gap="300">
             <InlineStack gap="200" blockAlign="center" wrap>
-              <Badge tone="magic">⭐ 100% Free Forever</Badge>
-              <Badge tone="success">🎁 Bonus App Credits & AI Perks</Badge>
+              <Badge tone="magic">100% Free Forever</Badge>
+              <Badge tone="success">Bonus App Credits & AI Perks</Badge>
             </InlineStack>
 
             <BlockStack gap="100">
@@ -406,7 +407,7 @@ export default function AnalyticsPage() {
                 url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
                 target="_blank"
               >
-                Write a 5-Star Review & Claim Perks ⭐⭐⭐⭐⭐
+                Write a 5-Star Review & Claim Perks
               </Button>
             </div>
           </BlockStack>
@@ -422,7 +423,7 @@ export default function AnalyticsPage() {
               <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                 <BlockStack gap="100">
                   <Text variant="bodySm" fontWeight="bold">
-                    🏷️ Tag More Products
+                    Tag More Products
                   </Text>
                   <Text variant="bodyXs" tone="subdued">
                     Feeds with tagged product hotspots experience up to 3x higher click-through rates compared to regular image galleries.
@@ -438,7 +439,7 @@ export default function AnalyticsPage() {
               <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                 <BlockStack gap="100">
                   <Text variant="bodySm" fontWeight="bold">
-                    📱 Activate Reels & Videos
+                    Activate Reels & Videos
                   </Text>
                   <Text variant="bodyXs" tone="subdued">
                     Video content captures visitor attention immediately. Enable the Reels video wall layout to showcase auto-looping clips.
@@ -454,7 +455,7 @@ export default function AnalyticsPage() {
               <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                 <BlockStack gap="100">
                   <Text variant="bodySm" fontWeight="bold">
-                    ⭐ Enable Story Highlights
+                    Enable Story Highlights
                   </Text>
                   <Text variant="bodyXs" tone="subdued">
                     Circular story highlights at the top give customers instant access to promo discounts and new drop announcements.

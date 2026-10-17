@@ -510,7 +510,7 @@ export default function ProductTaggingPage() {
               <InlineStack align="space-between" blockAlign="center" gap="300" wrap>
                 <InlineStack gap="300" blockAlign="center">
                   <Badge tone="magic" size="large">
-                    ✨ AI Suggestions
+                    AI Suggestions
                   </Badge>
                   <BlockStack gap="050">
                     <Text variant="headingSm" as="h3" fontWeight="bold">
@@ -824,7 +824,7 @@ export default function ProductTaggingPage() {
                                     whiteSpace: "nowrap",
                                   }}
                                 >
-                                  🏷️ {pin.title}
+                                  {pin.title}
                                 </span>
                               ))}
                               {tags.length > 2 && (
@@ -851,7 +851,7 @@ export default function ProductTaggingPage() {
                               }}
                               title={suggestions[0].title}
                             >
-                              ✨ {suggestions[0].title}
+                              {suggestions[0].title}
                             </span>
                           </div>
                         ) : (
@@ -996,7 +996,7 @@ export default function ProductTaggingPage() {
                     <InlineStack align="space-between" blockAlign="center">
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <Text variant="bodyXs" fontWeight="bold" tone="magic">
-                          ✨ AI Caption Match:
+                          AI Caption Match:
                         </Text>
                         <Text variant="bodySm" fontWeight="bold" truncate>
                           {smartMatches[selectedPost.id || selectedPost.media_url][0].title} ($

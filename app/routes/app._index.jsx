@@ -396,7 +396,7 @@ export const action = async ({ request }) => {
         dynamicAppEmbedEnabled: isEmbedOk,
         dynamicSectionActive: isSectionOk,
         message: isEmbedOk && isSectionOk
-          ? "🎉 Everything verified! Both the Feed Section and App Embed are active in your theme."
+          ? "Everything verified! Both the Feed Section and App Embed are active in your theme."
           : isSectionOk && !isEmbedOk
           ? "Feed Section found! Please also turn ON the 'Instafeed Activation' app embed in Theme Editor."
           : !isSectionOk && isEmbedOk
@@ -2044,7 +2044,7 @@ function UnifiedConfigurator({
                             setIsTagMode(!isTagMode);
                             if (!isTagMode) {
                               setIsHideMode(false);
-                              shopify?.toast?.show("🏷️ Tag Mode ON — Click any post in the preview to tag products");
+                              shopify?.toast?.show("Tag Mode ON — Click any post in the preview to tag products");
                             } else {
                               shopify?.toast?.show("Tag Mode turned off");
                             }
@@ -2065,7 +2065,7 @@ function UnifiedConfigurator({
                             setIsHideMode(!isHideMode);
                             if (!isHideMode) {
                               setIsTagMode(false);
-                              shopify?.toast?.show("👆 Hide Mode ON — Click any post in the preview to hide it");
+                              shopify?.toast?.show("Hide Mode ON — Click any post in the preview to hide it");
                             } else {
                               shopify?.toast?.show("Hide Mode turned off");
                             }
@@ -2079,14 +2079,14 @@ function UnifiedConfigurator({
                         <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
                           <BlockStack gap="200">
                             <Text variant="bodyXs" fontWeight="bold">
-                              ✨ Smart Product Matching
+                              Smart Product Matching
                             </Text>
                             <Button
                               variant="secondary"
                               onClick={onAutoDetect}
                               fullWidth
                             >
-                              ⚡ Auto-Detect Matches {totalSuggestionsCount > 0 ? `(${totalSuggestionsCount} found)` : ""}
+                              Auto-Detect Matches {totalSuggestionsCount > 0 ? `(${totalSuggestionsCount} found)` : ""}
                             </Button>
                             {totalSuggestionsCount > 0 && (
                               <Button
@@ -2094,7 +2094,7 @@ function UnifiedConfigurator({
                                 tone="success"
                                 onClick={onApproveAllHighConfidence}
                               >
-                                ✓ Approve All High Confidence ({totalSuggestionsCount})
+                                Approve All High Confidence ({totalSuggestionsCount})
                               </Button>
                             )}
                           </BlockStack>
@@ -2482,7 +2482,7 @@ export default function Index() {
       media_url: "https://picsum.photos/id/1027/800/800",
       thumbnail_url: "https://picsum.photos/id/1027/800/800",
       media_type: "IMAGE",
-      caption: "Our signature collection ✨ Designed for effortless day-to-night styling. #shopify #newcollection #lifestyle",
+      caption: "Our signature collection. Designed for effortless day-to-night styling. #shopify #newcollection #lifestyle",
       like_count: 342,
       comments_count: 18,
       permalink: "https://shopify.com",
@@ -2492,7 +2492,7 @@ export default function Index() {
       media_url: "https://vjs.zencdn.net/v/oceans.mp4",
       thumbnail_url: "https://vjs.zencdn.net/v/oceans.png",
       media_type: "VIDEO",
-      caption: "Behind the scenes look at our summer campaign 🌊 Discover the full collection in store. #reel #video #summer",
+      caption: "Behind the scenes look at our summer campaign. Discover the full collection in store. #reel #video #summer",
       like_count: 812,
       comments_count: 45,
       permalink: "https://shopify.com",
@@ -2502,7 +2502,7 @@ export default function Index() {
       media_url: "https://picsum.photos/id/1011/800/800",
       thumbnail_url: "https://picsum.photos/id/1011/800/800",
       media_type: "IMAGE",
-      caption: "Minimalist craftsmanship for every occasion. Styled with our handcrafted accessories 🤍 #collection #minimalist",
+      caption: "Minimalist craftsmanship for every occasion. Styled with our handcrafted accessories. #collection #minimalist",
       like_count: 420,
       comments_count: 24,
       permalink: "https://shopify.com",
@@ -2512,7 +2512,7 @@ export default function Index() {
       media_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
       thumbnail_url: "https://picsum.photos/id/152/800/800",
       media_type: "VIDEO",
-      caption: "Nature-inspired botanicals & fresh organic drop 🌸 Watch the details unfold! #reels #outfitinspo #shopify",
+      caption: "Nature-inspired botanicals & fresh organic drop. Watch the details unfold! #reels #outfitinspo #shopify",
       like_count: 1240,
       comments_count: 89,
       permalink: "https://shopify.com",
@@ -2522,7 +2522,7 @@ export default function Index() {
       media_url: "https://picsum.photos/id/1015/800/800",
       thumbnail_url: "https://picsum.photos/id/1015/800/800",
       media_type: "IMAGE",
-      caption: "Weekend essentials in crisp neutral tones. Breathable, relaxed, perfected 🌿 #essentials #summercapsule",
+      caption: "Weekend essentials in crisp neutral tones. Breathable, relaxed, perfected. #essentials #summercapsule",
       like_count: 518,
       comments_count: 31,
       permalink: "https://shopify.com",
@@ -2532,7 +2532,7 @@ export default function Index() {
       media_url: "https://picsum.photos/id/1062/800/800",
       thumbnail_url: "https://picsum.photos/id/1062/800/800",
       media_type: "IMAGE",
-      caption: "Monochrome moments. Tap to shop products featured in this photo 🖤 #capsulewardrobe #styleinspo",
+      caption: "Monochrome moments. Tap to shop products featured in this photo. #capsulewardrobe #styleinspo",
       like_count: 673,
       comments_count: 40,
       permalink: "https://shopify.com",
@@ -2542,7 +2542,7 @@ export default function Index() {
       media_url: "https://media.w3.org/2010/05/sintel/trailer.mp4",
       thumbnail_url: "https://media.w3.org/2010/05/sintel/poster.png",
       media_type: "VIDEO",
-      caption: "Cinematic story of our latest release 🎬 Swipe to explore the lookbook! #behindthescenes #production",
+      caption: "Cinematic story of our latest release. Swipe to explore the lookbook! #behindthescenes #production",
       like_count: 940,
       comments_count: 67,
       permalink: "https://shopify.com",
@@ -2552,7 +2552,7 @@ export default function Index() {
       media_url: "https://picsum.photos/id/1080/800/800",
       thumbnail_url: "https://picsum.photos/id/1080/800/800",
       media_type: "IMAGE",
-      caption: "Curated collection for modern living. Handcrafted pieces available now online ✨ #statementjewelry #lifestyle",
+      caption: "Curated collection for modern living. Handcrafted pieces available now online. #statementjewelry #lifestyle",
       like_count: 380,
       comments_count: 22,
       permalink: "https://shopify.com",
@@ -2562,7 +2562,7 @@ export default function Index() {
       media_url: "https://picsum.photos/id/1043/800/800",
       thumbnail_url: "https://picsum.photos/id/1043/800/800",
       media_type: "IMAGE",
-      caption: "Clean lines and timeless materials. Tap to shop our flagship product 🍂 #productdrop #shoponline",
+      caption: "Clean lines and timeless materials. Tap to shop our flagship product. #productdrop #shoponline",
       like_count: 685,
       comments_count: 28,
       permalink: "https://shopify.com",
@@ -2572,7 +2572,7 @@ export default function Index() {
       media_url: "https://picsum.photos/id/1060/800/800",
       thumbnail_url: "https://picsum.photos/id/1060/800/800",
       media_type: "IMAGE",
-      caption: "Premium essentials for daily routine ☕️ Crafted with precision and sustainable care. #casualchic #cozyvibes",
+      caption: "Premium essentials for daily routine. Crafted with precision and sustainable care. #casualchic #cozyvibes",
       like_count: 490,
       comments_count: 17,
       permalink: "https://shopify.com",
@@ -2582,7 +2582,7 @@ export default function Index() {
       media_url: "https://vjs.zencdn.net/v/oceans.mp4",
       thumbnail_url: "https://vjs.zencdn.net/v/oceans.png",
       media_type: "VIDEO",
-      caption: "Product spotlight & live demonstration 🌊 Watch how it works! #productvideo #demo",
+      caption: "Product spotlight & live demonstration. Watch how it works! #productvideo #demo",
       like_count: 1120,
       comments_count: 75,
       permalink: "https://shopify.com",
@@ -2592,7 +2592,7 @@ export default function Index() {
       media_url: "https://picsum.photos/id/1069/800/800",
       thumbnail_url: "https://picsum.photos/id/1069/800/800",
       media_type: "IMAGE",
-      caption: "Soft tailoring and everyday elegance 🌙 Designed to elevate your storefront seamlessly.",
+      caption: "Soft tailoring and everyday elegance. Designed to elevate your storefront seamlessly.",
       like_count: 560,
       comments_count: 32,
       permalink: "https://shopify.com",
@@ -2713,7 +2713,7 @@ export default function Index() {
 
   useEffect(() => {
     if (saveFetcher.data?.success) {
-      shopify?.toast?.show("✓ Feed design saved successfully!");
+      shopify?.toast?.show("Feed design saved successfully!");
       savedConfigRef.current = JSON.parse(JSON.stringify(config));
       setHasUnsavedChanges(false);
       shopify?.saveBar?.hide("app-config-save-bar");
@@ -2855,9 +2855,16 @@ export default function Index() {
     }
     return false;
   });
+  const [isSetupGuideManuallyOpen, setIsSetupGuideManuallyOpen] = useState(false);
+
+  // When allTasksDone is true (feed active and displaying on theme), hide checklist by default
+  const isSetupGuideVisible = allTasksDone
+    ? isSetupGuideManuallyOpen
+    : !isOnboardingDismissed;
 
   const handleDismissOnboarding = () => {
     setIsOnboardingDismissed(true);
+    setIsSetupGuideManuallyOpen(false);
     if (typeof window !== "undefined") {
       localStorage.setItem("onboarding_widget_dismissed", "true");
     }
@@ -2865,6 +2872,7 @@ export default function Index() {
 
   const handleRestoreOnboarding = () => {
     setIsOnboardingDismissed(false);
+    setIsSetupGuideManuallyOpen(true);
     if (typeof window !== "undefined") {
       localStorage.removeItem("onboarding_widget_dismissed");
     }
@@ -2924,7 +2932,7 @@ export default function Index() {
       const totalPosts = media?.data?.length || 0;
       const pages = _totalPages || 1;
       shopify?.toast?.show(
-        `✓ Connected @${username} · ${totalPosts} posts synced (${pages} page${pages > 1 ? "s" : ""} crawled)`
+        `Connected @${username} · ${totalPosts} posts synced (${pages} page${pages > 1 ? "s" : ""} crawled)`
       );
     } else if (fetcher.data.error) {
       setConnectError(fetcher.data.error);
@@ -3156,7 +3164,7 @@ export default function Index() {
     setSuggestedTags(matches);
     const count = Object.values(matches).reduce((acc, curr) => acc + (curr?.length || 0), 0);
     if (count > 0) {
-      shopify?.toast?.show(`⚡ Found ${count} product suggestion${count > 1 ? "s" : ""} based on post captions!`);
+      shopify?.toast?.show(`Found ${count} product suggestion${count > 1 ? "s" : ""} based on post captions!`);
     } else {
       shopify?.toast?.show("No new product matches found in post captions.");
     }
@@ -3210,7 +3218,7 @@ export default function Index() {
     });
 
     setHasUnsavedChanges(true);
-    shopify?.toast?.show(`✓ Tagged "${suggestion.title}"!`);
+    shopify?.toast?.show(`Tagged "${suggestion.title}"!`);
   }, [taggingPost, shopify]);
 
   const handleApproveAllHighConfidence = useCallback(() => {
@@ -3242,7 +3250,7 @@ export default function Index() {
 
     setSuggestedTags({});
     setHasUnsavedChanges(true);
-    shopify?.toast?.show(`✓ Approved ${approvedCount} product tags across all posts!`);
+    shopify?.toast?.show(`Approved ${approvedCount} product tags across all posts!`);
   }, [suggestedTags, shopify]);
 
   const handleDismissSuggestion = useCallback((postId, suggestionId) => {
@@ -3443,7 +3451,7 @@ export default function Index() {
                 boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
               }}
             >
-              🛍️ {itemTags.length}
+              {itemTags.length} tagged
             </span>
           </div>
         )}
@@ -3463,7 +3471,7 @@ export default function Index() {
                 boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
               }}
             >
-              ⚡ {itemSuggestions.length} Suggested
+              {itemSuggestions.length} Suggested
             </span>
           </div>
         )}
@@ -3972,6 +3980,417 @@ export default function Index() {
     );
   };
 
+  const renderStorefrontEmbedFeed = () => {
+    const followButtonPos = config.postFeed.followButtonPosition || "bottom";
+    const showHeaderFollow = config.postFeed.showFollowButton !== false && followButtonPos === "header";
+    const showBottomFollow = config.postFeed.showFollowButton !== false && followButtonPos === "bottom";
+    const isProfileLayout = Boolean(
+      config.appliedTemplateId?.includes("profile") ||
+      (followButtonPos === "header" && (
+        config.postFeed.heading?.startsWith("@") ||
+        config.postFeed.heading?.toLowerCase().includes("@account") ||
+        config.postFeed.heading?.toLowerCase().includes("follow @") ||
+        config.postFeed.heading?.toLowerCase().includes("connect with @") ||
+        config.postFeed.heading?.toLowerCase().includes("welcome to @")
+      ))
+    );
+    const profilePic = instaData?.profile_picture_url || instaData?.user?.profile_picture_url || "";
+    const handle = (instaData?.username || config.instagramHandle || "").replace("@", "").trim();
+
+    return previewDevice === "mobile" ? (
+      <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+        <div
+          style={{
+            width: "280px",
+            height: "560px",
+            background: "white",
+            borderRadius: "36px",
+            border: "10px solid #1e293b",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            position: "relative",
+            overflow: "hidden",
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              height: "36px",
+              padding: "10px 16px 0",
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: "10px",
+              fontWeight: "700",
+              background: "white",
+            }}
+          >
+            <span>9:41</span>
+            <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+              <svg width="12" height="10" viewBox="0 0 12 10" fill="currentColor">
+                <rect x="0" y="7" width="2" height="3" rx="0.5" />
+                <rect x="3" y="5" width="2" height="5" rx="0.5" />
+                <rect x="6" y="3" width="2" height="7" rx="0.5" />
+                <rect x="9" y="0" width="2" height="10" rx="0.5" />
+              </svg>
+              <svg width="14" height="8" viewBox="0 0 14 8" fill="none" stroke="currentColor">
+                <rect x="0.5" y="0.5" width="11" height="7" rx="1.5" />
+                <rect x="2" y="2" width="7" height="4" fill="currentColor" />
+                <path d="M12.5 2.5V5.5" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+
+          <div
+            style={{ height: "calc(100% - 36px)", overflowY: "auto", paddingBottom: "8px" }}
+          >
+            <div
+              style={{
+                paddingTop: `${Math.min(config.postFeed.paddingTop || 12, 12)}px`,
+                paddingBottom: `${Math.min(config.postFeed.paddingBottom || 12, 12)}px`,
+              }}
+            >
+              {/* 1. Header: Title & Description & Contextual Follow Button */}
+              {isProfileLayout ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "4px 8px 6px",
+                    gap: "8px",
+                  }}
+                >
+                  {/* Left: Avatar + Heading & Subheading */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        width: "34px",
+                        height: "34px",
+                        minWidth: "34px",
+                        minHeight: "34px",
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        flexShrink: 0,
+                        background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)",
+                        padding: "2px",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      {profilePic ? (
+                        <img
+                          src={profilePic}
+                          alt={handle || "Profile"}
+                          style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", display: "block" }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            borderRadius: "50%",
+                            background: "#ffffff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="#833ab4">
+                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
+                      {config.postFeed.header && config.postFeed.heading?.trim() && (
+                        <h4
+                          style={{
+                            fontSize: `${Math.min(config.postFeed.typography.heading.size, 13)}px`,
+                            fontWeight: config.postFeed.typography.heading.weight || "700",
+                            color: config.postFeed.typography.heading.color,
+                            margin: 0,
+                            lineHeight: 1.25,
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {formatDynamicAccountText(config.postFeed.heading)}
+                        </h4>
+                      )}
+                      {config.postFeed.header && config.postFeed.subheading?.trim() && (
+                        <p
+                          style={{
+                            fontSize: `${Math.min(config.postFeed.typography.subheading.size, 10.5)}px`,
+                            color: config.postFeed.typography.subheading.color,
+                            margin: "2px 0 0 0",
+                            lineHeight: 1.3,
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {formatDynamicAccountText(config.postFeed.subheading)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Follow Button */}
+                  {showHeaderFollow && (
+                    <div style={{ flexShrink: 0, marginLeft: "auto" }}>
+                      <a
+                        href={`https://instagram.com/${handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ai-follow-btn"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "4px 10px",
+                          borderRadius: "16px",
+                          background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)",
+                          color: "#ffffff",
+                          fontWeight: "700",
+                          fontSize: "10.5px",
+                          textDecoration: "none",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="white">
+                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                        </svg>
+                        <span>Follow</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                (config.postFeed.header || showHeaderFollow) && (
+                  <div style={{ textAlign: config.postFeed.alignment, marginBottom: "6px" }}>
+                    {config.postFeed.header && config.postFeed.heading?.trim() && (
+                      <h4
+                        style={{
+                          fontSize: `${Math.min(config.postFeed.typography.heading.size, 13)}px`,
+                          fontWeight: config.postFeed.typography.heading.weight || "700",
+                          color: config.postFeed.typography.heading.color,
+                          margin: "0 0 2px 0",
+                          lineHeight: 1.25,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {formatDynamicAccountText(config.postFeed.heading)}
+                      </h4>
+                    )}
+                    {config.postFeed.header && config.postFeed.subheading?.trim() && (
+                      <p
+                        style={{
+                          fontSize: `${Math.min(config.postFeed.typography.subheading.size, 10.5)}px`,
+                          color: config.postFeed.typography.subheading.color,
+                          margin: "2px 0 0 0",
+                          lineHeight: 1.3,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {formatDynamicAccountText(config.postFeed.subheading)}
+                      </p>
+                    )}
+                  </div>
+                )
+              )}
+
+              {/* 2. Story Highlights Bar */}
+              {showStorySection && storyMedia.length > 0 && (
+                <div style={{ display: "flex", gap: "6px", padding: "4px 6px 4px", overflowX: "auto" }}>
+                  {config.stories.promoEnable !== false && renderPromoStoryItem()}
+                  {storyMedia.slice(0, 8).map((item, i) => renderStoryItem(item, i))}
+                </div>
+              )}
+
+              {/* 3. Feed Display */}
+              {renderPreviewFeed(true)}
+
+              {/* 4. Bottom Follow Button */}
+              {showBottomFollow && renderFollowButton(false)}
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : (
+      /* Desktop Frame Simulator */
+      <div
+        style={{
+          width: "100%",
+          background: "white",
+          borderRadius: "12px",
+          border: "1px solid #e2e8f0",
+          padding: "12px",
+          overflowY: "auto",
+          maxHeight: "560px",
+        }}
+      >
+        <div>
+          {/* 1. Header: Title & Description & Contextual Follow Button */}
+          {isProfileLayout ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "4px 4px 12px",
+                gap: "14px",
+                marginBottom: "8px",
+              }}
+            >
+              {/* Left: Avatar + Heading & Subheading */}
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    minWidth: "42px",
+                    minHeight: "42px",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)",
+                    padding: "2px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  {profilePic ? (
+                    <img
+                      src={profilePic}
+                      alt={handle || "Profile"}
+                      style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", display: "block" }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: "50%",
+                        background: "#ffffff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="#833ab4">
+                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
+                  {config.postFeed.header && config.postFeed.heading?.trim() && (
+                    <h4
+                      style={{
+                        fontSize: `${config.postFeed.typography.heading.size}px`,
+                        fontWeight: config.postFeed.typography.heading.weight,
+                        color: config.postFeed.typography.heading.color,
+                        margin: "0 0 4px 0",
+                      }}
+                    >
+                      {formatDynamicAccountText(config.postFeed.heading)}
+                    </h4>
+                  )}
+                  {config.postFeed.header && config.postFeed.subheading?.trim() && (
+                    <p style={{ fontSize: `${config.postFeed.typography.subheading.size}px`, color: config.postFeed.typography.subheading.color, margin: 0 }}>
+                      {formatDynamicAccountText(config.postFeed.subheading)}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: Follow Button */}
+              {showHeaderFollow && (
+                <div style={{ flexShrink: 0, marginLeft: "auto" }}>
+                  <a
+                    href={`https://instagram.com/${handle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ai-follow-btn"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "5px 14px",
+                      borderRadius: "18px",
+                      background: "linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)",
+                      color: "#ffffff",
+                      fontWeight: "700",
+                      fontSize: "11px",
+                      textDecoration: "none",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                    </svg>
+                    <span>Follow</span>
+                  </a>
+                </div>
+              )}
+            </div>
+          ) : (
+            (config.postFeed.header || showHeaderFollow) && (
+              <div style={{ textAlign: config.postFeed.alignment, marginBottom: "8px" }}>
+                {config.postFeed.header && config.postFeed.heading?.trim() && (
+                  <h4
+                    style={{
+                      fontSize: `${config.postFeed.typography.heading.size}px`,
+                      fontWeight: config.postFeed.typography.heading.weight,
+                      color: config.postFeed.typography.heading.color,
+                      margin: "0 0 4px 0",
+                    }}
+                  >
+                    {formatDynamicAccountText(config.postFeed.heading)}
+                  </h4>
+                )}
+                {config.postFeed.header && config.postFeed.subheading?.trim() && (
+                  <p style={{ fontSize: `${config.postFeed.typography.subheading.size}px`, color: config.postFeed.typography.subheading.color, margin: 0 }}>
+                    {formatDynamicAccountText(config.postFeed.subheading)}
+                  </p>
+                )}
+                {showHeaderFollow && renderFollowButton(true)}
+              </div>
+            )
+          )}
+
+          {/* 2. Story Highlights Bar (images by default, threshold >= 6 posts) */}
+          {showStorySection && storyMedia.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                justifyContent: config.postFeed.alignment === "center" ? "center" : "flex-start",
+                overflowX: "auto",
+                padding: "4px 0 8px",
+              }}
+            >
+              {config.stories.promoEnable !== false && renderPromoStoryItem()}
+              {storyMedia.slice(0, 10).map((item, i) => renderStoryItem(item, i))}
+            </div>
+          )}
+
+          {/* 3. Feed Display (Grid, Carousel, Masonry, Highlight, Reels, Marquee) */}
+          {renderPreviewFeed(false)}
+
+          {/* 4. Bottom Follow Button (when configured for bottom) */}
+          {showBottomFollow && renderFollowButton(false)}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Page fullWidth>
       <BlockStack gap="400">
@@ -3987,25 +4406,68 @@ export default function Index() {
         `}</style>
         {/* ── 1. Top Header Bar ── */}
         <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-          <InlineStack gap="300" blockAlign="center">
+          <InlineStack gap="300" blockAlign="center" wrap>
             <Text variant="headingLg" as="h1" fontWeight="bold">
               Welcome to AI Instafeed Expert!
             </Text>
             <Badge tone="success">Free Forever</Badge>
+            {allTasksDone && (
+              <Badge tone="success">Live on Store</Badge>
+            )}
           </InlineStack>
-          {isOnboardingDismissed && (
-            <Button
-              variant="plain"
-              size="slim"
-              onClick={handleRestoreOnboarding}
-            >
-              Show Setup Checklist ↗
-            </Button>
-          )}
+
+          <InlineStack gap="200" blockAlign="center">
+            {allTasksDone ? (
+              <Button
+                variant="plain"
+                icon={ExternalIcon}
+                onClick={() => window.open(storefrontPreviewUrl, "_blank")}
+              >
+                View on Live Store ↗
+              </Button>
+            ) : (
+              isOnboardingDismissed && (
+                <Button
+                  variant="plain"
+                  size="slim"
+                  onClick={handleRestoreOnboarding}
+                >
+                  Show Setup Checklist ↗
+                </Button>
+              )
+            )}
+          </InlineStack>
         </InlineStack>
 
-        {/* ── 2. Compact 3-Step Setup Stepper ── */}
-        {!isOnboardingDismissed && (
+        {/* ── 2. Active Feed Banner (When activated, checklist is hidden by default; user can open if needed) ── */}
+        {allTasksDone && (
+          <Banner tone="success">
+            <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+              <Text variant="bodySm" fontWeight="medium">
+                Your Instagram feed is active and displaying on your theme.
+              </Text>
+              <InlineStack gap="200" blockAlign="center">
+                <Button
+                  variant="plain"
+                  size="slim"
+                  onClick={() => setIsSetupGuideManuallyOpen((prev) => !prev)}
+                >
+                  {isSetupGuideManuallyOpen ? "Hide Setup Checklist ⌃" : "Show Setup Checklist (5/5) ⌵"}
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={ExternalIcon}
+                  onClick={() => window.open(storefrontPreviewUrl, "_blank")}
+                >
+                  Open Storefront
+                </Button>
+              </InlineStack>
+            </InlineStack>
+          </Banner>
+        )}
+
+        {/* ── 3. Unified Quick Setup & Onboarding Guide ── */}
+        {isSetupGuideVisible && (
           <div id="welcome-widget-card">
             <Card padding="400">
               <BlockStack gap="300">
@@ -4013,11 +4475,12 @@ export default function Index() {
                 <InlineStack align="space-between" blockAlign="center" wrap gap="200">
                   <InlineStack gap="200" blockAlign="center" wrap>
                     <Text variant="headingSm" as="h2" fontWeight="bold">
-                      {allTasksDone ? "🎉 Feed is Live on Store!" : "Quick Setup"}
+                      {allTasksDone ? "Setup Checklist" : "Quick Setup & Onboarding Guide"}
                     </Text>
-                    <Badge tone={allTasksDone ? "success" : welcomeCompletedSteps > 0 ? "info" : "attention"}>
-                      {`${welcomeCompletedSteps} of 3 completed`}
+                    <Badge tone={allTasksDone ? "success" : onboardingCompletedCount > 0 ? "info" : "attention"}>
+                      {`${onboardingCompletedCount} of 5 completed`}
                     </Badge>
+                    <Badge tone="subdued">Optional steps included</Badge>
                     {isConnected && (instaData?.username || config.instagramHandle) && (
                       <Badge tone="success">
                         {`@${instaData?.username || config.instagramHandle}`}
@@ -4036,42 +4499,177 @@ export default function Index() {
                     <Button
                       variant="plain"
                       size="slim"
-                      onClick={handleDismissOnboarding}
+                      onClick={() => {
+                        if (allTasksDone) {
+                          setIsSetupGuideManuallyOpen(false);
+                        } else {
+                          handleDismissOnboarding();
+                        }
+                      }}
                       accessibilityLabel="Dismiss onboarding checklist"
                     >
-                      {allTasksDone ? "Dismiss" : "Hide"}
+                      {allTasksDone ? "Hide" : "Dismiss"}
                     </Button>
                   </InlineStack>
                 </InlineStack>
 
-              <ProgressBar
-                progress={(welcomeCompletedSteps / 3) * 100}
-                tone={allTasksDone ? "success" : "highlight"}
-                size="small"
-              />
+                <ProgressBar
+                  progress={(onboardingCompletedCount / 5) * 100}
+                  tone={allTasksDone ? "success" : "highlight"}
+                  size="small"
+                />
 
-              {allTasksDone && (
-                <Banner tone="success">
-                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <Text variant="bodySm">
-                      Your Instagram feed is active and displaying on your theme.
-                    </Text>
-                    <Button variant="primary" icon={ExternalIcon} onClick={() => window.open(storefrontPreviewUrl, "_blank")}>
-                      Open Storefront
-                    </Button>
-                  </InlineStack>
-                </Banner>
-              )}
+                {/* Step 1: Connect Instagram Account */}
+                <Box
+                  padding="300"
+                  background={onboardingStep1Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep1Done ? "border-success" : "border"}
+                >
+                  <BlockStack gap="200">
+                    <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                      <InlineStack gap="200" blockAlign="center">
+                        <div
+                          style={{
+                            width: "24px",
+                            height: "24px",
+                            borderRadius: "50%",
+                            background: onboardingStep1Done ? "#10b981" : "#4f46e5",
+                            color: "#ffffff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: "bold",
+                            fontSize: "12px",
+                          }}
+                        >
+                          {onboardingStep1Done ? <Icon source={CheckIcon} tone="inherit" /> : "1"}
+                        </div>
+                        <InlineStack gap="150" blockAlign="baseline" wrap>
+                          <Text variant="bodyMd" as="h3" fontWeight="bold">
+                            1. Connect Instagram
+                          </Text>
+                          <Text variant="bodySm" tone="subdued">
+                            {onboardingStep1Done
+                              ? `@${instaData?.username || config.instagramHandle} (${instaData?.media?.data?.length || 0} posts)`
+                              : "Sync photos, reels & videos"}
+                          </Text>
+                        </InlineStack>
+                      </InlineStack>
 
-              {/* Step 1: Connect Instagram Account */}
-              <Box
-                padding="300"
-                background={setupStep1 ? "bg-surface-secondary" : "bg-surface"}
-                borderRadius="200"
-                borderWidth="025"
-                borderColor={setupStep1 ? "border-success" : "border"}
-              >
-                <BlockStack gap="200">
+                      {onboardingStep1Done ? (
+                        <InlineStack gap="200" blockAlign="center">
+                          <Badge tone="success">Connected</Badge>
+                          <Button
+                            size="slim"
+                            loading={isSyncing}
+                            onClick={() => {
+                              const fd = new FormData();
+                              fd.append("handle", config.instagramHandle || instaData?.username || "");
+                              fetcher.submit(fd, { method: "post" });
+                            }}
+                          >
+                            Sync Feed
+                          </Button>
+                          <Button size="slim" tone="critical" variant="plain" onClick={() => setIsDisconnectConfirmOpen(true)}>
+                            Disconnect
+                          </Button>
+                        </InlineStack>
+                      ) : (
+                        <Badge tone="attention">Action Needed</Badge>
+                      )}
+                    </InlineStack>
+
+                    {!onboardingStep1Done && (
+                      <BlockStack gap="150">
+                        <div
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
+                              e.preventDefault();
+                              const fd = new FormData();
+                              fd.append("handle", config.instagramHandle);
+                              fetcher.submit(fd, { method: "post" });
+                            }
+                          }}
+                        >
+                          <InlineStack gap="200" wrap={false} blockAlign="center">
+                            <div style={{ flex: 1, maxWidth: "340px" }}>
+                              <TextField
+                                label="Instagram username"
+                                labelHidden
+                                prefix="@"
+                                placeholder="yourbrand or profile link"
+                                value={config.instagramHandle}
+                                autoComplete="off"
+                                clearButton
+                                onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
+                                onChange={(val) => {
+                                  let v = val;
+                                  if (v.includes("instagram.com/")) {
+                                    const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
+                                    if (parts.length > 0) v = parts[0];
+                                  }
+                                  v = v.replace("@", "").split("?")[0].trim();
+                                  setConfig((prev) => ({ ...prev, instagramHandle: v }));
+                                  setConnectError(null);
+                                }}
+                              />
+                            </div>
+                            <Button
+                              variant="primary"
+                              loading={isSyncing}
+                              disabled={!config.instagramHandle.trim()}
+                              onClick={() => {
+                                const fd = new FormData();
+                                fd.append("handle", config.instagramHandle);
+                                fetcher.submit(fd, { method: "post" });
+                              }}
+                            >
+                              Connect
+                            </Button>
+                          </InlineStack>
+                        </div>
+
+                        {connectError && (
+                          <Banner tone="critical">
+                            <Text variant="bodySm">{linkifyText(connectError)}</Text>
+                          </Banner>
+                        )}
+
+                        <InlineStack gap="200" blockAlign="center" wrap>
+                          <Button
+                            variant="plain"
+                            size="slim"
+                            onClick={() => setShowAccountSwitchGuide(!showAccountSwitchGuide)}
+                          >
+                            {showAccountSwitchGuide ? "▲ Close tip" : "Personal account? Switch to free Creator in 15s"}
+                          </Button>
+                          <Text variant="bodySm" tone="subdued">
+                            • Sample posts active in theme preview
+                          </Text>
+                        </InlineStack>
+
+                        <Collapsible open={showAccountSwitchGuide} id="account-switch-guide-collapsible">
+                          <Box padding="200" background="bg-surface-secondary" borderRadius="200">
+                            <Text variant="bodySm">
+                              Open Instagram app → <strong>Settings</strong> → <strong>Account type and tools</strong> → <strong>Switch to professional account</strong> (Select Creator/Business). Make sure account is Public.
+                            </Text>
+                          </Box>
+                        </Collapsible>
+                      </BlockStack>
+                    )}
+                  </BlockStack>
+                </Box>
+
+                {/* Step 2: Choose Design & Layout */}
+                <Box
+                  padding="300"
+                  background={onboardingStep2Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep2Done ? "border-success" : "border"}
+                >
                   <InlineStack align="space-between" blockAlign="center" wrap gap="200">
                     <InlineStack gap="200" blockAlign="center">
                       <div
@@ -4079,7 +4677,7 @@ export default function Index() {
                           width: "24px",
                           height: "24px",
                           borderRadius: "50%",
-                          background: setupStep1 ? "#10b981" : "#4f46e5",
+                          background: onboardingStep2Done ? "#10b981" : "#4f46e5",
                           color: "#ffffff",
                           display: "flex",
                           alignItems: "center",
@@ -4088,237 +4686,207 @@ export default function Index() {
                           fontSize: "12px",
                         }}
                       >
-                        {setupStep1 ? "✓" : "1"}
+                        {onboardingStep2Done ? <Icon source={CheckIcon} tone="inherit" /> : "2"}
                       </div>
                       <InlineStack gap="150" blockAlign="baseline" wrap>
                         <Text variant="bodyMd" as="h3" fontWeight="bold">
-                          1. Connect Instagram
+                          2. Choose Design & Layout
                         </Text>
                         <Text variant="bodySm" tone="subdued">
-                          {setupStep1
-                            ? `@${instaData?.username || config.instagramHandle} (${instaData?.media?.data?.length || 0} posts)`
-                            : "Sync photos, reels & videos"}
+                          {config.layoutType || "Grid"} layout selected (12 custom styles)
                         </Text>
                       </InlineStack>
                     </InlineStack>
 
-                    {setupStep1 ? (
-                      <InlineStack gap="200" blockAlign="center">
-                        <Badge tone="success">Connected</Badge>
-                        <Button
-                          size="slim"
-                          loading={isSyncing}
-                          onClick={() => {
-                            const fd = new FormData();
-                            fd.append("handle", config.instagramHandle);
-                            fetcher.submit(fd, { method: "post" });
-                          }}
-                        >
-                          Sync Feed
-                        </Button>
-                        <Button size="slim" tone="critical" variant="plain" onClick={() => setIsDisconnectConfirmOpen(true)}>
-                          Disconnect
-                        </Button>
-                      </InlineStack>
-                    ) : (
-                      <Badge tone="attention">Action Needed</Badge>
-                    )}
-                  </InlineStack>
-
-                  {!setupStep1 && (
-                    <BlockStack gap="150">
-                      <div
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
-                            e.preventDefault();
-                            const fd = new FormData();
-                            fd.append("handle", config.instagramHandle);
-                            fetcher.submit(fd, { method: "post" });
-                          }
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone="success">Ready</Badge>
+                      <Button
+                        size="slim"
+                        onClick={() => {
+                          setIsEditingDesign(true);
+                          setTimeout(() => {
+                            const el = document.getElementById("unified-configurator-card") || document.getElementById("feed-preview-container");
+                            if (el) el.scrollIntoView({ behavior: "smooth" });
+                          }, 100);
                         }}
                       >
-                        <InlineStack gap="200" wrap={false} blockAlign="center">
-                          <div style={{ flex: 1, maxWidth: "340px" }}>
-                            <TextField
-                              label="Instagram username"
-                              labelHidden
-                              prefix="@"
-                              placeholder="yourbrand or profile link"
-                              value={config.instagramHandle}
-                              autoComplete="off"
-                              clearButton
-                              onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
-                              onChange={(val) => {
-                                let v = val;
-                                if (v.includes("instagram.com/")) {
-                                  const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
-                                  if (parts.length > 0) v = parts[0];
-                                }
-                                v = v.replace("@", "").split("?")[0].trim();
-                                setConfig((prev) => ({ ...prev, instagramHandle: v }));
-                                setConnectError(null);
-                              }}
-                            />
-                          </div>
-                          <Button
-                            variant="primary"
-                            loading={isSyncing}
-                            disabled={!config.instagramHandle.trim()}
-                            onClick={() => {
-                              const fd = new FormData();
-                              fd.append("handle", config.instagramHandle);
-                              fetcher.submit(fd, { method: "post" });
-                            }}
-                          >
-                            Connect
-                          </Button>
-                        </InlineStack>
+                        Customize Layout
+                      </Button>
+                    </InlineStack>
+                  </InlineStack>
+                </Box>
+
+                {/* Step 3: Tag Products (Optional) */}
+                <Box
+                  padding="300"
+                  background={onboardingStep3Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep3Done ? "border-success" : "border"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "50%",
+                          background: onboardingStep3Done ? "#10b981" : "#8c9196",
+                          color: "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {onboardingStep3Done ? <Icon source={CheckIcon} tone="inherit" /> : "3"}
                       </div>
-
-                      {connectError && (
-                        <Banner tone="critical">
-                          <Text variant="bodySm">{linkifyText(connectError)}</Text>
-                        </Banner>
-                      )}
-
-                      <InlineStack gap="200" blockAlign="center" wrap>
-                        <Button
-                          variant="plain"
-                          size="slim"
-                          onClick={() => setShowAccountSwitchGuide(!showAccountSwitchGuide)}
-                        >
-                          {showAccountSwitchGuide ? "▲ Close tip" : "Personal account? Switch to free Creator in 15s"}
-                        </Button>
+                      <InlineStack gap="150" blockAlign="baseline" wrap>
+                        <Text variant="bodyMd" as="h3" fontWeight="bold">
+                          3. Tag Products
+                        </Text>
+                        <Badge tone="subdued" size="small">Optional</Badge>
                         <Text variant="bodySm" tone="subdued">
-                          • Sample posts active in theme preview
+                          Shoppable hotspot pins to turn posts into sales
                         </Text>
                       </InlineStack>
+                    </InlineStack>
 
-                      <Collapsible open={showAccountSwitchGuide} id="account-switch-guide-collapsible">
-                        <Box padding="200" background="bg-surface-secondary" borderRadius="200">
-                          <Text variant="bodySm">
-                            Open Instagram app → <strong>Settings</strong> → <strong>Account type and tools</strong> → <strong>Switch to professional account</strong> (Select Creator/Business). Make sure account is Public.
-                          </Text>
-                        </Box>
-                      </Collapsible>
-                    </BlockStack>
-                  )}
-                </BlockStack>
-              </Box>
-
-              {/* Step 2: Add Feed Section */}
-              <Box
-                padding="300"
-                background={setupStep2 ? "bg-surface-secondary" : "bg-surface"}
-                borderRadius="200"
-                borderWidth="025"
-                borderColor={setupStep2 ? "border-success" : "border"}
-              >
-                <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                  <InlineStack gap="200" blockAlign="center">
-                    <div
-                      style={{
-                        width: "24px",
-                        height: "24px",
-                        borderRadius: "50%",
-                        background: setupStep2 ? "#10b981" : "#4f46e5",
-                        color: "#ffffff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "12px",
-                      }}
-                    >
-                      {setupStep2 ? "✓" : "2"}
-                    </div>
-                    <InlineStack gap="150" blockAlign="baseline" wrap>
-                      <Text variant="bodyMd" as="h3" fontWeight="bold">
-                        2. Add to Homepage
-                      </Text>
-                      <Text variant="bodySm" tone="subdued">
-                        Stage gallery section on theme
-                      </Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone={onboardingStep3Done ? "success" : "subdued"}>
+                        {onboardingStep3Done ? "Tagged" : "Optional"}
+                      </Badge>
+                      <Button
+                        size="slim"
+                        onClick={() => navigate("/app/tagging")}
+                      >
+                        Tag Products
+                      </Button>
                     </InlineStack>
                   </InlineStack>
+                </Box>
 
-                  <InlineStack gap="200" blockAlign="center">
-                    <Badge tone={setupStep2 ? "success" : "attention"}>
-                      {setupStep2 ? "Added" : "Action Needed"}
-                    </Badge>
-                    <Button
-                      variant={!setupStep2 ? "primary" : "secondary"}
-                      size="slim"
-                      icon={PlusIcon}
-                      onClick={() => window.open(themeAddSectionUrl, "_blank")}
-                    >
-                      {setupStep2 ? "Edit in Theme ↗" : "Add Section in Theme ↗"}
-                    </Button>
-                  </InlineStack>
-                </InlineStack>
-              </Box>
+                {/* Step 4: Add Feed Section */}
+                <Box
+                  padding="300"
+                  background={onboardingStep5Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep5Done ? "border-success" : "border"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "50%",
+                          background: onboardingStep5Done ? "#10b981" : "#4f46e5",
+                          color: "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {onboardingStep5Done ? <Icon source={CheckIcon} tone="inherit" /> : "4"}
+                      </div>
+                      <InlineStack gap="150" blockAlign="baseline" wrap>
+                        <Text variant="bodyMd" as="h3" fontWeight="bold">
+                          4. Add to Homepage
+                        </Text>
+                        <Text variant="bodySm" tone="subdued">
+                          Stage gallery section on theme
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
 
-              {/* Step 3: Enable App Embed */}
-              <Box
-                padding="300"
-                background={setupStep3 ? "bg-surface-secondary" : "bg-surface"}
-                borderRadius="200"
-                borderWidth="025"
-                borderColor={setupStep3 ? "border-success" : "border"}
-              >
-                <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                  <InlineStack gap="200" blockAlign="center">
-                    <div
-                      style={{
-                        width: "24px",
-                        height: "24px",
-                        borderRadius: "50%",
-                        background: setupStep3 ? "#10b981" : "#4f46e5",
-                        color: "#ffffff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "12px",
-                      }}
-                    >
-                      {setupStep3 ? "✓" : "3"}
-                    </div>
-                    <InlineStack gap="150" blockAlign="baseline" wrap>
-                      <Text variant="bodyMd" as="h3" fontWeight="bold">
-                        3. Enable App Embed
-                      </Text>
-                      <Text variant="bodySm" tone="subdued">
-                        Turn on script toggle in theme
-                      </Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone={onboardingStep5Done ? "success" : "attention"}>
+                        {onboardingStep5Done ? "Added" : "Action Needed"}
+                      </Badge>
+                      <Button
+                        variant={!onboardingStep5Done ? "primary" : "secondary"}
+                        size="slim"
+                        icon={PlusIcon}
+                        onClick={() => window.open(themeAddSectionUrl, "_blank")}
+                      >
+                        {onboardingStep5Done ? "Edit in Theme ↗" : "Add Section in Theme ↗"}
+                      </Button>
+                      <Button
+                        size="slim"
+                        loading={isVerifyingEmbed}
+                        onClick={handleVerifyEmbed}
+                      >
+                        Verify
+                      </Button>
                     </InlineStack>
                   </InlineStack>
+                </Box>
 
-                  <InlineStack gap="200" blockAlign="center">
-                    <Badge tone={setupStep3 ? "success" : "attention"}>
-                      {setupStep3 ? "Active" : "Action Needed"}
-                    </Badge>
-                    <Button
-                      variant={setupStep2 && !setupStep3 ? "primary" : "secondary"}
-                      size="slim"
-                      icon={ExternalIcon}
-                      onClick={() => window.open(themeActivateEmbedUrl, "_blank")}
-                    >
-                      Enable Embed ↗
-                    </Button>
-                    <Button
-                      size="slim"
-                      loading={isVerifyingEmbed}
-                      onClick={handleVerifyEmbed}
-                    >
-                      Verify
-                    </Button>
+                {/* Step 5: Enable App Embed */}
+                <Box
+                  padding="300"
+                  background={onboardingStep4Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep4Done ? "border-success" : "border"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "50%",
+                          background: onboardingStep4Done ? "#10b981" : "#4f46e5",
+                          color: "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {onboardingStep4Done ? <Icon source={CheckIcon} tone="inherit" /> : "5"}
+                      </div>
+                      <InlineStack gap="150" blockAlign="baseline" wrap>
+                        <Text variant="bodyMd" as="h3" fontWeight="bold">
+                          5. Enable App Embed
+                        </Text>
+                        <Text variant="bodySm" tone="subdued">
+                          Turn on script toggle in theme
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
+
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone={onboardingStep4Done ? "success" : "attention"}>
+                        {onboardingStep4Done ? "Active" : "Action Needed"}
+                      </Badge>
+                      <Button
+                        variant={onboardingStep5Done && !onboardingStep4Done ? "primary" : "secondary"}
+                        size="slim"
+                        icon={ExternalIcon}
+                        onClick={() => window.open(themeActivateEmbedUrl, "_blank")}
+                      >
+                        Enable Embed ↗
+                      </Button>
+                      <Button
+                        size="slim"
+                        loading={isVerifyingEmbed}
+                        onClick={handleVerifyEmbed}
+                      >
+                        Verify
+                      </Button>
+                    </InlineStack>
                   </InlineStack>
-                </InlineStack>
-              </Box>
-            </BlockStack>
-          </Card>
-        </div>
+                </Box>
+              </BlockStack>
+            </Card>
+          </div>
         )}
 
         {/* ── Shoppable Tags (Top Bar - Only when Connected) ── */}
@@ -4424,7 +4992,7 @@ export default function Index() {
                       <Text variant="bodyXs" tone="subdued" fontWeight="medium">
                         Storefront Views
                       </Text>
-                      <span style={{ fontSize: "14px" }}>👀</span>
+                      <Icon source={ViewIcon} tone="subdued" />
                     </InlineStack>
                     <div style={{ marginTop: "4px" }}>
                       <Text variant="headingLg" as="p" fontWeight="bold">
@@ -4449,7 +5017,7 @@ export default function Index() {
                       <Text variant="bodyXs" tone="subdued" fontWeight="medium">
                         Product Clicks
                       </Text>
-                      <span style={{ fontSize: "14px" }}>🛍️</span>
+                      <Icon source={StoreIcon} tone="subdued" />
                     </InlineStack>
                     <div style={{ marginTop: "4px" }}>
                       <Text variant="headingLg" as="p" fontWeight="bold">
@@ -4815,7 +5383,7 @@ export default function Index() {
                         flexShrink: 0,
                       }}
                     >
-                      {setupStep3 ? "✓" : "1"}
+                      {setupStep3 ? <Icon source={CheckIcon} tone="inherit" /> : "1"}
                     </div>
                     <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
                       Go to{" "}
@@ -5023,7 +5591,7 @@ export default function Index() {
                           fontWeight: "bold",
                         }}
                       >
-                        ✕
+                        <Icon source={XIcon} tone="subdued" />
                       </button>
                       <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#0f172a", margin: "0 0 12px" }}>
                         {config.stories.promoLabel || "Get 10% Off"}
@@ -5238,7 +5806,7 @@ export default function Index() {
                           }}
                           aria-label="Close modal"
                         >
-                          ✕
+                          <Icon source={XIcon} tone="subdued" />
                         </button>
                       </div>
 
@@ -5831,7 +6399,7 @@ export default function Index() {
             setIsSetupModalOpen(false);
             if (typeof window !== "undefined") localStorage.setItem("setup_modal_dismissed", "1");
           }}
-          title="🎉 Welcome to AI Instafeed Expert!"
+          title="Welcome to AI Instafeed Expert!"
           primaryAction={{
             content: isConnected ? "Go to Dashboard" : "Close",
             onAction: () => {
@@ -5983,7 +6551,7 @@ export default function Index() {
                         icon={PlusIcon}
                         onClick={() => window.open(themeAddSectionUrl, "_blank")}
                       >
-                        {setupStep2 ? "Edit Section ↗" : "➕ 1-Click: Add Section ↗"}
+                        {setupStep2 ? "Edit Section ↗" : "1-Click: Add Section ↗"}
                       </Button>
                     </InlineStack>
                   </InlineStack>
@@ -6115,7 +6683,9 @@ export default function Index() {
             {reviewSubmitted ? (
               <BlockStack gap="400" align="center" inlineAlign="center">
                 <div style={{ textAlign: "center", padding: "20px 0" }}>
-                  <div style={{ fontSize: "40px", marginBottom: "12px" }}>🎉</div>
+                  <div style={{ display: "inline-flex", justifyContent: "center", marginBottom: "12px", color: "#16a34a" }}>
+                    <Icon source={CheckCircleIcon} tone="success" />
+                  </div>
                   <Text variant="headingMd" as="h3" alignment="center">
                     Thank you for your feedback!
                   </Text>
@@ -6156,17 +6726,17 @@ export default function Index() {
                           border: "none",
                           cursor: "pointer",
                           padding: "4px",
-                          fontSize: "28px",
-                          color: star <= reviewRating ? "#f59e0b" : "#d1d5db",
+                          display: "inline-flex",
+                          alignItems: "center",
                           transition: "transform 0.15s ease",
                         }}
                       >
-                        ★
+                        <Icon source={StarIcon} tone={star <= reviewRating ? "warning" : "subdued"} />
                       </button>
                     ))}
                     <Box paddingInlineStart="200" paddingBlockStart="100">
                       <Text variant="bodySm" tone="subdued">
-                        {reviewRating === 5 ? "⭐⭐⭐⭐⭐ Excellent!" : `${reviewRating} / 5 Stars`}
+                        {reviewRating === 5 ? "Excellent!" : `${reviewRating} / 5 Stars`}
                       </Text>
                     </Box>
                   </InlineStack>
@@ -6204,8 +6774,8 @@ export default function Index() {
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center" wrap>
                 <InlineStack gap="200" blockAlign="center" wrap>
-                  <Badge tone="magic">⭐ 100% Free Forever</Badge>
-                  <Badge tone="success">🎁 Bonus App Credits & AI Perks</Badge>
+                  <Badge tone="magic">100% Free Forever</Badge>
+                  <Badge tone="success">Bonus App Credits & AI Perks</Badge>
                 </InlineStack>
                 <Button
                   variant="plain"
@@ -6231,293 +6801,8 @@ export default function Index() {
                   url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
                   target="_blank"
                 >
-                  Write a 5-Star Review & Claim Perks ⭐⭐⭐⭐⭐
-                </Button>
+                  Write a 5-Star Review & Claim Perks </Button>
               </div>
-            </BlockStack>
-          </Card>
-        )}
-
-        {/* ── 8. Onboarding Guide (Bottom of Page - Minimal Text & Optional Steps) ── */}
-        {!isOnboardingDismissed && (
-          <Card padding="400">
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                <InlineStack gap="200" blockAlign="center" wrap>
-                  <Text variant="headingSm" as="h3" fontWeight="bold">
-                    Setup & Onboarding Guide
-                  </Text>
-                  <Badge tone={onboardingCompletedCount === 5 ? "success" : "info"}>
-                    {`${onboardingCompletedCount} of 5 completed`}
-                  </Badge>
-                  <Badge tone="subdued">Optional steps included</Badge>
-                </InlineStack>
-                <InlineStack gap="200" blockAlign="center">
-                  <Button
-                    variant="plain"
-                    size="slim"
-                    onClick={handleDismissOnboarding}
-                    accessibilityLabel="Dismiss onboarding guide"
-                  >
-                    Dismiss
-                  </Button>
-                </InlineStack>
-              </InlineStack>
-
-              <ProgressBar
-                progress={(onboardingCompletedCount / 5) * 100}
-                tone={onboardingCompletedCount === 5 ? "success" : "highlight"}
-                size="small"
-              />
-
-              <BlockStack gap="200">
-                {/* Step 1: Connect Instagram */}
-                <Box
-                  padding="200"
-                  background={onboardingStep1Done ? "bg-surface-secondary" : "bg-surface"}
-                  borderRadius="200"
-                  borderWidth="025"
-                  borderColor={onboardingStep1Done ? "border-success" : "border"}
-                >
-                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          borderRadius: "50%",
-                          background: onboardingStep1Done ? "#10b981" : "#4f46e5",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {onboardingStep1Done ? "✓" : "1"}
-                      </div>
-                      <InlineStack gap="100" blockAlign="baseline" wrap>
-                        <Text variant="bodySm" fontWeight="bold">1. Connect Instagram</Text>
-                        <Text variant="bodyXs" tone="subdued">
-                          {onboardingStep1Done ? `@${instaData?.username || config.instagramHandle}` : "Sync posts"}
-                        </Text>
-                      </InlineStack>
-                    </InlineStack>
-                    <InlineStack gap="150" blockAlign="center">
-                      <Badge tone={onboardingStep1Done ? "success" : "attention"}>
-                        {onboardingStep1Done ? "Connected" : "Required"}
-                      </Badge>
-                      {!onboardingStep1Done && (
-                        <Button
-                          size="micro"
-                          variant="primary"
-                          onClick={() => {
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
-                        >
-                          Connect
-                        </Button>
-                      )}
-                    </InlineStack>
-                  </InlineStack>
-                </Box>
-
-                {/* Step 2: Choose Design */}
-                <Box
-                  padding="200"
-                  background={onboardingStep2Done ? "bg-surface-secondary" : "bg-surface"}
-                  borderRadius="200"
-                  borderWidth="025"
-                  borderColor={onboardingStep2Done ? "border-success" : "border"}
-                >
-                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          borderRadius: "50%",
-                          background: onboardingStep2Done ? "#10b981" : "#4f46e5",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {onboardingStep2Done ? "✓" : "2"}
-                      </div>
-                      <InlineStack gap="100" blockAlign="baseline" wrap>
-                        <Text variant="bodySm" fontWeight="bold">2. Choose Design</Text>
-                        <Text variant="bodyXs" tone="subdued">
-                          {config.layoutType || "Grid"} layout selected
-                        </Text>
-                      </InlineStack>
-                    </InlineStack>
-                    <InlineStack gap="150" blockAlign="center">
-                      <Badge tone="success">Ready</Badge>
-                      <Button
-                        size="micro"
-                        onClick={() => {
-                          const el = document.getElementById("layout-style-selector");
-                          if (el) el.scrollIntoView({ behavior: "smooth" });
-                        }}
-                      >
-                        Customize
-                      </Button>
-                    </InlineStack>
-                  </InlineStack>
-                </Box>
-
-                {/* Step 3: Tag Products (Optional) */}
-                <Box
-                  padding="200"
-                  background={onboardingStep3Done ? "bg-surface-secondary" : "bg-surface"}
-                  borderRadius="200"
-                  borderWidth="025"
-                  borderColor={onboardingStep3Done ? "border-success" : "border"}
-                >
-                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          borderRadius: "50%",
-                          background: onboardingStep3Done ? "#10b981" : "#8c9196",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {onboardingStep3Done ? "✓" : "3"}
-                      </div>
-                      <InlineStack gap="100" blockAlign="baseline" wrap>
-                        <Text variant="bodySm" fontWeight="bold">3. Tag Products</Text>
-                        <Badge tone="subdued" size="small">Optional</Badge>
-                        <Text variant="bodyXs" tone="subdued">Shoppable hotspots on posts</Text>
-                      </InlineStack>
-                    </InlineStack>
-                    <InlineStack gap="150" blockAlign="center">
-                      <Badge tone={onboardingStep3Done ? "success" : "subdued"}>
-                        {onboardingStep3Done ? "Tagged" : "Optional"}
-                      </Badge>
-                      <Button
-                        size="micro"
-                        onClick={() => setIsTaggingModalOpen(true)}
-                      >
-                        Tag Products
-                      </Button>
-                    </InlineStack>
-                  </InlineStack>
-                </Box>
-
-                {/* Step 4: Add Section to Homepage */}
-                <Box
-                  padding="200"
-                  background={onboardingStep5Done ? "bg-surface-secondary" : "bg-surface"}
-                  borderRadius="200"
-                  borderWidth="025"
-                  borderColor={onboardingStep5Done ? "border-success" : "border"}
-                >
-                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          borderRadius: "50%",
-                          background: onboardingStep5Done ? "#10b981" : "#4f46e5",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {onboardingStep5Done ? "✓" : "4"}
-                      </div>
-                      <InlineStack gap="100" blockAlign="baseline" wrap>
-                        <Text variant="bodySm" fontWeight="bold">4. Add Section to Theme</Text>
-                        <Text variant="bodyXs" tone="subdued">Place feed block on storefront</Text>
-                      </InlineStack>
-                    </InlineStack>
-                    <InlineStack gap="150" blockAlign="center">
-                      <Badge tone={onboardingStep5Done ? "success" : "attention"}>
-                        {onboardingStep5Done ? "Added" : "Required"}
-                      </Badge>
-                      <Button
-                        size="micro"
-                        variant={!onboardingStep5Done ? "primary" : "secondary"}
-                        icon={PlusIcon}
-                        onClick={() => window.open(themeAddSectionUrl, "_blank")}
-                      >
-                        {onboardingStep5Done ? "Edit ↗" : "Add Section ↗"}
-                      </Button>
-                    </InlineStack>
-                  </InlineStack>
-                </Box>
-
-                {/* Step 5: Enable App Embed */}
-                <Box
-                  padding="200"
-                  background={onboardingStep4Done ? "bg-surface-secondary" : "bg-surface"}
-                  borderRadius="200"
-                  borderWidth="025"
-                  borderColor={onboardingStep4Done ? "border-success" : "border"}
-                >
-                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          borderRadius: "50%",
-                          background: onboardingStep4Done ? "#10b981" : "#4f46e5",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {onboardingStep4Done ? "✓" : "5"}
-                      </div>
-                      <InlineStack gap="100" blockAlign="baseline" wrap>
-                        <Text variant="bodySm" fontWeight="bold">5. Enable App Embed</Text>
-                        <Text variant="bodyXs" tone="subdued">Activate app script toggle</Text>
-                      </InlineStack>
-                    </InlineStack>
-                    <InlineStack gap="150" blockAlign="center">
-                      <Badge tone={onboardingStep4Done ? "success" : "attention"}>
-                        {onboardingStep4Done ? "Active" : "Required"}
-                      </Badge>
-                      <Button
-                        size="micro"
-                        variant={!onboardingStep4Done ? "primary" : "secondary"}
-                        icon={ExternalIcon}
-                        onClick={() => window.open(themeActivateEmbedUrl, "_blank")}
-                      >
-                        Enable ↗
-                      </Button>
-                      <Button
-                        size="micro"
-                        loading={isVerifyingEmbed}
-                        onClick={handleVerifyEmbed}
-                      >
-                        Verify
-                      </Button>
-                    </InlineStack>
-                  </InlineStack>
-                </Box>
-              </BlockStack>
             </BlockStack>
           </Card>
         )}

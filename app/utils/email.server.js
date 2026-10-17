@@ -38,7 +38,7 @@ function renderContactBlock() {
       <tr>
         <td>
           <div style="font-size: 14px; font-weight: 700; color: #833ab4; margin-bottom: 6px; letter-spacing: 0.02em;">
-            ⚡ Need Instant 1-on-1 Assistance?
+            Need Instant 1-on-1 Assistance?
           </div>
           <div style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 16px;">
             Our integration team is available to help you configure feeds, optimize layouts, or answer any questions free of charge:
@@ -48,10 +48,10 @@ function renderContactBlock() {
             <tr>
               <td style="padding: 6px 0;">
                 <a href="${CALENDAR_URL}" target="_blank" style="display: inline-block; background: #1a73e8; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-right: 8px; margin-bottom: 6px;">
-                  📅 Book Google Calendar Slot &rarr;
+                  Book Google Calendar Slot &rarr;
                 </a>
                 <a href="${WHATSAPP_URL}" target="_blank" style="display: inline-block; background: #25D366; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                  💬 Chat on WhatsApp (+91 70005 87074) &rarr;
+                  Chat on WhatsApp (+91 70005 87074) &rarr;
                 </a>
               </td>
             </tr>
@@ -76,17 +76,17 @@ function renderReviewRewardBlock(cleanDomain) {
             <tr>
               <td>
                 <div style="display: inline-block; background: #16a34a; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 20px; margin-bottom: 10px;">
-                  ✨ 100% FREE FOREVER APP
+                  100% FREE FOREVER APP
                 </div>
                 <div style="font-size: 17px; font-weight: 800; color: #78350f; margin-bottom: 8px; line-height: 1.3;">
-                  🎁 Leave a Review &amp; Get Free App Credits + Unlocked AI Features!
+                  Leave a Review &amp; Get Free App Credits + Unlocked AI Features!
                 </div>
                 <div style="font-size: 13.5px; color: #92400e; line-height: 1.6; margin-bottom: 16px;">
                   AI Instafeed is completely <strong>Free Forever</strong> with no hidden costs or subscriptions. If you love using the app, please take 30 seconds to drop us a quick 5-star review. As a special thank you, <strong>we will send you free app credits and enable premium AI Auto-Tagging &amp; Smart Product Matching features</strong> for your store!
                 </div>
                 <div>
                   <a href="${reviewUrl}" target="_blank" style="display: inline-block; background: ${IG_GRADIENT_BTN}; color: #ffffff; text-decoration: none; padding: 12px 26px; border-radius: 8px; font-size: 13.5px; font-weight: 800; box-shadow: 0 4px 12px rgba(225, 48, 108, 0.35);">
-                    ⭐ Write a Review &amp; Unlock AI Rewards &rarr;
+                    Write a Review &amp; Unlock AI Rewards &rarr;
                   </a>
                 </div>
               </td>
@@ -101,10 +101,10 @@ function renderReviewRewardBlock(cleanDomain) {
 function getReviewRewardText(cleanDomain) {
   const reviewUrl = "https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal";
   return `
-✨ 100% FREE FOREVER APP
+100% FREE FOREVER APP
 AI Instafeed is completely free forever with no hidden subscriptions or surprise fees.
 
-🎁 WRITE A REVIEW & CLAIM BONUS AI REWARDS:
+WRITE A REVIEW & CLAIM BONUS AI REWARDS:
 Enjoying AI Instafeed? Please take 30 seconds to rate us and leave a 5-star review!
 As a special thank you, our team will send you free app credits and enable premium AI Auto-Detection & Smart Product Tagging features for your store:
 ${reviewUrl}
@@ -155,7 +155,7 @@ export async function sendWelcomeEmail({ to, shop, shopName, myshopifyDomain }) 
 Hello,
 
 AI Instafeed is now successfully connected to your Shopify store: ${displayName} (${cleanDomain}).
-✨ Great news: AI Instafeed is 100% Free Forever with no hidden subscription fees!
+Great news: AI Instafeed is 100% Free Forever with no hidden subscription fees!
 
 Direct App Dashboard link:
 ${dashboardUrl}
@@ -294,7 +294,7 @@ The AI Instafeed Team
           </tr>
         </table>
 
-        <!-- 🎁 Free Forever & Review Incentive Reward Block -->
+        <!-- Free Forever & Review Incentive Reward Block -->
         ${renderReviewRewardBlock(cleanDomain)}
 
         <!-- Direct Contact Channels -->
@@ -358,7 +358,7 @@ Hello ${displayName},
 
 We noticed that you recently uninstalled AI Instafeed from your store (${cleanDomain}).
 
-✨ Remember: AI Instafeed is 100% Free Forever for your store with zero subscription fees. If you faced any issues with feed loading, theme styling, product tagging, or mobile layout, our developer team is ready to personally fix and optimize it for you completely free of charge!
+Remember: AI Instafeed is 100% Free Forever for your store with zero subscription fees. If you faced any issues with feed loading, theme styling, product tagging, or mobile layout, our developer team is ready to personally fix and optimize it for you completely free of charge!
 
 Plus, if you write us a review, we will happily unlock premium Pro AI Auto-Detection features and add bonus app credits to your account!
 
@@ -426,7 +426,7 @@ The AI Instafeed Team
           </tr>
         </table>
 
-        <!-- 🎁 Free Forever & Review Incentive Reward Block -->
+        <!-- Free Forever & Review Incentive Reward Block -->
         ${renderReviewRewardBlock(cleanDomain)}
 
         <!-- Direct Contact Channels -->
@@ -483,13 +483,13 @@ export async function sendReinstallEmail({ to, shop, shopName, myshopifyDomain }
   const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
   const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
 
-  const subject = `Welcome back to AI Instafeed, ${displayName}! 🎉 (100% Free Forever)`;
+  const subject = `Welcome back to AI Instafeed, ${displayName}! (100% Free Forever)`;
 
   const textContent = `
 Hello ${displayName},
 
 Thank you so much for reinstalling AI Instafeed on ${cleanDomain}! We are absolutely thrilled to welcome you back.
-✨ Remember: AI Instafeed is 100% Free Forever for your store.
+Remember: AI Instafeed is 100% Free Forever for your store.
 
 Open Your Dashboard:
 ${dashboardUrl}
@@ -523,7 +523,7 @@ The AI Instafeed Team
     <tr>
       <td style="background: ${IG_GRADIENT_MAIN}; padding: 36px 36px 32px 36px; text-align: left;">
         <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">WELCOME BACK &bull; 100% FREE FOREVER</span>
-        <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">Thanks for Reinstalling! 🎉</h1>
+        <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">Thanks for Reinstalling! </h1>
         <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.95); font-size: 14px;">We're so glad to have <strong>${displayName}</strong> back!</p>
       </td>
     </tr>
@@ -546,13 +546,13 @@ The AI Instafeed Team
           </div>
         </div>
 
-        <!-- 🎁 Free Forever & Review Incentive Reward Block -->
+        <!-- Free Forever & Review Incentive Reward Block -->
         ${renderReviewRewardBlock(cleanDomain)}
 
         <!-- VIP Support Highlight -->
         <div style="background: #fdf2f8; border-left: 4px solid #e1306c; border-radius: 8px; padding: 18px 20px; margin: 24px 0;">
           <div style="font-weight: 700; font-size: 14px; color: #9d174d; margin-bottom: 4px;">
-            🌟 Complimentary Setup Service
+            Complimentary Setup Service
           </div>
           <div style="font-size: 13px; color: #831843; line-height: 1.5;">
             Since you're back with us, our senior integration team is offering complimentary feed customization and theme matching for your store!
@@ -700,13 +700,13 @@ export async function sendMonthlyReportEmail({ to, shop, shopName, myshopifyDoma
   const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
   const reviewUrl = `https://${cleanDomain}/admin/apps/ai-instafeed?review=true`;
 
-  const subject = `📊 ${currentMonthYear} Instagram Feed Performance Report for ${displayName} (100% Free Forever)`;
+  const subject = `${currentMonthYear} Instagram Feed Performance Report for ${displayName} (100% Free Forever)`;
 
   const textContent = `
 Hello ${displayName},
 
 Here is your monthly Instagram storefront feed performance report for ${currentMonthYear} on ${cleanDomain}:
-✨ Reminder: AI Instafeed is 100% Free Forever on your store!
+Reminder: AI Instafeed is 100% Free Forever on your store!
 
 MONTHLY PERFORMANCE SUMMARY:
 - Total Feed Impressions: ${totalViews.toLocaleString()}
@@ -794,7 +794,7 @@ The AI Instafeed Team
           </a>
         </div>
 
-        <!-- 🎁 Free Forever & Review Incentive Reward Block -->
+        <!-- Free Forever & Review Incentive Reward Block -->
         ${renderReviewRewardBlock(cleanDomain)}
 
         <!-- Direct Contact Channels -->

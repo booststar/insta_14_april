@@ -96,7 +96,7 @@
       media_url: "https://picsum.photos/id/1027/800/800",
       thumbnail_url: "https://picsum.photos/id/1027/800/800",
       media_type: "IMAGE",
-      caption: "Our signature collection ✨ Designed for effortless day-to-night styling. #shopify #newcollection #lifestyle",
+      caption: "Our signature collection. Designed for effortless day-to-night styling. #shopify #newcollection #lifestyle",
       like_count: 342,
       comments_count: 18,
       permalink: "https://shopify.com",
@@ -106,7 +106,7 @@
       media_url: "https://vjs.zencdn.net/v/oceans.mp4",
       thumbnail_url: "https://vjs.zencdn.net/v/oceans.png",
       media_type: "VIDEO",
-      caption: "Behind the scenes look at our summer campaign 🌊 Discover the full collection in store. #reel #video #summer",
+      caption: "Behind the scenes look at our summer campaign. Discover the full collection in store. #reel #video #summer",
       like_count: 812,
       comments_count: 45,
       permalink: "https://shopify.com",
@@ -116,7 +116,7 @@
       media_url: "https://picsum.photos/id/1011/800/800",
       thumbnail_url: "https://picsum.photos/id/1011/800/800",
       media_type: "IMAGE",
-      caption: "Minimalist craftsmanship for every occasion. Styled with our handcrafted accessories 🤍 #collection #minimalist",
+      caption: "Minimalist craftsmanship for every occasion. Styled with our handcrafted accessories. #collection #minimalist",
       like_count: 420,
       comments_count: 24,
       permalink: "https://shopify.com",
@@ -126,7 +126,7 @@
       media_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
       thumbnail_url: "https://picsum.photos/id/152/800/800",
       media_type: "VIDEO",
-      caption: "Nature-inspired botanicals & fresh organic drop 🌸 Watch the details unfold! #reels #outfitinspo #shopify",
+      caption: "Nature-inspired botanicals & fresh organic drop. Watch the details unfold! #reels #outfitinspo #shopify",
       like_count: 1240,
       comments_count: 89,
       permalink: "https://shopify.com",
@@ -136,7 +136,7 @@
       media_url: "https://picsum.photos/id/1015/800/800",
       thumbnail_url: "https://picsum.photos/id/1015/800/800",
       media_type: "IMAGE",
-      caption: "Weekend essentials in crisp neutral tones. Breathable, relaxed, perfected 🌿 #essentials #summercapsule",
+      caption: "Weekend essentials in crisp neutral tones. Breathable, relaxed, perfected. #essentials #summercapsule",
       like_count: 518,
       comments_count: 31,
       permalink: "https://shopify.com",
@@ -146,7 +146,7 @@
       media_url: "https://picsum.photos/id/1062/800/800",
       thumbnail_url: "https://picsum.photos/id/1062/800/800",
       media_type: "IMAGE",
-      caption: "Monochrome moments. Tap to shop products featured in this photo 🖤 #capsulewardrobe #styleinspo",
+      caption: "Monochrome moments. Tap to shop products featured in this photo. #capsulewardrobe #styleinspo",
       like_count: 673,
       comments_count: 40,
       permalink: "https://shopify.com",
@@ -156,7 +156,7 @@
       media_url: "https://media.w3.org/2010/05/sintel/trailer.mp4",
       thumbnail_url: "https://media.w3.org/2010/05/sintel/poster.png",
       media_type: "VIDEO",
-      caption: "Cinematic story of our latest release 🎬 Swipe to explore the lookbook! #behindthescenes #production",
+      caption: "Cinematic story of our latest release. Swipe to explore the lookbook! #behindthescenes #production",
       like_count: 940,
       comments_count: 67,
       permalink: "https://shopify.com",
@@ -166,7 +166,7 @@
       media_url: "https://picsum.photos/id/1080/800/800",
       thumbnail_url: "https://picsum.photos/id/1080/800/800",
       media_type: "IMAGE",
-      caption: "Curated collection for modern living. Handcrafted pieces available now online ✨ #statementjewelry #lifestyle",
+      caption: "Curated collection for modern living. Handcrafted pieces available now online. #statementjewelry #lifestyle",
       like_count: 380,
       comments_count: 22,
       permalink: "https://shopify.com",
@@ -176,7 +176,7 @@
       media_url: "https://picsum.photos/id/1043/800/800",
       thumbnail_url: "https://picsum.photos/id/1043/800/800",
       media_type: "IMAGE",
-      caption: "Clean lines and timeless materials. Tap to shop our flagship product 🍂 #productdrop #shoponline",
+      caption: "Clean lines and timeless materials. Tap to shop our flagship product. #productdrop #shoponline",
       like_count: 685,
       comments_count: 28,
       permalink: "https://shopify.com",
@@ -186,7 +186,7 @@
       media_url: "https://picsum.photos/id/1060/800/800",
       thumbnail_url: "https://picsum.photos/id/1060/800/800",
       media_type: "IMAGE",
-      caption: "Premium essentials for daily routine ☕️ Crafted with precision and sustainable care. #casualchic #cozyvibes",
+      caption: "Premium essentials for daily routine. Crafted with precision and sustainable care. #casualchic #cozyvibes",
       like_count: 490,
       comments_count: 17,
       permalink: "https://shopify.com",
@@ -196,7 +196,7 @@
       media_url: "https://vjs.zencdn.net/v/oceans.mp4",
       thumbnail_url: "https://vjs.zencdn.net/v/oceans.png",
       media_type: "VIDEO",
-      caption: "Product spotlight & live demonstration 🌊 Watch how it works! #productvideo #demo",
+      caption: "Product spotlight & live demonstration. Watch how it works! #productvideo #demo",
       like_count: 1120,
       comments_count: 75,
       permalink: "https://shopify.com",
@@ -206,7 +206,7 @@
       media_url: "https://picsum.photos/id/1069/800/800",
       thumbnail_url: "https://picsum.photos/id/1069/800/800",
       media_type: "IMAGE",
-      caption: "Soft tailoring and everyday elegance 🌙 Designed to elevate your storefront seamlessly.",
+      caption: "Soft tailoring and everyday elegance. Designed to elevate your storefront seamlessly.",
       like_count: 560,
       comments_count: 32,
       permalink: "https://shopify.com",
@@ -1158,7 +1158,7 @@
         const shareUrl = item ? (item.permalink || window.location.href) : window.location.href;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(shareUrl).then(() => {
-            this.showToast("✨ Link copied to clipboard!");
+            this.showToast("Link copied to clipboard!");
           }).catch(() => {
             window.prompt("Copy post link:", shareUrl);
           });
@@ -1355,7 +1355,7 @@
               </div>
               <!-- Right side: offer details panel -->
               <div style="flex: 1.2; display: flex; flex-direction: column; background: white; padding: 32px; position: relative; justify-content: center; box-sizing: border-box;">
-                <button class="ai-modal-header-close" aria-label="Close" style="position: absolute; top: 16px; right: 16px; background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-weight: bold; z-index: 10; display: flex; align-items: center; justify-content: center;">✕</button>
+                <button class="ai-modal-header-close" aria-label="Close" style="position: absolute; top: 16px; right: 16px; background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-weight: bold; z-index: 10; display: flex; align-items: center; justify-content: center; color: #475569;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                 <h4 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 16px 0; line-height: 1.2;">${esc(promoLabelText)}</h4>
                 <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 24px 0; font-weight: 500;">
                   ${promoDescHtml}
@@ -1732,7 +1732,7 @@
             body: JSON.stringify({ items: [{ id: variantId, quantity: 1 }] })
           });
           if (res.ok) {
-            addBtn.textContent = '✓ Added!';
+            addBtn.textContent = 'Added to Cart!';
             addBtn.style.background = '#10b981';
             setTimeout(() => {
               addBtn.textContent = originalText;
@@ -1745,7 +1745,7 @@
             throw new Error('Add to cart failed');
           }
         } catch (err) {
-          addBtn.textContent = '✓ Added!';
+          addBtn.textContent = 'Added to Cart!';
           setTimeout(() => {
             addBtn.textContent = originalText;
             addBtn.disabled = false;
