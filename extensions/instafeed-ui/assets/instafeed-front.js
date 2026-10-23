@@ -590,7 +590,7 @@
         // Avatar circle
         html += '<div class="ai-profile-avatar-wrap" style="width:46px;height:46px;min-width:46px;min-height:46px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);padding:2px;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">';
         if (profilePic) {
-          html += '<img src="' + esc(profilePic) + '" alt="' + esc(igHandle || 'Instagram Profile') + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">';
+          html += '<img width="46" height="46" decoding="async" src="' + esc(profilePic) + '" alt="' + esc(igHandle || 'Instagram Profile') + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">';
         } else {
           html += '<div style="width:100%;height:100%;border-radius:50%;background:#ffffff;display:flex;align-items:center;justify-content:center;">'
                 + '<svg width="20" height="20" viewBox="0 0 24 24" fill="#833ab4"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>'
@@ -667,7 +667,7 @@
                 + '<div class="ai-story-ring-wrapper" style="width:64px;height:64px;border-radius:50%;padding:3px;border:' + (sActiveRing ? 'none' : '2px solid ' + sRingColor) + ';background:white;margin:0 auto;position:relative;">'
                 + (sActiveRing ? '<svg class="ai-story-ring-svg ' + (s.pulseRing === true ? 'ai-story-ring-pulse' : '') + '" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><circle class="ai-story-ring-circle" cx="50" cy="50" r="47.5" stroke="' + sRingColor + '" /></svg>' : '')
                 + '<div class="ai-story-image-container" style="width:100%;height:100%;border-radius:50%;overflow:hidden;background:#f1f5f9;position:relative;z-index:1;">'
-                + (thumb ? '<img loading="lazy" src="' + esc(thumb) + '" alt="Story highlight" style="width:100%;height:100%;object-fit:cover;display:block;">' : '<div class="ai-skeleton-tile"></div>')
+                + (thumb ? '<img loading="lazy" width="64" height="64" decoding="async" src="' + esc(thumb) + '" alt="Story highlight" style="width:100%;height:100%;object-fit:cover;display:block;">' : '<div class="ai-skeleton-tile"></div>')
                 + '</div></div>'
                 + '</a></div>';
         });
@@ -744,7 +744,7 @@
       if (!c.removeWatermark) {
         const logoUrl = this.getAttribute("data-logo-url") || "";
         if (logoUrl) {
-          html += '<div style="text-align:center;padding:16px;font-size:12px;color:#9ca3af;"><a href="https://apps.shopify.com/ai-instafeed" target="_blank" rel="noopener noreferrer" style="display:inline-block;vertical-align:middle;"><img src="' + logoUrl + '" style="height:16px !important;width:auto !important;max-width:none !important;max-height:16px !important;vertical-align:middle !important;display:inline-block !important;" alt="BOOST STAR Experts" /></a></div>';
+          html += '<div style="text-align:center;padding:16px;font-size:12px;color:#9ca3af;"><a href="https://apps.shopify.com/ai-instafeed" target="_blank" rel="noopener noreferrer" style="display:inline-block;vertical-align:middle;"><img width="80" height="16" loading="lazy" decoding="async" src="' + logoUrl + '" style="height:16px !important;width:auto !important;max-width:none !important;max-height:16px !important;vertical-align:middle !important;display:inline-block !important;" alt="BOOST STAR Experts" /></a></div>';
         } else {
           html += '<div style="text-align:center;padding:16px;font-size:12px;color:#9ca3af;"><a href="https://apps.shopify.com/ai-instafeed" target="_blank" rel="noopener noreferrer" style="font-weight:700;color:#64748b;text-decoration:none;">BOOST STAR Experts</a></div>';
         }
@@ -781,18 +781,18 @@
       if (isVideo && mediaUrl) {
         const fallbackPoster = thumbUrl;
         const fallbackOnError = fallbackPoster
-          ? `if(!this.dataset.errored){this.dataset.errored='1';this.outerHTML='<img ${loadAttr} src=\x22${esc(fallbackPoster)}\x22 style=\x22width:100%;height:100%;object-fit:cover;display:block;\x22 alt=\x22Instagram Media\x22>'}`
+          ? `if(!this.dataset.errored){this.dataset.errored='1';this.outerHTML='<img ${loadAttr} width=\x22400\x22 height=\x22400\x22 src=\x22${esc(fallbackPoster)}\x22 style=\x22width:100%;height:100%;object-fit:cover;display:block;\x22 alt=\x22Instagram Media\x22>'}`
           : `this.style.opacity='0.5'`;
 
         if (c.autoplay !== false) {
-          inner = `<video src="${esc(mediaUrl)}"${posterAttr} autoplay muted loop playsinline preload="metadata" onerror="${fallbackOnError}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
+          inner = `<video width="400" height="400" src="${esc(mediaUrl)}"${posterAttr} autoplay muted loop playsinline preload="metadata" onerror="${fallbackOnError}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
         } else if (thumbUrl) {
-          inner = `<img ${loadAttr} src="${esc(thumbUrl)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+          inner = `<img ${loadAttr} width="400" height="400" src="${esc(thumbUrl)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
         } else {
-          inner = `<video src="${esc(mediaUrl)}"${posterAttr} muted playsinline preload="metadata" onerror="${fallbackOnError}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
+          inner = `<video width="400" height="400" src="${esc(mediaUrl)}"${posterAttr} muted playsinline preload="metadata" onerror="${fallbackOnError}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
         }
       } else if (mediaUrl) {
-        inner = `<img ${loadAttr} src="${esc(mediaUrl)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+        inner = `<img ${loadAttr} width="400" height="400" src="${esc(mediaUrl)}" alt="Instagram post" style="width:100%;height:100%;object-fit:cover;display:block;">`;
       } else {
         inner = `<div style="width:100%;height:100%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;">Media Unavailable</div>`;
       }
@@ -805,8 +805,8 @@
           <svg width="18" height="18" viewBox="0 0 20 20" fill="white"><path d="M17 14c-.5 0-1 .4-1 1v2H4V5h12v2c0 .5.4 1 1 1s1-.5 1-1V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2-2 2h12.6l2.7 2.7c.1.1.2.2.3.2.4.1.8-.1 1-.5V8c0-.5-.4-1-1-1s-1 .4-1 1v6c0 .5-.4 1-1 1z"/></svg>
           <span>${item.comments_count || 0}</span>
         </div>` : "";
-      const aspect = (c.aspectRatio && c.aspectRatio !== "auto") ? c.aspectRatio : (c.aspectRatio === "auto" ? "auto" : "1/1");
-      const itemStyle = (aspect !== "auto") ? `aspect-ratio:${aspect};` : "";
+      const aspect = (c.aspectRatio && c.aspectRatio !== "auto") ? c.aspectRatio : "1/1";
+      const itemStyle = `aspect-ratio:${aspect};`;
 
       const taggedList = (this.config && this.config.taggedProducts && (this.config.taggedProducts[item.id] || this.config.taggedProducts[item.media_url])) || [];
       const shoppableBadge = (taggedList.length > 0) ? `
@@ -1047,14 +1047,14 @@
             if (s.autoplay) {
               mediaTpl = `<video src="${esc(item.media_url)}"${posterAttr} autoplay muted loop playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
             } else if (thumbUrl) {
-              mediaTpl = `<img loading="lazy" src="${esc(thumbUrl)}" alt="story" class="${s.animateImages ? 'ai-ken-burns' : ''}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+              mediaTpl = `<img loading="lazy" width="64" height="64" decoding="async" src="${esc(thumbUrl)}" alt="story" class="${s.animateImages ? 'ai-ken-burns' : ''}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
             } else if (item.media_url) {
-              mediaTpl = `<video src="${esc(item.media_url)}" muted playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
+              mediaTpl = `<video width="64" height="64" src="${esc(item.media_url)}" muted playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block;"></video>`;
             } else {
               mediaTpl = `<div class="ai-skeleton-tile"></div>`;
             }
           } else if (item.media_url) {
-            mediaTpl = `<img loading="lazy" src="${esc(item.media_url)}" alt="story" class="${s.animateImages ? 'ai-ken-burns' : ''}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+            mediaTpl = `<img loading="lazy" width="64" height="64" decoding="async" src="${esc(item.media_url)}" alt="story" class="${s.animateImages ? 'ai-ken-burns' : ''}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
           } else {
             mediaTpl = `<div class="ai-skeleton-tile"></div>`;
           }
