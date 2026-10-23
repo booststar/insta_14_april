@@ -3,6 +3,7 @@
   Optimized for Core Web Vitals:
   - LCP < 2.5s: Emits high-priority preload for the primary feed image.
   - CLS < 0.1: Dynamically reserves exact layout dimensions via CSS variables & content-visibility.
+  - Activation Lock: Automatically deactivates and hides when "Instafeed Activation" app embed is disabled.
 {% endcomment %}
 
 {% assign config_meta = app.metafields.ai_instafeed.config.value | default: shop.metafields.ai_instafeed.config.value %}
@@ -80,6 +81,23 @@
       contain-intrinsic-size: auto {{ mob_height }}px;
     }
   }
+
+  /* ── Master Switch: When "Instafeed Activation" app embed is disabled, completely hide this section ── */
+  html:not(:has(#ai-instafeed-active-marker)) instafeed-grid,
+  html:not(:has(#ai-instafeed-active-marker)) .ai-feed-grid-section-container,
+  html:not(:has(#ai-instafeed-active-marker)) [data-block-handle="feed-grid"],
+  html:not(:has(#ai-instafeed-active-marker)) .shopify-block:has(instafeed-grid),
+  html:not(:has(#ai-instafeed-active-marker)) .shopify-app-block:has(instafeed-grid),
+  html:not(:has(#ai-instafeed-active-marker)) div[class*="shopify-block"]:has(instafeed-grid),
+  html:not(:has(#ai-instafeed-active-marker)) div[class*="shopify-app-block"]:has(instafeed-grid) {
+    display: none !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    visibility: hidden !important;
+  }
 </style>
 
 {{ 'instafeed-front.css' | asset_url | stylesheet_tag: preload: true }}
@@ -93,7 +111,7 @@
 </script>
 {% endif %}
 
-<div style="width: 100% !important;">
+<div class="ai-feed-grid-section-container" style="width: 100% !important;">
   <instafeed-grid css-url="{{ 'instafeed-front.css' | asset_url }}" data-logo-url="{{ 'logo.png' | asset_url }}"></instafeed-grid>
 </div>
 <script src="{{ 'instafeed-front.js' | asset_url }}" defer></script>

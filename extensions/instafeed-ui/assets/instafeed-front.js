@@ -417,6 +417,16 @@
     }
 
     connectedCallback() {
+      if (!isActivationEmbedActive()) {
+        this.style.setProperty("display", "none", "important");
+        this.style.setProperty("min-height", "0", "important");
+        const parentBlock = this.closest(".shopify-block, .shopify-app-block, div[class*='shopify-block'], div[class*='shopify-app-block']");
+        if (parentBlock) {
+          parentBlock.style.setProperty("display", "none", "important");
+          parentBlock.style.setProperty("min-height", "0", "important");
+        }
+        return;
+      }
       ensureParentWidth(this);
       if (cachedConfig && cachedGridMedia) {
         this.render(cachedConfig, cachedGridMedia, cachedInstaData);
@@ -908,6 +918,16 @@
     }
 
     connectedCallback() {
+      if (!isActivationEmbedActive()) {
+        this.style.setProperty("display", "none", "important");
+        this.style.setProperty("min-height", "0", "important");
+        const parentBlock = this.closest(".shopify-block, .shopify-app-block, div[class*='shopify-block'], div[class*='shopify-app-block']");
+        if (parentBlock) {
+          parentBlock.style.setProperty("display", "none", "important");
+          parentBlock.style.setProperty("min-height", "0", "important");
+        }
+        return;
+      }
       ensureParentWidth(this);
       if (cachedConfig && cachedStoryMedia) {
         this.render(cachedConfig, cachedStoryMedia, cachedInstaData);
@@ -1785,8 +1805,44 @@
     modalEl.open(e.detail ? e.detail.id : null, e.detail ? e.detail.source : 'grid', (e.detail ? e.detail.media : null) || cachedGridMedia || cachedStoryMedia, config, cssUrl, instaData);
   });
 
+  function isActivationEmbedActive() {
+    return Boolean(
+      window.__aiInstafeedActive ||
+      document.getElementById("ai-instafeed-active-marker") ||
+      document.querySelector("[data-ai-instafeed-active]")
+    );
+  }
+
+  function deactivateStorefront() {
+    const targets = document.querySelectorAll("instafeed-grid, instafeed-story, .ai-feed-grid-section-container, [data-block-handle='feed-grid']");
+    targets.forEach(function (el) {
+      el.style.setProperty("display", "none", "important");
+      el.style.setProperty("min-height", "0", "important");
+      el.style.setProperty("height", "0", "important");
+      el.style.setProperty("margin", "0", "important");
+      el.style.setProperty("padding", "0", "important");
+      el.style.setProperty("visibility", "hidden", "important");
+      el.hidden = true;
+      const parentBlock = el.closest(".shopify-block, .shopify-app-block, div[class*='shopify-block'], div[class*='shopify-app-block']");
+      if (parentBlock) {
+        parentBlock.style.setProperty("display", "none", "important");
+        parentBlock.style.setProperty("min-height", "0", "important");
+        parentBlock.style.setProperty("height", "0", "important");
+        parentBlock.style.setProperty("margin", "0", "important");
+        parentBlock.style.setProperty("padding", "0", "important");
+        parentBlock.hidden = true;
+      }
+    });
+  }
+
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   async function init() {
+    // 0. Verify that the master "Instafeed Activation" app embed is enabled
+    if (!isActivationEmbedActive()) {
+      deactivateStorefront();
+      return;
+    }
+
     let loadedFromPayload = false;
 
     // 1. Check if initial payload was pre-rendered by Liquid block (Zero-Network)
@@ -1822,6 +1878,10 @@
 
     // Re-bind on theme editor events
     document.addEventListener("shopify:section:load", () => {
+      if (!isActivationEmbedActive()) {
+        deactivateStorefront();
+        return;
+      }
       loadAndRender();
     });
 
@@ -1931,6 +1991,10 @@
   }
 
   async function loadAndRender(silent = false) {
+    if (!isActivationEmbedActive()) {
+      deactivateStorefront();
+      return;
+    }
     try {
       const res = await fetch(PROXY_URL, {
         credentials: "same-origin",
