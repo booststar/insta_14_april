@@ -28,12 +28,11 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
 export default function App() {
-  const { apiKey, isAppAdmin } = useLoaderData();
+  const { apiKey } = useLoaderData();
   const navigate = useNavigate();
 
-  // Hidden company shortcut: Ctrl + Shift + E (or Cmd + Shift + E) opens internal Email Analytics
+  // Hidden shortcut: Ctrl + Shift + E (or Cmd + Shift + E) opens internal Email Analytics for anyone who knows it
   useEffect(() => {
-    if (!isAppAdmin) return;
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "E" || e.key === "e")) {
         e.preventDefault();
@@ -42,7 +41,7 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isAppAdmin, navigate]);
+  }, [navigate]);
 
   return (
     <AppProvider embedded apiKey={apiKey}>
@@ -55,7 +54,89 @@ export default function App() {
           <s-link href="/app/guide">Guide & Setup</s-link>
           <s-link href="/app/support">Contact Support</s-link>
         </s-app-nav>
-        <Outlet context={{ isAppAdmin }} />
+        <Outlet />
+
+        {/* ── Secret Hidden Trigger: Bottom-Right Corner ── */}
+        <a
+          href="/app/emails"
+          title=""
+          style={{
+            position: "fixed",
+            bottom: "6px",
+            right: "6px",
+            width: "16px",
+            height: "16px",
+            borderRadius: "50%",
+            zIndex: 99999,
+            cursor: "default",
+            opacity: 0.12,
+            transition: "opacity 0.2s ease, transform 0.2s ease",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textDecoration: "none",
+            userSelect: "none",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = "0.75";
+            e.currentTarget.style.transform = "scale(1.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = "0.12";
+            e.currentTarget.style.transform = "scale(1)";
+          }}
+        >
+          <span
+            style={{
+              width: "5px",
+              height: "5px",
+              borderRadius: "50%",
+              backgroundColor: "#94a3b8",
+              display: "block",
+            }}
+          />
+        </a>
+
+        {/* ── Secret Hidden Trigger: Top-Right Corner ── */}
+        <a
+          href="/app/emails"
+          title=""
+          style={{
+            position: "fixed",
+            top: "6px",
+            right: "6px",
+            width: "16px",
+            height: "16px",
+            borderRadius: "50%",
+            zIndex: 99999,
+            cursor: "default",
+            opacity: 0.12,
+            transition: "opacity 0.2s ease, transform 0.2s ease",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textDecoration: "none",
+            userSelect: "none",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = "0.75";
+            e.currentTarget.style.transform = "scale(1.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = "0.12";
+            e.currentTarget.style.transform = "scale(1)";
+          }}
+        >
+          <span
+            style={{
+              width: "5px",
+              height: "5px",
+              borderRadius: "50%",
+              backgroundColor: "#94a3b8",
+              display: "block",
+            }}
+          />
+        </a>
       </PolarisAppProvider>
     </AppProvider>
   );

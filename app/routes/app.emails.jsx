@@ -20,19 +20,10 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server.js";
 import { sendSetupReminderEmail } from "../utils/email.server";
-import { isAppAdminShop } from "../utils/admin.server";
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
   const shop = session?.shop || "";
-
-  // Strictly block store owners - Respond with 403 Forbidden so it never returns 200
-  if (!isAppAdminShop(shop)) {
-    throw new Response("Forbidden: Administrator access required.", {
-      status: 403,
-      statusText: "Forbidden",
-    });
-  }
 
   let rawLogs = [];
   let totalCount = 0;
@@ -121,13 +112,6 @@ export async function loader({ request }) {
 export async function action({ request }) {
   const { session } = await authenticate.admin(request);
   const shop = session?.shop || "";
-
-  if (!isAppAdminShop(shop)) {
-    throw new Response("Forbidden: Administrator access required.", {
-      status: 403,
-      statusText: "Forbidden",
-    });
-  }
 
   const formData = await request.formData();
   const intent = formData.get("intent");
