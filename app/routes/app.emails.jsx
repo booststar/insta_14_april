@@ -29,6 +29,7 @@ import {
   ClipboardIcon,
   CheckIcon,
   ExternalIcon,
+  ClockIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server.js";
@@ -45,7 +46,7 @@ import {
 import { getEmailPreviewHtml } from "../utils/emailTemplates";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LOADER: Load all email logs, aggregate multi-store stats, and shop list
+// LOADER: Load all email logs, aggregate stats, shops & upcoming queue
 // ─────────────────────────────────────────────────────────────────────────────
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -60,6 +61,7 @@ export const loader = async ({ request }) => {
   let totalOpens = 0;
   let totalClicks = 0;
   let allShops = [];
+  let upcomingEmails = [];
 
   try {
     if (prisma?.emailLog) {
@@ -89,17 +91,81 @@ export const loader = async ({ request }) => {
       const logShopSet = new Set(distinctLogShops.map((s) => s.shop).filter(Boolean));
 
       // Also collect shops from Session table
+      let sessionRows = [];
       if (prisma?.session) {
-        const sessionShops = await prisma.session.findMany({
-          distinct: ["shop"],
-          select: { shop: true },
+        sessionRows = await prisma.session.findMany({
+          select: { shop: true, email: true, isOnline: true },
         });
-        sessionShops.forEach((s) => {
+        sessionRows.forEach((s) => {
           if (s.shop) logShopSet.add(s.shop);
         });
       }
 
       allShops = Array.from(logShopSet).sort();
+
+      // ── Calculate Upcoming & Scheduled Emails Queue ──
+      const reminderSentShops = new Set();
+      const monthlySentShops = new Set();
+
+      rawLogs.forEach((l) => {
+        if (l.emailType === "setup_reminder" && l.status === "SENT") {
+          reminderSentShops.add(l.shop);
+        }
+        if (l.emailType === "monthly_report") {
+          const daysAgo = (Date.now() - new Date(l.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+          if (daysAgo < 25) {
+            monthlySentShops.add(l.shop);
+          }
+        }
+      });
+
+      const now = new Date();
+      const nextMonthFirst = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const nextMonthStr = nextMonthFirst.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+
+      // Filter offline or distinct sessions
+      const offlineSessions = sessionRows.filter((s) => !s.isOnline);
+      const targetSessions = offlineSessions.length > 0 ? offlineSessions : sessionRows;
+
+      targetSessions.forEach((sess) => {
+        const storeShop = sess.shop;
+        if (!storeShop) return;
+        const storeEmail = sess.email || `merchant@${storeShop}`;
+
+        // 1. Upcoming Setup Reminder
+        if (!reminderSentShops.has(storeShop)) {
+          upcomingEmails.push({
+            id: `up_setup_${storeShop}`,
+            shop: storeShop,
+            recipient: storeEmail,
+            emailType: "setup_reminder",
+            campaignTitle: "Setup Incomplete Reminder",
+            scheduledFor: "Next Automated Scan (Hourly)",
+            status: "Queued",
+            triggerCondition: "Dispatches if App Embed is OFF or Instagram is not connected",
+            urgency: "high",
+          });
+        }
+
+        // 2. Upcoming Monthly Analytics Report
+        if (!monthlySentShops.has(storeShop)) {
+          upcomingEmails.push({
+            id: `up_monthly_${storeShop}`,
+            shop: storeShop,
+            recipient: storeEmail,
+            emailType: "monthly_report",
+            campaignTitle: "Monthly Storefront Analytics",
+            scheduledFor: `${nextMonthStr} (Monthly Cycle)`,
+            status: "Scheduled",
+            triggerCondition: "30-day feed impression & click-through summary",
+            urgency: "normal",
+          });
+        }
+      });
     } else {
       const rows = await prisma.$queryRawUnsafe(
         'SELECT * FROM "EmailLog" ORDER BY "createdAt" DESC LIMIT 500'
@@ -192,7 +258,9 @@ export const loader = async ({ request }) => {
       openRate,
       clickRate,
       totalStores: allShops.length,
+      upcomingCount: upcomingEmails.length,
     },
+    upcomingEmails,
     campaignStats,
     projectStats: Object.values(projectStats).sort((a, b) => b.total - a.total),
     allShops,
@@ -330,7 +398,7 @@ export const action = async ({ request }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENT: App-Wide Email Tracker, Live Feed & Send Inspector
+// COMPONENT: App-Wide Email Tracker, Live Feed & Upcoming Queue
 // ─────────────────────────────────────────────────────────────────────────────
 export default function AdminEmailsPage() {
   const initialData = useLoaderData();
@@ -339,15 +407,16 @@ export default function AdminEmailsPage() {
 
   // Active data: uses latest poll data if available, else initial data
   const data = liveFetcher.data || initialData;
-  const { logs, stats, campaignStats, projectStats, allShops, smtp, baseUrl } = data;
+  const { logs, stats, upcomingEmails = [], campaignStats, projectStats, allShops, smtp, baseUrl } = data;
 
   // View & Filter States
-  const [activeTab, setActiveTab] = useState(0); // 0: Live Feed, 1: Projects/Stores, 2: Campaigns
+  const [activeTab, setActiveTab] = useState(0); // 0: Live Feed, 1: Upcoming Queue, 2: Stores, 3: Campaigns
   const [shopFilter, setShopFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [engagementFilter, setEngagementFilter] = useState("all"); // all, opened, clicked, unopened
+  const [engagementFilter, setEngagementFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [upcomingSearch, setUpcomingSearch] = useState("");
 
   // Live Auto-Polling (default ON: polls every 8s)
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -391,7 +460,7 @@ export default function AdminEmailsPage() {
     setLastRefreshedAt(new Date());
   }, [liveFetcher]);
 
-  // Filtered Logs
+  // Filtered Live Logs
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       if (shopFilter !== "all" && log.shop !== shopFilter) return false;
@@ -412,6 +481,19 @@ export default function AdminEmailsPage() {
       return true;
     });
   }, [logs, shopFilter, typeFilter, statusFilter, engagementFilter, searchQuery]);
+
+  // Filtered Upcoming Queue
+  const filteredUpcoming = useMemo(() => {
+    return upcomingEmails.filter((up) => {
+      if (!upcomingSearch.trim()) return true;
+      const q = upcomingSearch.toLowerCase();
+      return (
+        up.shop?.toLowerCase().includes(q) ||
+        up.recipient?.toLowerCase().includes(q) ||
+        up.campaignTitle?.toLowerCase().includes(q)
+      );
+    });
+  }, [upcomingEmails, upcomingSearch]);
 
   // Helper Badge Renderers
   const getTypeBadge = (type) => {
@@ -460,6 +542,16 @@ export default function AdminEmailsPage() {
       fd.append("customSubject", customSubject);
       fd.append("customMessage", customMessage);
     }
+    actionFetcher.submit(fd, { method: "post" });
+  };
+
+  // Dispatch an upcoming email immediately
+  const handleTriggerUpcoming = (upItem) => {
+    const fd = new FormData();
+    fd.append("intent", "sendLiveEmail");
+    fd.append("toEmail", upItem.recipient);
+    fd.append("targetShop", upItem.shop);
+    fd.append("emailType", upItem.emailType);
     actionFetcher.submit(fd, { method: "post" });
   };
 
@@ -542,6 +634,7 @@ export default function AdminEmailsPage() {
   // Tabs Definition
   const tabs = [
     { id: "feed", content: `Live Activity Feed (${filteredLogs.length})` },
+    { id: "upcoming", content: `Upcoming & Scheduled Queue (${upcomingEmails.length})` },
     { id: "projects", content: `Stores & Projects (${projectStats.length})` },
     { id: "campaigns", content: "Campaign Performance" },
   ];
@@ -550,7 +643,7 @@ export default function AdminEmailsPage() {
     <Page
       backAction={{ content: "Dashboard", url: "/app" }}
       title="Global Email Tracking & Live Engagement Center"
-      subtitle="Real-time live dispatch tracking, open rate & CTR engagement, and store analytics across all projects."
+      subtitle="Real-time live dispatch tracking, automated upcoming queue, open rate & CTR engagement across all stores."
       primaryAction={{
         content: showDispatchForm ? "Close Dispatcher" : "Send Live Email",
         icon: SendIcon,
@@ -582,13 +675,14 @@ export default function AdminEmailsPage() {
                   borderRadius: "50%",
                   backgroundColor: autoRefresh ? "#10b981" : "#94a3b8",
                   boxShadow: autoRefresh ? "0 0 10px #10b981" : "none",
+                  animation: autoRefresh ? "pulse 2s infinite" : "none",
                 }}
               />
               <Text variant="bodyMd" fontWeight="semibold">
                 {autoRefresh ? "LIVE TRACKING ACTIVE" : "LIVE FEED PAUSED"}
               </Text>
               <Text variant="caption" tone="subdued">
-                {`Updated ${timeAgo(lastRefreshedAt)} (${stats.total} total emails tracked across ${stats.totalStores} stores)`}
+                {`Updated ${timeAgo(lastRefreshedAt)} (${stats.total} total dispatched • ${upcomingEmails.length} upcoming in queue • across ${stats.totalStores} stores)`}
               </Text>
             </InlineStack>
 
@@ -811,7 +905,6 @@ export default function AdminEmailsPage() {
                     </div>
 
                     <InlineStack gap="300" wrap>
-                      {/* Project / Store Dropdown */}
                       <Select
                         label="Store / Project"
                         labelInline
@@ -823,7 +916,6 @@ export default function AdminEmailsPage() {
                         onChange={setShopFilter}
                       />
 
-                      {/* Campaign Dropdown */}
                       <Select
                         label="Campaign"
                         labelInline
@@ -841,7 +933,6 @@ export default function AdminEmailsPage() {
                         onChange={setTypeFilter}
                       />
 
-                      {/* Status Dropdown */}
                       <Select
                         label="Status"
                         labelInline
@@ -855,7 +946,6 @@ export default function AdminEmailsPage() {
                         onChange={setStatusFilter}
                       />
 
-                      {/* Engagement Dropdown */}
                       <Select
                         label="Engagement"
                         labelInline
@@ -919,7 +1009,6 @@ export default function AdminEmailsPage() {
                                   transition: "background 0.15s ease",
                                 }}
                               >
-                                {/* Timestamp */}
                                 <td style={{ padding: "12px", whiteSpace: "nowrap" }}>
                                   <div style={{ color: "#0f172a", fontWeight: "600", fontSize: "12.5px" }}>
                                     {timeAgo(log.createdAt)}
@@ -927,17 +1016,14 @@ export default function AdminEmailsPage() {
                                   <div style={{ color: "#94a3b8", fontSize: "11px" }}>{formattedDate}</div>
                                 </td>
 
-                                {/* Store Domain */}
                                 <td style={{ padding: "12px", fontWeight: "600", color: "#0f172a" }}>
                                   <div style={{ maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {log.shop}
                                   </div>
                                 </td>
 
-                                {/* Campaign Badge */}
                                 <td style={{ padding: "12px" }}>{getTypeBadge(log.emailType)}</td>
 
-                                {/* Recipient & Subject preview */}
                                 <td style={{ padding: "12px", maxWidth: "220px" }}>
                                   <div style={{ fontWeight: "600", color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {log.recipient || "—"}
@@ -947,10 +1033,8 @@ export default function AdminEmailsPage() {
                                   </div>
                                 </td>
 
-                                {/* Status */}
                                 <td style={{ padding: "12px" }}>{getStatusBadge(log.status)}</td>
 
-                                {/* Opens */}
                                 <td style={{ padding: "12px" }}>
                                   {openNum > 0 ? (
                                     <Tooltip content={`First opened ${timeAgo(log.openedAt)} (${new Date(log.openedAt).toLocaleTimeString()})`}>
@@ -961,7 +1045,6 @@ export default function AdminEmailsPage() {
                                   )}
                                 </td>
 
-                                {/* Clicks */}
                                 <td style={{ padding: "12px" }}>
                                   {clickNum > 0 ? (
                                     <Tooltip content={`Target link clicked: ${log.lastClickedUrl || "—"}`}>
@@ -972,7 +1055,6 @@ export default function AdminEmailsPage() {
                                   )}
                                 </td>
 
-                                {/* Actions */}
                                 <td style={{ padding: "12px", textAlign: "right", whiteSpace: "nowrap" }}>
                                   <ButtonGroup>
                                     <Button
@@ -1007,9 +1089,142 @@ export default function AdminEmailsPage() {
             )}
 
             {/* ════════════════════════════════════════════════════════════════
-                TAB 1: PERFORMANCE BY STORE / PROJECT
+                TAB 1: UPCOMING & SCHEDULED EMAILS QUEUE
                ════════════════════════════════════════════════════════════════ */}
             {activeTab === 1 && (
+              <Box padding="400">
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center" wrap>
+                    <div>
+                      <Text variant="headingMd" as="h3">
+                        Automated Upcoming & Scheduled Email Queue ({filteredUpcoming.length})
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        Monitor stores queued for upcoming Setup Reminders, 30-Day Monthly Analytics, and Re-engagement cycles.
+                      </Text>
+                    </div>
+
+                    <div style={{ width: "280px" }}>
+                      <TextField
+                        placeholder="Search upcoming store or recipient..."
+                        value={upcomingSearch}
+                        onChange={setUpcomingSearch}
+                        clearButton
+                        onClearButtonClick={() => setUpcomingSearch("")}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </InlineStack>
+
+                  <Divider />
+
+                  {filteredUpcoming.length === 0 ? (
+                    <Box padding="600">
+                      <EmptyState
+                        heading="No upcoming emails in queue"
+                        image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                      >
+                        <p>All connected stores are currently caught up with notifications.</p>
+                      </EmptyState>
+                    </Box>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", color: "#64748b" }}>
+                            <th style={{ padding: "10px 12px" }}>Scheduled Timing</th>
+                            <th style={{ padding: "10px 12px" }}>Upcoming Campaign</th>
+                            <th style={{ padding: "10px 12px" }}>Target Store</th>
+                            <th style={{ padding: "10px 12px" }}>Recipient</th>
+                            <th style={{ padding: "10px 12px" }}>Trigger Condition</th>
+                            <th style={{ padding: "10px 12px" }}>Queue Status</th>
+                            <th style={{ padding: "10px 12px", textAlign: "right" }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredUpcoming.map((item) => (
+                            <tr
+                              key={item.id}
+                              style={{
+                                borderBottom: "1px solid #f1f5f9",
+                                transition: "background 0.15s ease",
+                              }}
+                            >
+                              <td style={{ padding: "12px", whiteSpace: "nowrap" }}>
+                                <InlineStack gap="150" blockAlign="center">
+                                  <ClockIcon width={14} height={14} fill="#64748b" />
+                                  <span style={{ fontWeight: "600", color: "#0f172a" }}>
+                                    {item.scheduledFor}
+                                  </span>
+                                </InlineStack>
+                              </td>
+
+                              <td style={{ padding: "12px" }}>
+                                {getTypeBadge(item.emailType)}
+                              </td>
+
+                              <td style={{ padding: "12px", fontWeight: "600", color: "#0f172a" }}>
+                                {item.shop}
+                              </td>
+
+                              <td style={{ padding: "12px", color: "#334155" }}>
+                                {item.recipient}
+                              </td>
+
+                              <td style={{ padding: "12px", color: "#64748b", fontSize: "12px", maxWidth: "240px" }}>
+                                {item.triggerCondition}
+                              </td>
+
+                              <td style={{ padding: "12px" }}>
+                                <Badge tone={item.urgency === "high" ? "attention" : "info"}>
+                                  {item.status}
+                                </Badge>
+                              </td>
+
+                              <td style={{ padding: "12px", textAlign: "right", whiteSpace: "nowrap" }}>
+                                <ButtonGroup>
+                                  <Button
+                                    size="micro"
+                                    icon={SendIcon}
+                                    variant="primary"
+                                    loading={actionFetcher.state !== "idle"}
+                                    onClick={() => handleTriggerUpcoming(item)}
+                                  >
+                                    Send Now
+                                  </Button>
+                                  <Button
+                                    size="micro"
+                                    onClick={() => {
+                                      setSelectedLog({
+                                        id: item.id,
+                                        shop: item.shop,
+                                        recipient: item.recipient,
+                                        emailType: item.emailType,
+                                        subject: item.campaignTitle,
+                                        status: "QUEUED",
+                                        createdAt: new Date().toISOString(),
+                                      });
+                                      setModalTab(1);
+                                    }}
+                                  >
+                                    Preview
+                                  </Button>
+                                </ButtonGroup>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </BlockStack>
+              </Box>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                TAB 2: PERFORMANCE BY STORE / PROJECT
+               ════════════════════════════════════════════════════════════════ */}
+            {activeTab === 2 && (
               <Box padding="400">
                 <BlockStack gap="300">
                   <Text variant="headingSm" as="h3">
@@ -1083,9 +1298,9 @@ export default function AdminEmailsPage() {
             )}
 
             {/* ════════════════════════════════════════════════════════════════
-                TAB 2: PERFORMANCE BY CAMPAIGN
+                TAB 3: PERFORMANCE BY CAMPAIGN
                ════════════════════════════════════════════════════════════════ */}
-            {activeTab === 2 && (
+            {activeTab === 3 && (
               <Box padding="400">
                 <BlockStack gap="300">
                   <Text variant="headingSm" as="h3">
@@ -1183,7 +1398,6 @@ export default function AdminEmailsPage() {
                 {/* Subtab 0: Event Timeline & Detailed Metadata */}
                 {modalTab === 0 && (
                   <BlockStack gap="400">
-                    {/* Header Badges */}
                     <InlineStack align="space-between" blockAlign="center">
                       <InlineStack gap="200">
                         {getTypeBadge(selectedLog.emailType)}
@@ -1198,7 +1412,6 @@ export default function AdminEmailsPage() {
                       </Button>
                     </InlineStack>
 
-                    {/* Metadata Grid */}
                     <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
                       <table style={{ width: "100%", fontSize: "13px" }}>
                         <tbody>
@@ -1240,9 +1453,7 @@ export default function AdminEmailsPage() {
                       </table>
                     </div>
 
-                    {/* Engagement Timeline Cards */}
                     <Layout>
-                      {/* Open Tracking */}
                       <Layout.Section variant="oneHalf">
                         <Card padding="300">
                           <BlockStack gap="150">
@@ -1274,7 +1485,6 @@ export default function AdminEmailsPage() {
                         </Card>
                       </Layout.Section>
 
-                      {/* Click Tracking */}
                       <Layout.Section variant="oneHalf">
                         <Card padding="300">
                           <BlockStack gap="150">
@@ -1307,7 +1517,6 @@ export default function AdminEmailsPage() {
                       </Layout.Section>
                     </Layout>
 
-                    {/* Resend Action Form */}
                     <Card padding="300">
                       <BlockStack gap="200">
                         <Text variant="headingSm" as="h4">
@@ -1342,7 +1551,7 @@ export default function AdminEmailsPage() {
                   <BlockStack gap="300">
                     <InlineStack align="space-between" blockAlign="center">
                       <Text variant="bodySm" tone="subdued">
-                        Exact HTML template dispatched to {selectedLog.recipient}:
+                        Exact HTML template for {selectedLog.recipient}:
                       </Text>
                       <Button
                         size="micro"
