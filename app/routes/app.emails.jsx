@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useLoaderData, useFetcher, redirect } from "react-router";
+import { useLoaderData, useFetcher, useRouteError } from "react-router";
 import {
   Page,
   Layout,
@@ -26,9 +26,12 @@ export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
   const shop = session?.shop || "";
 
-  // Strictly block store owners - this page is for the entire app developer team only
+  // Strictly block store owners - Respond with 403 Forbidden so it never returns 200
   if (!isAppAdminShop(shop)) {
-    throw redirect("/app");
+    throw new Response("Forbidden: Administrator access required.", {
+      status: 403,
+      statusText: "Forbidden",
+    });
   }
 
   let rawLogs = [];
@@ -120,7 +123,10 @@ export async function action({ request }) {
   const shop = session?.shop || "";
 
   if (!isAppAdminShop(shop)) {
-    throw redirect("/app");
+    throw new Response("Forbidden: Administrator access required.", {
+      status: 403,
+      statusText: "Forbidden",
+    });
   }
 
   const formData = await request.formData();
@@ -563,3 +569,37 @@ export default function AdminEmailsPage() {
     </Page>
   );
 }
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const status = error?.status || 403;
+  const statusText = error?.statusText || "Access Denied";
+
+  return (
+    <Page title={`${status} - ${statusText}`}>
+      <Card padding="500">
+        <EmptyState
+          heading="403 - Access Denied"
+          image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+        >
+          <Text as="p" tone="subdued">
+            This internal portal is restricted to app developers and company administrators.
+            Store owners do not have permission to access this page.
+          </Text>
+          <div style={{ marginTop: "16px" }}>
+            <Button url="/app" variant="primary">
+              Back to Dashboard
+            </Button>
+          </div>
+        </EmptyState>
+      </Card>
+    </Page>
+  );
+}
+
+export const headers = (headersArgs) => {
+  return {
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+  };
+};
+
