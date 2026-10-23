@@ -67,3 +67,28 @@ model FeedMetric {
   @@index([date])
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EmailLog – Real-time tracking of all sent/failed merchant emails
+// ─────────────────────────────────────────────────────────────────────────────
+model EmailLog {
+  id             String    @id @default(cuid())
+  shop           String
+  emailType      String    // "welcome", "reinstall", "uninstall", "setup_reminder", "monthly_report", "support"
+  recipient      String
+  subject        String
+  status         String    // "SENT", "FAILED", "SKIPPED"
+  messageId      String?
+  error          String?
+  openCount      Int       @default(0)
+  openedAt       DateTime?
+  clickCount     Int       @default(0)
+  clickedAt      DateTime?
+  lastClickedUrl String?
+  createdAt      DateTime  @default(now())
+
+  @@index([shop])
+  @@index([emailType])
+  @@index([status])
+  @@index([createdAt])
+}
+

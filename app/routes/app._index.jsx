@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useMemo, useCallback, startTransition } fr
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useFetcher, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { authenticate } from "../shopify.server";
-import { fetchShopConfig, fetchShopInstaData, fetchAllInstagramMedia } from "../instagramApi.server";
+import { fetchShopConfig, fetchShopInstaData, fetchAllInstagramMedia, getFacebookAccessToken } from "../instagramApi.server";
 import { withRateLimit, trackApiResponse } from "../rateLimiter.server";
 import { invalidateResource, cacheGetOrSet } from "../cache.server";
 import { detectProductMatches } from "../utils/productMatcher";
-import { sendSupportEmail } from "../utils/email.server";
+import { sendSupportEmail, sendSetupReminderEmail } from "../utils/email.server";
 import prisma from "../db.server.js";
 import {
   Page,
@@ -55,6 +55,7 @@ import {
   EditIcon,
   MagicIcon,
   SettingsIcon,
+  EmailIcon,
 } from "@shopify/polaris-icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -443,6 +444,76 @@ export const action = async ({ request }) => {
     }
   }
 
+  if (intent === "sendSetupReminderEmail") {
+    try {
+      const shopRes = await admin.graphql(
+        `#graphql
+        query {
+          shop {
+            name
+            email
+            myshopifyDomain
+          }
+          themes(first: 5, roles: [MAIN]) {
+            nodes {
+              id
+            }
+          }
+        }`
+      );
+      const shopJson = await shopRes.json();
+      const shopData = shopJson.data?.shop;
+      const shopEmail = shopData?.email || session?.email;
+
+      if (!shopEmail) {
+        return { emailSent: true, success: false, error: "No email address found for this store." };
+      }
+
+      const mainThemeNode = shopJson.data?.themes?.nodes?.[0];
+      const liveThemeId = mainThemeNode ? mainThemeNode.id.replace("gid://shopify/Theme/", "") : "current";
+
+      const config = await fetchShopConfig(shop);
+      const isConnected = !!config?.account?.username;
+      const instagramHandle = config?.account?.username || "";
+
+      const clientId = process.env.SHOPIFY_API_KEY || "";
+      const { dynamicAppEmbedEnabled, dynamicSections } = await getCachedThemeEmbedStatus(
+        shop,
+        liveThemeId,
+        session?.accessToken,
+        clientId
+      );
+
+      const result = await sendSetupReminderEmail({
+        to: shopEmail,
+        shop,
+        shopName: shopData?.name || shop,
+        myshopifyDomain: shopData?.myshopifyDomain || shop,
+        isConnected,
+        isEmbedActive: !!dynamicAppEmbedEnabled,
+        isSectionActive: !!dynamicSections?.grid,
+        instagramHandle,
+        themeId: liveThemeId,
+      });
+
+      if (result.success) {
+        return {
+          emailSent: true,
+          success: true,
+          message: `Setup instructions and activation link sent to ${shopEmail}!`,
+        };
+      } else {
+        return {
+          emailSent: true,
+          success: false,
+          error: result.error || "Failed to send email. Please check your SMTP settings in .env.",
+        };
+      }
+    } catch (e) {
+      return { emailSent: true, success: false, error: e.message };
+    }
+  }
+
   if (intent === "saveConfig") {
     const configData = formData.get("config");
     try {
@@ -495,7 +566,7 @@ export const action = async ({ request }) => {
   const handle = formData.get("handle");
 
   if (!handle) return { error: "Please enter an Instagram username." };
-  const fbToken = process.env.FACEBOOK_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN;
+  const fbToken = getFacebookAccessToken();
   if (!fbToken) {
     return { error: "Instagram connection isn't configured for this store yet. Please contact support." };
   }
@@ -2487,6 +2558,24 @@ export default function Index() {
   const reviewFetcher = useFetcher();
 
   const isVerifyingEmbed = verifyEmbedFetcher.state !== "idle";
+  const setupEmailFetcher = useFetcher();
+  const isSendingSetupEmail = setupEmailFetcher.state !== "idle";
+
+  const handleSendSetupEmail = useCallback(() => {
+    const fd = new FormData();
+    fd.append("intent", "sendSetupReminderEmail");
+    setupEmailFetcher.submit(fd, { method: "post" });
+  }, [setupEmailFetcher]);
+
+  useEffect(() => {
+    if (setupEmailFetcher.data?.emailSent) {
+      if (setupEmailFetcher.data.success) {
+        shopify?.toast?.show(setupEmailFetcher.data.message || "Setup guide sent to your email!");
+      } else {
+        shopify?.toast?.show(setupEmailFetcher.data.error || "Failed to send email.", { isError: true });
+      }
+    }
+  }, [setupEmailFetcher.data, shopify]);
 
   const handleVerifyEmbed = useCallback(() => {
     const fd = new FormData();
@@ -4493,6 +4582,16 @@ export default function Index() {
                   </InlineStack>
 
                   <InlineStack gap="200" blockAlign="center">
+                    {!allTasksDone && (
+                      <Button
+                        variant="plain"
+                        icon={EmailIcon}
+                        loading={isSendingSetupEmail}
+                        onClick={handleSendSetupEmail}
+                      >
+                        Email Setup Guide ↗
+                      </Button>
+                    )}
                     <Button
                       variant="plain"
                       icon={ExternalIcon}
@@ -5453,35 +5552,55 @@ export default function Index() {
                 </div>
               </div>
 
-              {/* ── Action Button ── */}
-              <button
-                type="button"
-                onClick={handleVerifyEmbed}
-                disabled={isVerifyingEmbed}
-                style={{
-                  background: isVerifyingEmbed ? "#52525b" : "#27272a",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "10px 28px",
-                  fontSize: "14px",
-                  fontWeight: "700",
-                  cursor: isVerifyingEmbed ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 8px rgba(0, 0, 0, 0.18)",
-                  transition: "all 0.15s ease",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isVerifyingEmbed) e.currentTarget.style.background = "#18181b";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isVerifyingEmbed) e.currentTarget.style.background = "#27272a";
-                }}
-              >
-                {isVerifyingEmbed ? "Verifying..." : "Verify Now"}
-              </button>
+              {/* ── Action Buttons ── */}
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={handleSendSetupEmail}
+                  disabled={isSendingSetupEmail}
+                  style={{
+                    background: "transparent",
+                    color: "#475569",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "8px",
+                    padding: "9px 16px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: isSendingSetupEmail ? "not-allowed" : "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {isSendingSetupEmail ? "Sending..." : "✉ Email Setup Link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVerifyEmbed}
+                  disabled={isVerifyingEmbed}
+                  style={{
+                    background: isVerifyingEmbed ? "#52525b" : "#27272a",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "10px 24px",
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    cursor: isVerifyingEmbed ? "not-allowed" : "pointer",
+                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.18)",
+                    transition: "all 0.15s ease",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isVerifyingEmbed) e.currentTarget.style.background = "#18181b";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isVerifyingEmbed) e.currentTarget.style.background = "#27272a";
+                  }}
+                >
+                  {isVerifyingEmbed ? "Verifying..." : "Verify Now"}
+                </button>
+              </div>
             </div>
           </Card>
         )}
@@ -6829,9 +6948,20 @@ export default function Index() {
               <Text variant="bodySm" tone="subdued">
                 Terms of Service
               </Text>
-              <Text variant="bodySm" tone="subdued">
+              {/* Hidden company access link disguised as bullet */}
+              <a
+                href="/app/emails"
+                style={{
+                  color: "#8c9196",
+                  textDecoration: "none",
+                  cursor: "default",
+                  userSelect: "none",
+                  padding: "0 2px",
+                }}
+                title=""
+              >
                 •
-              </Text>
+              </a>
               <Text variant="bodySm" tone="subdued">
                 Privacy Policy
               </Text>

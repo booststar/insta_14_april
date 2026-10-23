@@ -11,15 +11,38 @@ export const links = () => [
   { rel: "stylesheet", href: polarisStyles },
 ];
 
-export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+import { isAppAdminShop } from "../utils/admin.server";
 
-  // eslint-disable-next-line no-undef
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+export const loader = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session?.shop || "";
+  const isAppAdmin = isAppAdminShop(shop);
+
+  return {
+    apiKey: process.env.SHOPIFY_API_KEY || "",
+    isAppAdmin,
+  };
 };
 
+import { useEffect } from "react";
+import { useNavigate } from "react-router";
+
 export default function App() {
-  const { apiKey } = useLoaderData();
+  const { apiKey, isAppAdmin } = useLoaderData();
+  const navigate = useNavigate();
+
+  // Hidden company shortcut: Ctrl + Shift + E (or Cmd + Shift + E) opens internal Email Analytics
+  useEffect(() => {
+    if (!isAppAdmin) return;
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "E" || e.key === "e")) {
+        e.preventDefault();
+        navigate("/app/emails");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isAppAdmin, navigate]);
 
   return (
     <AppProvider embedded apiKey={apiKey}>
@@ -32,7 +55,7 @@ export default function App() {
           <s-link href="/app/guide">Guide & Setup</s-link>
           <s-link href="/app/support">Contact Support</s-link>
         </s-app-nav>
-        <Outlet />
+        <Outlet context={{ isAppAdmin }} />
       </PolarisAppProvider>
     </AppProvider>
   );

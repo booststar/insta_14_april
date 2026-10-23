@@ -12,8 +12,29 @@
  * safe to call from both loaders (SSR) and action handlers.
  */
 
+import fs from "fs";
+import path from "path";
 import axios from "axios";
 import { cacheGetOrSet, cacheStaleWhileRevalidate, CACHE_TTL } from "./cache.server.js";
+
+/**
+ * Retrieve Facebook access token with dynamic fallback to .env
+ */
+export function getFacebookAccessToken() {
+  let token = process.env.FACEBOOK_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN;
+  try {
+    const envPath = path.resolve(process.cwd(), ".env");
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, "utf-8");
+      const match = envContent.match(/FACEBOOK_ACCESS_TOKEN=["']?([^"'\r\n]+)["']?/);
+      if (match && match[1]) {
+        token = match[1].trim();
+        process.env.FACEBOOK_ACCESS_TOKEN = token;
+      }
+    }
+  } catch (_) {}
+  return token;
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const FB_BASE = "https://graph.facebook.com/v21.0";
@@ -135,7 +156,7 @@ export async function fetchInstagramFeed(handle, shop, cursor = null) {
   const safeHandle = handle.replace("@", "").split("?")[0].trim().toLowerCase();
   // We include cursor in cache key to avoid collisions
   const cacheKey   = `ig:${shop}:${safeHandle}${cursor ? `:${cursor}` : ""}`;
-  const fbToken    = process.env.FACEBOOK_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN;
+  const fbToken    = getFacebookAccessToken();
 
   if (!fbToken) {
     throw new Error("FACEBOOK_ACCESS_TOKEN is not configured in environment variables.");
@@ -194,7 +215,7 @@ export async function fetchInstagramFeed(handle, shop, cursor = null) {
  */
 export async function fetchAllInstagramMedia(handle, shop, maxPages = 10) {
   const safeHandle = handle.replace("@", "").split("?")[0].trim().toLowerCase();
-  const fbToken = process.env.FACEBOOK_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN;
+  const fbToken = getFacebookAccessToken();
 
   if (!fbToken) {
     throw new Error("Instagram connection isn't configured for this store yet. Please contact support.");
@@ -205,7 +226,11 @@ export async function fetchAllInstagramMedia(handle, shop, maxPages = 10) {
     ({ pageId, pageToken } = await getLinkedPage(fbToken));
   } catch (error) {
     console.error(`[IG AUTO-CRAWL] Facebook Page lookup failed for ${shop}:`, error.message);
-    throw new Error("This store isn't connected to a Facebook Page yet. Please contact support to complete the Instagram setup.");
+    const fbError = error.response?.data?.error;
+    if (fbError?.code === 190) {
+      throw new Error("The app's Instagram connection token has expired or was invalidated. Please update FACEBOOK_ACCESS_TOKEN in your .env file.");
+    }
+    throw new Error(fbError?.message || error.message || "Instagram connection failed. Please verify the server access token.");
   }
 
   let igBusinessId;
@@ -213,7 +238,11 @@ export async function fetchAllInstagramMedia(handle, shop, maxPages = 10) {
     igBusinessId = await getIGBusinessId(pageId, pageToken);
   } catch (error) {
     console.error(`[IG AUTO-CRAWL] IG Business Account lookup failed for ${shop}:`, error.message);
-    throw new Error("No Instagram Business account is linked to your connected Facebook Page. Please link an Instagram Business or Creator account to that Page in Facebook settings, then try again.");
+    const fbError = error.response?.data?.error;
+    if (fbError?.code === 190) {
+      throw new Error("The app's Instagram connection token has expired or was invalidated. Please update FACEBOOK_ACCESS_TOKEN in your .env file.");
+    }
+    throw new Error(fbError?.message || error.message || "No Instagram Business account linked to the server account.");
   }
 
   try {

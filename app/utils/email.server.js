@@ -1,5 +1,84 @@
 import "dotenv/config";
 import nodemailer from "nodemailer";
+import prisma from "../db.server.js";
+
+/**
+ * Application base URL for public tracking pixels & redirects
+ */
+export function getAppBaseUrl() {
+  return (
+    process.env.SHOPIFY_APP_URL ||
+    process.env.APP_URL ||
+    process.env.HOST ||
+    "https://insta14april-production.up.railway.app"
+  ).replace(/\/$/, "");
+}
+
+/**
+ * Generate unique tracking ID for an email dispatch
+ */
+export function generateEmailLogId() {
+  return "em_" + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+}
+
+/**
+ * Wrap a target URL with click tracking redirect
+ */
+export function trackLink(url, logId) {
+  if (!logId || !url) return url;
+  const baseUrl = getAppBaseUrl();
+  return `${baseUrl}/api/email/track/click?id=${encodeURIComponent(logId)}&url=${encodeURIComponent(url)}`;
+}
+
+/**
+ * Inject a 1x1 transparent open-tracking pixel before </body>
+ */
+export function injectTrackingPixel(html, logId) {
+  if (!logId || !html) return html;
+  const baseUrl = getAppBaseUrl();
+  const pixel = `<img src="${baseUrl}/api/email/track/open?id=${encodeURIComponent(logId)}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;max-height:0px;overflow:hidden;mso-hide:all;" />`;
+  if (html.includes("</body>")) {
+    return html.replace("</body>", `${pixel}</body>`);
+  }
+  return html + pixel;
+}
+
+/**
+ * Persist an email dispatch event to the database for admin tracking
+ */
+export async function logEmailEvent({ id, shop, emailType, recipient, subject, status, messageId = null, error = null }) {
+  try {
+    if (prisma?.emailLog) {
+      return await prisma.emailLog.create({
+        data: {
+          id: id || undefined,
+          shop: shop || "unknown",
+          emailType,
+          recipient: recipient || "",
+          subject: subject || "",
+          status, // "SENT", "FAILED", "SKIPPED"
+          messageId: messageId || null,
+          error: error ? String(error).slice(0, 500) : null,
+        },
+      });
+    } else {
+      const logId = id || "cmv_" + Math.random().toString(36).substring(2, 12);
+      return await prisma.$executeRawUnsafe(
+        'INSERT INTO "EmailLog" ("id", "shop", "emailType", "recipient", "subject", "status", "messageId", "error", "createdAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())',
+        logId,
+        shop || "unknown",
+        emailType,
+        recipient || "",
+        subject || "",
+        status,
+        messageId || null,
+        error ? String(error).slice(0, 500) : null
+      );
+    }
+  } catch (err) {
+    console.error("[EmailLog] Failed to record email log:", err.message);
+  }
+}
 
 function getTransporter() {
   const user = process.env.SMTP_USER;
@@ -32,7 +111,10 @@ const IG_GRADIENT_BTN = "linear-gradient(135deg, #e1306c 0%, #c13584 50%, #833ab
 /**
  * Shared Contact Options Component for Email Templates
  */
-function renderContactBlock() {
+function renderContactBlock(logId = null) {
+  const calUrl = logId ? trackLink(CALENDAR_URL, logId) : CALENDAR_URL;
+  const waUrl = logId ? trackLink(WHATSAPP_URL, logId) : WHATSAPP_URL;
+
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 28px 0 10px 0; background: #fff5f8; border: 1px solid #fce4ec; border-radius: 12px; padding: 20px;">
       <tr>
@@ -47,10 +129,10 @@ function renderContactBlock() {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="padding: 6px 0;">
-                <a href="${CALENDAR_URL}" target="_blank" style="display: inline-block; background: #1a73e8; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-right: 8px; margin-bottom: 6px;">
+                <a href="${calUrl}" target="_blank" style="display: inline-block; background: #1a73e8; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-right: 8px; margin-bottom: 6px;">
                   Book Google Calendar Slot &rarr;
                 </a>
-                <a href="${WHATSAPP_URL}" target="_blank" style="display: inline-block; background: #25D366; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 6px;">
+                <a href="${waUrl}" target="_blank" style="display: inline-block; background: #25D366; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 6px;">
                   Chat on WhatsApp (+91 70005 87074) &rarr;
                 </a>
               </td>
@@ -65,8 +147,9 @@ function renderContactBlock() {
 /**
  * Shared "Free Forever" & Review Incentive Reward Component for Email Templates
  */
-function renderReviewRewardBlock(cleanDomain) {
-  const reviewUrl = "https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal";
+function renderReviewRewardBlock(cleanDomain, logId = null) {
+  const rawReviewUrl = "https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal";
+  const reviewUrl = logId ? trackLink(rawReviewUrl, logId) : rawReviewUrl;
 
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 26px 0 16px 0; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #fde68a; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);">
@@ -137,19 +220,32 @@ function renderFooter(cleanDomain) {
 // 1. WELCOME EMAIL (First Time Install)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function sendWelcomeEmail({ to, shop, shopName, myshopifyDomain }) {
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.log("[Email] SMTP credentials not configured in .env. Skipping welcome email.");
-    return { success: false, error: "SMTP credentials not configured" };
-  }
-
+  const logId = generateEmailLogId();
   const cleanDomain = (myshopifyDomain || shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
   const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
 
-  const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
-  const themeEditorUrl = `https://${cleanDomain}/admin/themes/current/editor?context=apps`;
+  const rawDashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
+  const rawThemeEditorUrl = `https://${cleanDomain}/admin/themes/current/editor?context=apps`;
+
+  const dashboardUrl = trackLink(rawDashboardUrl, logId);
+  const themeEditorUrl = trackLink(rawThemeEditorUrl, logId);
 
   const subject = `AI Instafeed setup instructions for ${displayName}`;
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log("[Email] SMTP credentials not configured in .env. Skipping welcome email.");
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "welcome",
+      recipient: to,
+      subject,
+      status: "SKIPPED",
+      error: "SMTP credentials not configured in .env",
+    });
+    return { success: false, error: "SMTP credentials not configured" };
+  }
 
   const textContent = `
 Hello,
@@ -295,10 +391,10 @@ The AI Instafeed Team
         </table>
 
         <!-- Free Forever & Review Incentive Reward Block -->
-        ${renderReviewRewardBlock(cleanDomain)}
+        ${renderReviewRewardBlock(cleanDomain, logId)}
 
         <!-- Direct Contact Channels -->
-        ${renderContactBlock()}
+        ${renderContactBlock(logId)}
 
       </td>
     </tr>
@@ -317,7 +413,7 @@ The AI Instafeed Team
     replyTo: SUPPORT_EMAIL,
     subject,
     text: textContent,
-    html: htmlContent,
+    html: injectTrackingPixel(htmlContent, logId),
     headers: {
       "X-Entity-Ref-ID": `welcome-${cleanDomain}-${Date.now()}`,
       "X-Auto-Response-Suppress": "OOF, AutoReply",
@@ -327,9 +423,27 @@ The AI Instafeed Team
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("[Email] Welcome email sent successfully to %s: %s", to, info.messageId);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "welcome",
+      recipient: to,
+      subject,
+      status: "SENT",
+      messageId: info.messageId,
+    });
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("[Email] Error sending welcome email:", error);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "welcome",
+      recipient: to,
+      subject,
+      status: "FAILED",
+      error: error.message,
+    });
     return { success: false, error: error.message };
   }
 }
@@ -338,20 +452,31 @@ The AI Instafeed Team
 // 2. UNINSTALL EMAIL (Polite follow-up & 1-Click Reinstall Invitation)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function sendUninstallEmail({ to, shop, shopName }) {
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.log("[Email] SMTP credentials not configured. Skipping uninstall email.");
-    return { success: false, error: "SMTP credentials not configured" };
-  }
-
+  const logId = generateEmailLogId();
   const cleanDomain = (shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
   const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
   const shopHandle = cleanDomain.replace(/\.myshopify\.com$/, "");
 
-  // Direct Reinstall URL inside Shopify Admin
-  const reinstallUrl = `https://admin.shopify.com/store/${shopHandle}/apps/ai-instafeed`;
+  // Direct Reinstall URL inside Shopify Admin (with click tracking)
+  const rawReinstallUrl = `https://admin.shopify.com/store/${shopHandle}/apps/ai-instafeed`;
+  const reinstallUrl = trackLink(rawReinstallUrl, logId);
 
   const subject = `AI Instafeed is 100% Free Forever – Can we help ${displayName}?`;
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log("[Email] SMTP credentials not configured. Skipping uninstall email.");
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "uninstall",
+      recipient: to,
+      subject,
+      status: "SKIPPED",
+      error: "SMTP credentials not configured in .env",
+    });
+    return { success: false, error: "SMTP credentials not configured" };
+  }
 
   const textContent = `
 Hello ${displayName},
@@ -427,10 +552,10 @@ The AI Instafeed Team
         </table>
 
         <!-- Free Forever & Review Incentive Reward Block -->
-        ${renderReviewRewardBlock(cleanDomain)}
+        ${renderReviewRewardBlock(cleanDomain, logId)}
 
         <!-- Direct Contact Channels -->
-        ${renderContactBlock()}
+        ${renderContactBlock(logId)}
 
         <p style="margin: 24px 0 0 0; font-size: 13px; color: #64748b; line-height: 1.6;">
           Your feedback matters greatly to us. Just reply directly to this email and let us know what we could improve. We appreciate your time!
@@ -452,7 +577,7 @@ The AI Instafeed Team
     replyTo: SUPPORT_EMAIL,
     subject,
     text: textContent,
-    html: htmlContent,
+    html: injectTrackingPixel(htmlContent, logId),
     headers: {
       "X-Entity-Ref-ID": `uninstall-${cleanDomain}-${Date.now()}`,
       "X-Auto-Response-Suppress": "OOF, AutoReply",
@@ -462,9 +587,27 @@ The AI Instafeed Team
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("[Email] Uninstall follow-up email sent to %s: %s", to, info.messageId);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "uninstall",
+      recipient: to,
+      subject,
+      status: "SENT",
+      messageId: info.messageId,
+    });
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("[Email] Error sending uninstall email:", error);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "uninstall",
+      recipient: to,
+      subject,
+      status: "FAILED",
+      error: error.message,
+    });
     return { success: false, error: error.message };
   }
 }
@@ -473,17 +616,28 @@ The AI Instafeed Team
 // 3. REINSTALL EMAIL (Welcome Back when app is installed again)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function sendReinstallEmail({ to, shop, shopName, myshopifyDomain }) {
+  const logId = generateEmailLogId();
+  const cleanDomain = (myshopifyDomain || shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
+  const rawDashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
+  const dashboardUrl = trackLink(rawDashboardUrl, logId);
+
+  const subject = `Welcome back to AI Instafeed, ${displayName}! (100% Free Forever)`;
+
   const transporter = getTransporter();
   if (!transporter) {
     console.log("[Email] SMTP credentials not configured. Skipping reinstall email.");
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "reinstall",
+      recipient: to,
+      subject,
+      status: "SKIPPED",
+      error: "SMTP credentials not configured in .env",
+    });
     return { success: false, error: "SMTP credentials not configured" };
   }
-
-  const cleanDomain = (myshopifyDomain || shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
-  const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
-  const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
-
-  const subject = `Welcome back to AI Instafeed, ${displayName}! (100% Free Forever)`;
 
   const textContent = `
 Hello ${displayName},
@@ -547,7 +701,7 @@ The AI Instafeed Team
         </div>
 
         <!-- Free Forever & Review Incentive Reward Block -->
-        ${renderReviewRewardBlock(cleanDomain)}
+        ${renderReviewRewardBlock(cleanDomain, logId)}
 
         <!-- VIP Support Highlight -->
         <div style="background: #fdf2f8; border-left: 4px solid #e1306c; border-radius: 8px; padding: 18px 20px; margin: 24px 0;">
@@ -560,7 +714,7 @@ The AI Instafeed Team
         </div>
 
         <!-- Direct Contact Channels -->
-        ${renderContactBlock()}
+        ${renderContactBlock(logId)}
 
       </td>
     </tr>
@@ -579,7 +733,7 @@ The AI Instafeed Team
     replyTo: SUPPORT_EMAIL,
     subject,
     text: textContent,
-    html: htmlContent,
+    html: injectTrackingPixel(htmlContent, logId),
     headers: {
       "X-Entity-Ref-ID": `reinstall-${cleanDomain}-${Date.now()}`,
       "X-Auto-Response-Suppress": "OOF, AutoReply",
@@ -589,9 +743,27 @@ The AI Instafeed Team
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("[Email] Reinstall welcome-back email sent to %s: %s", to, info.messageId);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "reinstall",
+      recipient: to,
+      subject,
+      status: "SENT",
+      messageId: info.messageId,
+    });
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("[Email] Error sending reinstall email:", error);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "reinstall",
+      recipient: to,
+      subject,
+      status: "FAILED",
+      error: error.message,
+    });
     return { success: false, error: error.message };
   }
 }
@@ -669,9 +841,25 @@ export async function sendSupportEmail({ from, subject, message, shop, attachmen
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("[Email] Support email sent: %s", info.messageId);
+    await logEmailEvent({
+      shop: cleanShop,
+      emailType: "support",
+      recipient: SUPPORT_EMAIL,
+      subject: mailOptions.subject,
+      status: "SENT",
+      messageId: info.messageId,
+    });
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("[Email] Error sending support email:", error);
+    await logEmailEvent({
+      shop: cleanShop,
+      emailType: "support",
+      recipient: SUPPORT_EMAIL,
+      subject: mailOptions.subject,
+      status: "FAILED",
+      error: error.message,
+    });
     return { success: false, error: error.message };
   }
 }
@@ -680,12 +868,7 @@ export async function sendSupportEmail({ from, subject, message, shop, attachmen
 // 5. MONTHLY ANALYTICS REPORT EMAIL (With In-App Review Deep Link)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function sendMonthlyReportEmail({ to, shop, shopName, myshopifyDomain, metrics = [] }) {
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.log("[Email] SMTP credentials not configured. Skipping monthly report email.");
-    return { success: false, error: "SMTP credentials not configured" };
-  }
-
+  const logId = generateEmailLogId();
   const cleanDomain = (myshopifyDomain || shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
   const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
 
@@ -696,11 +879,25 @@ export async function sendMonthlyReportEmail({ to, shop, shopName, myshopifyDoma
   const activeDays = metrics.filter((m) => (Number(m.views) || 0) > 0 || (Number(m.clicks) || 0) > 0).length;
 
   const currentMonthYear = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
-
-  const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
-  const reviewUrl = `https://${cleanDomain}/admin/apps/ai-instafeed?review=true`;
+  const rawDashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
+  const dashboardUrl = trackLink(rawDashboardUrl, logId);
 
   const subject = `${currentMonthYear} Instagram Feed Performance Report for ${displayName} (100% Free Forever)`;
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log("[Email] SMTP credentials not configured. Skipping monthly report email.");
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "monthly_report",
+      recipient: to,
+      subject,
+      status: "SKIPPED",
+      error: "SMTP credentials not configured in .env",
+    });
+    return { success: false, error: "SMTP credentials not configured" };
+  }
 
   const textContent = `
 Hello ${displayName},
@@ -795,10 +992,10 @@ The AI Instafeed Team
         </div>
 
         <!-- Free Forever & Review Incentive Reward Block -->
-        ${renderReviewRewardBlock(cleanDomain)}
+        ${renderReviewRewardBlock(cleanDomain, logId)}
 
         <!-- Direct Contact Channels -->
-        ${renderContactBlock()}
+        ${renderContactBlock(logId)}
 
       </td>
     </tr>
@@ -817,7 +1014,7 @@ The AI Instafeed Team
     replyTo: SUPPORT_EMAIL,
     subject,
     text: textContent,
-    html: htmlContent,
+    html: injectTrackingPixel(htmlContent, logId),
     headers: {
       "X-Entity-Ref-ID": `monthly-report-${cleanDomain}-${Date.now()}`,
       "X-Auto-Response-Suppress": "OOF, AutoReply",
@@ -827,9 +1024,291 @@ The AI Instafeed Team
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("[Email] Monthly report email sent to %s: %s", to, info.messageId);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "monthly_report",
+      recipient: to,
+      subject,
+      status: "SENT",
+      messageId: info.messageId,
+    });
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("[Email] Error sending monthly report email:", error);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "monthly_report",
+      recipient: to,
+      subject,
+      status: "FAILED",
+      error: error.message,
+    });
     return { success: false, error: error.message };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. SETUP INCOMPLETE / THEME EMBED INACTIVE REMINDER EMAIL
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendSetupReminderEmail({
+  to,
+  shop,
+  shopName,
+  myshopifyDomain,
+  isConnected = false,
+  isEmbedActive = false,
+  isSectionActive = false,
+  instagramHandle = "",
+  themeId = "current",
+}) {
+  const logId = generateEmailLogId();
+  const cleanDomain = (myshopifyDomain || shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const displayName = shopName || cleanDomain.replace(/\.myshopify\.com$/, "");
+  const activeThemeId = themeId && themeId !== "current" ? themeId : "current";
+
+  const extUuid = "eeecd3e9-ddb8-f1f8-6e66-ef13a12c0780e5eb934b";
+  const rawThemeActivateEmbedUrl = `https://${cleanDomain}/admin/themes/${activeThemeId}/editor?context=apps&activateAppId=${extUuid}/app-embed`;
+  const rawThemeAddSectionUrl = `https://${cleanDomain}/admin/themes/${activeThemeId}/editor?template=index&addAppBlockId=${extUuid}/feed-grid&target=mainSection`;
+  const rawDashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
+
+  const themeActivateEmbedUrl = trackLink(rawThemeActivateEmbedUrl, logId);
+  const themeAddSectionUrl = trackLink(rawThemeAddSectionUrl, logId);
+  const dashboardUrl = trackLink(rawDashboardUrl, logId);
+
+  const subject = !isEmbedActive
+    ? `Action Required: Turn ON App Embed to activate Instagram Feed for ${displayName}`
+    : !isConnected
+    ? `Finish setting up AI Instafeed for ${displayName} (Takes 60 seconds)`
+    : `Finish publishing your Instagram Feed on ${displayName}`;
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log("[Email] SMTP credentials not configured in .env. Skipping setup reminder email.");
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "setup_reminder",
+      recipient: to,
+      subject,
+      status: "SKIPPED",
+      error: "SMTP credentials not configured in .env",
+    });
+    return { success: false, error: "SMTP credentials not configured" };
+  }
+
+  const primaryActionUrl = !isEmbedActive ? themeActivateEmbedUrl : !isConnected ? dashboardUrl : themeAddSectionUrl;
+  const primaryActionText = !isEmbedActive ? "Turn ON App Embed in Theme ↗" : !isConnected ? "Connect Instagram Handle ↗" : "Add Section in Theme ↗";
+
+  const textContent = `
+Hello,
+
+We noticed that AI Instafeed is installed on your Shopify store (${displayName} - ${cleanDomain}), but your Instagram feed is NOT yet visible to visitors on your live store.
+
+Current Setup Status:
+1. Instagram Account: ${isConnected ? `Connected (@${instagramHandle || "account"})` : "Action Needed - Not connected yet"}
+2. Theme App Embed: ${isEmbedActive ? "Active" : "Action Needed - Turned OFF in Theme Editor"}
+3. Feed Grid Section: ${isSectionActive ? "Added to theme" : "Pending - Needs to be placed on your storefront"}
+
+Primary Action Required:
+${primaryActionText}:
+${primaryActionUrl}
+
+Direct App Dashboard Link:
+${dashboardUrl}
+
+Need 1-on-1 Assistance? Our team will gladly configure and verify your feed free of charge:
+- Book a free Google Calendar slot: ${CALENDAR_URL}
+- WhatsApp support: ${WHATSAPP_URL}
+- Email support: ${SUPPORT_EMAIL}
+
+Best regards,
+The AI Instafeed Team
+`.trim();
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+
+    <!-- Header -->
+    <tr>
+      <td style="background: ${IG_GRADIENT_MAIN}; padding: 36px 36px 32px 36px; text-align: left;">
+        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">ACTION REQUIRED &bull; 1-MINUTE SETUP</span>
+        <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">Your Feed is Not Live Yet</h1>
+        <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.95); font-size: 14px;">Setup alert for <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+
+    <!-- Body -->
+    <tr>
+      <td style="padding: 36px 36px 24px 36px;">
+        <p style="margin: 0 0 16px 0; font-size: 16px; color: #334155;">Hello,</p>
+        <p style="margin: 0 0 24px 0; font-size: 15px; color: #334155; line-height: 1.65;">
+          We noticed that you installed <strong>AI Instafeed</strong> on <strong>${displayName}</strong>, but your Instagram feed is <strong>not yet displaying to your store's shoppers</strong>. It only takes about 60 seconds to complete setup and start driving conversions!
+        </p>
+
+        <!-- Alert Box -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; margin-bottom: 28px;">
+          <tr>
+            <td style="padding: 16px 20px;">
+              <div style="font-size: 14px; font-weight: 700; color: #92400e; margin-bottom: 4px;">
+                ${!isEmbedActive ? "⚠️ Theme App Embed is Turned OFF" : !isConnected ? "⚠️ Instagram Account Not Linked" : "⚠️ Section Needs to be Placed"}
+              </div>
+              <div style="font-size: 13px; color: #b45309; line-height: 1.5;">
+                ${!isEmbedActive
+                  ? "In Shopify Online Store 2.0, the app embed script must be turned ON in your Theme Editor for the feed to render. Click the 1-click button below to activate it."
+                  : !isConnected
+                  ? "Enter your Instagram username in your app dashboard to sync posts, reels, and stories automatically."
+                  : "Add the Feed Grid block to your homepage to show posts to your visitors."}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Checklist Table -->
+        <h3 style="margin: 0 0 14px 0; font-size: 15px; font-weight: 700; color: #0f172a;">
+          Live Storefront Checklist:
+        </h3>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 28px;">
+          <tr>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="30" valign="top">
+                    ${isConnected ? '<span style="font-size: 18px;">✅</span>' : '<span style="font-size: 18px;">⚠️</span>'}
+                  </td>
+                  <td>
+                    <div style="font-size: 14px; font-weight: 700; color: #0f172a;">1. Connect Instagram Account</div>
+                    <div style="font-size: 12.5px; color: #64748b;">${isConnected ? `Connected as @${instagramHandle}` : "Pending: Enter username in dashboard"}</div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; background: ${isConnected ? "#dcfce7; color: #16a34a;" : "#fef3c7; color: #b45309;"}">
+                      ${isConnected ? "Done" : "Action Needed"}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="30" valign="top">
+                    ${isEmbedActive ? '<span style="font-size: 18px;">✅</span>' : '<span style="font-size: 18px;">❌</span>'}
+                  </td>
+                  <td>
+                    <div style="font-size: 14px; font-weight: 700; color: #0f172a;">2. Enable Theme App Embed</div>
+                    <div style="font-size: 12.5px; color: #64748b;">${isEmbedActive ? "Active on live theme" : "Turn ON toggle in Shopify Theme Editor"}</div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; background: ${isEmbedActive ? "#dcfce7; color: #16a34a;" : "#fee2e2; color: #dc2626;"}">
+                      ${isEmbedActive ? "Active" : "Turn ON ↗"}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 18px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="30" valign="top">
+                    ${isSectionActive ? '<span style="font-size: 18px;">✅</span>' : '<span style="font-size: 18px;">⚠️</span>'}
+                  </td>
+                  <td>
+                    <div style="font-size: 14px; font-weight: 700; color: #0f172a;">3. Add Feed Section to Theme</div>
+                    <div style="font-size: 12.5px; color: #64748b;">${isSectionActive ? "Feed grid section active on theme" : "Add feed section to Homepage/Product page"}</div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; background: ${isSectionActive ? "#dcfce7; color: #16a34a;" : "#fef3c7; color: #b45309;"}">
+                      ${isSectionActive ? "Done" : "Pending"}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Primary CTA Button -->
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${primaryActionUrl}" target="_blank" style="background: ${IG_GRADIENT_BTN}; color: #ffffff; text-decoration: none; padding: 15px 36px; font-size: 15px; font-weight: 700; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(225, 48, 108, 0.4);">
+            ${primaryActionText}
+          </a>
+          <div style="margin-top: 12px; font-size: 12px; color: #64748b;">
+            Or open: <a href="${dashboardUrl}" style="color: #e1306c; font-weight: 600; text-decoration: underline;">App Dashboard</a>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+
+        <!-- 1-on-1 Assistance -->
+        ${renderContactBlock(logId)}
+
+        <!-- Free Forever & Review Block -->
+        ${renderReviewRewardBlock(cleanDomain, logId)}
+
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    ${renderFooter(cleanDomain)}
+
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const mailOptions = {
+    from: `"AI Instafeed" <${process.env.SMTP_USER}>`,
+    to,
+    replyTo: SUPPORT_EMAIL,
+    subject,
+    text: textContent,
+    html: injectTrackingPixel(htmlContent, logId),
+    headers: {
+      "X-Entity-Ref-ID": `setup-reminder-${cleanDomain}-${Date.now()}`,
+      "X-Auto-Response-Suppress": "OOF, AutoReply",
+    },
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("[Email] Setup reminder email sent to %s: %s", to, info.messageId);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "setup_reminder",
+      recipient: to,
+      subject,
+      status: "SENT",
+      messageId: info.messageId,
+    });
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("[Email] Error sending setup reminder email:", error);
+    await logEmailEvent({
+      id: logId,
+      shop,
+      emailType: "setup_reminder",
+      recipient: to,
+      subject,
+      status: "FAILED",
+      error: error.message,
+    });
+    return { success: false, error: error.message };
+  }
+}
+
