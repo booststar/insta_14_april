@@ -772,25 +772,29 @@ The AI Instafeed Team
 // 4. SUPPORT REQUEST EMAIL (Received by team from merchant)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function sendSupportEmail({ from, subject, message, shop, attachments = [] }) {
+  const logId = generateEmailLogId();
+  const cleanShop = (shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const emailSubject = `Support Request: ${subject || "General Inquiry"} (${cleanShop})`;
+
   const transporter = getTransporter();
   if (!transporter) {
     console.warn("[Email] SMTP credentials not configured in .env. Skipping support email.");
+    await logEmailEvent({
+      id: logId,
+      shop: cleanShop,
+      emailType: "support",
+      recipient: SUPPORT_EMAIL,
+      subject: emailSubject,
+      status: "SKIPPED",
+      error: "SMTP credentials not configured in .env",
+    });
     return { success: false, error: "SMTP credentials not configured" };
   }
 
-  const cleanShop = (shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const rawDashboardUrl = `https://${cleanShop}/admin/apps/ai-instafeed`;
+  const dashboardUrl = trackLink(rawDashboardUrl, logId);
 
-  const mailOptions = {
-    from: `"AI Instafeed Support" <${process.env.SMTP_USER}>`,
-    to: SUPPORT_EMAIL,
-    replyTo: from,
-    subject: `Support Request: ${subject || "General Inquiry"} (${cleanShop})`,
-    attachments,
-    headers: {
-      "X-Entity-Ref-ID": `support-${cleanShop}-${Date.now()}`,
-    },
-    text: `Support Request from ${cleanShop}\nMerchant Email: ${from}\nSubject: ${subject}\n\nMessage:\n${message}\n\nDashboard: https://${cleanShop}/admin/apps/ai-instafeed`,
-    html: `
+  const rawHtml = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -828,24 +832,37 @@ export async function sendSupportEmail({ from, subject, message, shop, attachmen
               </div>
 
               <div style="margin-top: 24px;">
-                <a href="https://${cleanShop}/admin/apps/ai-instafeed" style="display: inline-block; background: ${IG_GRADIENT_BTN}; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">Open Store Dashboard</a>
+                <a href="${dashboardUrl}" style="display: inline-block; background: ${IG_GRADIENT_BTN}; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">Open Store Dashboard</a>
               </div>
             </td>
           </tr>
         </table>
       </body>
       </html>
-    `,
+  `;
+
+  const mailOptions = {
+    from: `"AI Instafeed Support" <${process.env.SMTP_USER}>`,
+    to: SUPPORT_EMAIL,
+    replyTo: from,
+    subject: emailSubject,
+    attachments,
+    headers: {
+      "X-Entity-Ref-ID": `support-${cleanShop}-${Date.now()}`,
+    },
+    text: `Support Request from ${cleanShop}\nMerchant Email: ${from}\nSubject: ${subject}\n\nMessage:\n${message}\n\nDashboard: ${dashboardUrl}`,
+    html: injectTrackingPixel(rawHtml, logId),
   };
 
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("[Email] Support email sent: %s", info.messageId);
     await logEmailEvent({
+      id: logId,
       shop: cleanShop,
       emailType: "support",
       recipient: SUPPORT_EMAIL,
-      subject: mailOptions.subject,
+      subject: emailSubject,
       status: "SENT",
       messageId: info.messageId,
     });
@@ -853,10 +870,11 @@ export async function sendSupportEmail({ from, subject, message, shop, attachmen
   } catch (error) {
     console.error("[Email] Error sending support email:", error);
     await logEmailEvent({
+      id: logId,
       shop: cleanShop,
       emailType: "support",
       recipient: SUPPORT_EMAIL,
-      subject: mailOptions.subject,
+      subject: emailSubject,
       status: "FAILED",
       error: error.message,
     });
@@ -1311,4 +1329,436 @@ The AI Instafeed Team
     return { success: false, error: error.message };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. CUSTOM LIVE EMAIL DISPATCH (Super-Admin Direct Dispatch)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendCustomEmail({
+  to,
+  shop,
+  subject,
+  message,
+  htmlMessage = null,
+  emailType = "custom",
+}) {
+  const logId = generateEmailLogId();
+  const cleanDomain = (shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const displayName = cleanDomain.replace(/\.myshopify\.com$/, "");
+  const emailSubject = subject || `AI Instafeed update for ${displayName}`;
+
+  const rawDashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
+  const dashboardUrl = trackLink(rawDashboardUrl, logId);
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log("[Email] SMTP credentials not configured. Skipping custom email.");
+    await logEmailEvent({
+      id: logId,
+      shop: cleanDomain,
+      emailType,
+      recipient: to,
+      subject: emailSubject,
+      status: "SKIPPED",
+      error: "SMTP credentials not configured in .env",
+    });
+    return { success: false, error: "SMTP credentials not configured in .env", logId };
+  }
+
+  const bodyContent = htmlMessage || `
+    <div style="font-size: 15px; color: #334155; line-height: 1.65; white-space: pre-wrap; margin-bottom: 24px;">
+      ${(message || "").replace(/\n/g, "<br>")}
+    </div>
+  `;
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${emailSubject}</title>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+    <tr>
+      <td style="background: ${IG_GRADIENT_MAIN}; padding: 36px 36px 32px 36px; text-align: left;">
+        <span style="background: rgba(255, 255, 255, 0.22); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 5px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">DIRECT NOTIFICATION</span>
+        <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">${emailSubject}</h1>
+        <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.95); font-size: 14px;">Store domain: <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 36px 36px 24px 36px;">
+        ${bodyContent}
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${dashboardUrl}" target="_blank" style="background: ${IG_GRADIENT_BTN}; color: #ffffff; text-decoration: none; padding: 14px 34px; font-size: 15px; font-weight: 700; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(225, 48, 108, 0.4);">
+            Open App Dashboard &rarr;
+          </a>
+        </div>
+        ${renderReviewRewardBlock(cleanDomain, logId)}
+        ${renderContactBlock(logId)}
+      </td>
+    </tr>
+    ${renderFooter(cleanDomain)}
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const mailOptions = {
+    from: `"AI Instafeed" <${process.env.SMTP_USER}>`,
+    to,
+    replyTo: SUPPORT_EMAIL,
+    subject: emailSubject,
+    text: message || emailSubject,
+    html: injectTrackingPixel(htmlContent, logId),
+    headers: {
+      "X-Entity-Ref-ID": `custom-${cleanDomain}-${Date.now()}`,
+      "X-Auto-Response-Suppress": "OOF, AutoReply",
+    },
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("[Email] Custom live email sent to %s: %s", to, info.messageId);
+    await logEmailEvent({
+      id: logId,
+      shop: cleanDomain,
+      emailType,
+      recipient: to,
+      subject: emailSubject,
+      status: "SENT",
+      messageId: info.messageId,
+    });
+    return { success: true, messageId: info.messageId, logId };
+  } catch (error) {
+    console.error("[Email] Error sending custom live email:", error);
+    await logEmailEvent({
+      id: logId,
+      shop: cleanDomain,
+      emailType,
+      recipient: to,
+      subject: emailSubject,
+      status: "FAILED",
+      error: error.message,
+    });
+    return { success: false, error: error.message, logId };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. RESEND EMAIL BY LOG ID
+// ─────────────────────────────────────────────────────────────────────────────
+export async function resendEmailById({ logId, targetEmail = null }) {
+  if (!logId) return { success: false, error: "Missing email log ID" };
+
+  let log = null;
+  if (prisma?.emailLog) {
+    log = await prisma.emailLog.findUnique({ where: { id: logId } });
+  } else {
+    const rows = await prisma.$queryRawUnsafe('SELECT * FROM "EmailLog" WHERE "id" = $1 LIMIT 1', logId);
+    log = rows?.[0] || null;
+  }
+
+  if (!log) {
+    return { success: false, error: "Email log not found" };
+  }
+
+  const recipient = targetEmail || log.recipient;
+  if (!recipient) {
+    return { success: false, error: "No recipient address specified" };
+  }
+
+  switch (log.emailType) {
+    case "welcome":
+      return await sendWelcomeEmail({
+        to: recipient,
+        shop: log.shop,
+        shopName: log.shop.replace(/\.myshopify\.com$/, ""),
+        myshopifyDomain: log.shop,
+      });
+
+    case "setup_reminder":
+      return await sendSetupReminderEmail({
+        to: recipient,
+        shop: log.shop,
+        shopName: log.shop.replace(/\.myshopify\.com$/, ""),
+        myshopifyDomain: log.shop,
+        isConnected: false,
+        isEmbedActive: false,
+        isSectionActive: false,
+      });
+
+    case "monthly_report":
+      return await sendMonthlyReportEmail({
+        to: recipient,
+        shop: log.shop,
+        shopName: log.shop.replace(/\.myshopify\.com$/, ""),
+        myshopifyDomain: log.shop,
+        metrics: [
+          { views: 1250, clicks: 184 },
+          { views: 890, clicks: 112 },
+        ],
+      });
+
+    case "uninstall":
+      return await sendUninstallEmail({
+        to: recipient,
+        shop: log.shop,
+        shopName: log.shop.replace(/\.myshopify\.com$/, ""),
+      });
+
+    case "reinstall":
+      return await sendReinstallEmail({
+        to: recipient,
+        shop: log.shop,
+        shopName: log.shop.replace(/\.myshopify\.com$/, ""),
+        myshopifyDomain: log.shop,
+      });
+
+    case "support":
+    case "custom":
+    default:
+      return await sendCustomEmail({
+        to: recipient,
+        shop: log.shop,
+        subject: log.subject.startsWith("[Resent]") ? log.subject : `[Resent] ${log.subject}`,
+        message: `This is a re-sent copy of email log ${log.id}.\n\nOriginal Subject: ${log.subject}\nOriginal Date: ${log.createdAt}`,
+        emailType: log.emailType || "custom",
+      });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. RENDER EMAIL HTML PREVIEW (For In-App Modal / Inspector)
+// ─────────────────────────────────────────────────────────────────────────────
+export function getEmailPreviewHtml({
+  emailType,
+  shop = "demo-store.myshopify.com",
+  recipient = "merchant@example.com",
+  subject = "",
+}) {
+  const cleanDomain = (shop || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const displayName = cleanDomain.replace(/\.myshopify\.com$/, "");
+  const dashboardUrl = `https://${cleanDomain}/admin/apps/ai-instafeed`;
+  const themeEditorUrl = `https://${cleanDomain}/admin/themes/current/editor?context=apps`;
+
+  switch (emailType) {
+    case "welcome":
+      return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>body { margin:0; padding:20px; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f1f5f9; }</style>
+</head>
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden;">
+    <tr>
+      <td style="background:${IG_GRADIENT_MAIN}; padding:32px; color:#ffffff;">
+        <span style="background:rgba(255,255,255,0.22); color:#ffffff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; display:inline-block; margin-bottom:10px;">WELCOME TO AI INSTAFEED</span>
+        <h1 style="margin:0; font-size:24px; font-weight:800; color:#fff;">Welcome to AI Instafeed!</h1>
+        <p style="margin:4px 0 0 0; color:rgba(255,255,255,0.9); font-size:13px;">Setup guide for <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 32px;">
+        <p style="color:#334155; font-size:15px;">Hello,</p>
+        <p style="color:#334155; font-size:14px; line-height:1.6;">
+          <strong>AI Instafeed</strong> has been successfully installed on your store. Enjoy unlimited Instagram posts, reels, and stories with clickable shoppable product tags on your storefront — <strong>100% Free Forever</strong>.
+        </p>
+        <div style="text-align:center; margin:24px 0;">
+          <a href="${dashboardUrl}" target="_blank" style="background:${IG_GRADIENT_BTN}; color:#fff; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:700; display:inline-block;">Open App Dashboard &rarr;</a>
+        </div>
+        ${renderReviewRewardBlock(cleanDomain)}
+        ${renderContactBlock()}
+      </td>
+    </tr>
+    ${renderFooter(cleanDomain)}
+  </table>
+</body>
+</html>
+      `.trim();
+
+    case "setup_reminder":
+      return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>body { margin:0; padding:20px; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f1f5f9; }</style>
+</head>
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden;">
+    <tr>
+      <td style="background:${IG_GRADIENT_MAIN}; padding:32px; color:#ffffff;">
+        <span style="background:rgba(255,255,255,0.22); color:#ffffff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; display:inline-block; margin-bottom:10px;">ACTION REQUIRED &bull; 1-MINUTE SETUP</span>
+        <h1 style="margin:0; font-size:24px; font-weight:800; color:#fff;">Your Feed is Not Live Yet</h1>
+        <p style="margin:4px 0 0 0; color:rgba(255,255,255,0.9); font-size:13px;">Setup alert for <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 32px;">
+        <div style="background:#fffbeb; border-left:4px solid #f59e0b; padding:14px; border-radius:6px; margin-bottom:20px;">
+          <strong style="color:#92400e;">⚠️ Theme App Embed is Turned OFF</strong>
+          <p style="margin:4px 0 0 0; color:#b45309; font-size:13px;">In Shopify OS 2.0, the app embed must be enabled in Theme Customizer for your Instagram feed to show up.</p>
+        </div>
+        <div style="text-align:center; margin:24px 0;">
+          <a href="${themeEditorUrl}" target="_blank" style="background:${IG_GRADIENT_BTN}; color:#fff; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:700; display:inline-block;">Turn ON App Embed in Theme &rarr;</a>
+        </div>
+        ${renderReviewRewardBlock(cleanDomain)}
+        ${renderContactBlock()}
+      </td>
+    </tr>
+    ${renderFooter(cleanDomain)}
+  </table>
+</body>
+</html>
+      `.trim();
+
+    case "monthly_report":
+      return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>body { margin:0; padding:20px; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f1f5f9; }</style>
+</head>
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden;">
+    <tr>
+      <td style="background:${IG_GRADIENT_MAIN}; padding:32px; color:#ffffff;">
+        <span style="background:rgba(255,255,255,0.22); color:#ffffff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; display:inline-block; margin-bottom:10px;">MONTHLY PERFORMANCE</span>
+        <h1 style="margin:0; font-size:24px; font-weight:800; color:#fff;">Storefront Feed Analytics</h1>
+        <p style="margin:4px 0 0 0; color:rgba(255,255,255,0.9); font-size:13px;">Past 30 days metrics for <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 32px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+          <tr>
+            <td width="48%" style="padding:14px; background:#fff5f8; border:1px solid #fce4ec; border-radius:10px;">
+              <div style="font-size:11px; font-weight:700; color:#833ab4;">IMPRESSIONS</div>
+              <div style="font-size:24px; font-weight:800; color:#0f172a; margin-top:4px;">14,820</div>
+            </td>
+            <td width="4%"></td>
+            <td width="48%" style="padding:14px; background:#fdf2f8; border:1px solid #fce7f3; border-radius:10px;">
+              <div style="font-size:11px; font-weight:700; color:#e1306c;">CLICKS</div>
+              <div style="font-size:24px; font-weight:800; color:#0f172a; margin-top:4px;">1,240</div>
+            </td>
+          </tr>
+        </table>
+        ${renderReviewRewardBlock(cleanDomain)}
+        ${renderContactBlock()}
+      </td>
+    </tr>
+    ${renderFooter(cleanDomain)}
+  </table>
+</body>
+</html>
+      `.trim();
+
+    case "uninstall":
+      return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>body { margin:0; padding:20px; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f1f5f9; }</style>
+</head>
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden;">
+    <tr>
+      <td style="background:${IG_GRADIENT_MAIN}; padding:32px; color:#ffffff;">
+        <span style="background:rgba(255,255,255,0.22); color:#ffffff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; display:inline-block; margin-bottom:10px;">WE VALUE YOUR FEEDBACK</span>
+        <h1 style="margin:0; font-size:24px; font-weight:800; color:#fff;">We're Sorry to See You Go</h1>
+        <p style="margin:4px 0 0 0; color:rgba(255,255,255,0.9); font-size:13px;">Follow-up for <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 32px;">
+        <p style="color:#334155; font-size:14px; line-height:1.6;">
+          We noticed you recently uninstalled <strong>AI Instafeed</strong>. Remember that our app is <strong>100% Free Forever</strong>. If you faced any layout or setup issues, our senior integration team will gladly configure it for you completely free of charge!
+        </p>
+        <div style="text-align:center; margin:24px 0;">
+          <a href="https://apps.shopify.com/ai-instafeed" target="_blank" style="background:${IG_GRADIENT_BTN}; color:#fff; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:700; display:inline-block;">Reinstall in 1-Click &rarr;</a>
+        </div>
+        ${renderContactBlock()}
+      </td>
+    </tr>
+    ${renderFooter(cleanDomain)}
+  </table>
+</body>
+</html>
+      `.trim();
+
+    case "reinstall":
+      return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>body { margin:0; padding:20px; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f1f5f9; }</style>
+</head>
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden;">
+    <tr>
+      <td style="background:${IG_GRADIENT_MAIN}; padding:32px; color:#ffffff;">
+        <span style="background:rgba(255,255,255,0.22); color:#ffffff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; display:inline-block; margin-bottom:10px;">WELCOME BACK &bull; 100% FREE FOREVER</span>
+        <h1 style="margin:0; font-size:24px; font-weight:800; color:#fff;">Thanks for Reinstalling! 🎉</h1>
+        <p style="margin:4px 0 0 0; color:rgba(255,255,255,0.9); font-size:13px;">Welcome back <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 32px;">
+        <p style="color:#334155; font-size:14px; line-height:1.6;">
+          Thank you for reinstalling AI Instafeed on your store! We are delighted to have you back.
+        </p>
+        <div style="text-align:center; margin:24px 0;">
+          <a href="${dashboardUrl}" target="_blank" style="background:${IG_GRADIENT_BTN}; color:#fff; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:700; display:inline-block;">Launch App Dashboard &rarr;</a>
+        </div>
+        ${renderReviewRewardBlock(cleanDomain)}
+        ${renderContactBlock()}
+      </td>
+    </tr>
+    ${renderFooter(cleanDomain)}
+  </table>
+</body>
+</html>
+      `.trim();
+
+    case "support":
+    default:
+      return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>body { margin:0; padding:20px; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f1f5f9; }</style>
+</head>
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden;">
+    <tr>
+      <td style="background:${IG_GRADIENT_MAIN}; padding:28px 32px; color:#ffffff;">
+        <span style="background:rgba(255,255,255,0.22); color:#ffffff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; display:inline-block; margin-bottom:8px;">AI INSTAFEED DISPATCH</span>
+        <h1 style="margin:0; font-size:22px; font-weight:800; color:#fff;">${subject || "Email Notification"}</h1>
+        <p style="margin:4px 0 0 0; color:rgba(255,255,255,0.9); font-size:13px;">Recipient: <strong>${recipient}</strong> &bull; Store: <strong>${displayName}</strong></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 32px;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:18px; font-size:14px; color:#334155; line-height:1.6;">
+          This email was dispatched to <strong>${recipient}</strong> for store <strong>${cleanDomain}</strong>.
+        </div>
+        ${renderContactBlock()}
+      </td>
+    </tr>
+    ${renderFooter(cleanDomain)}
+  </table>
+</body>
+</html>
+      `.trim();
+  }
+}
+
 

@@ -28,7 +28,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
 export default function App() {
-  const { apiKey } = useLoaderData();
+  const { apiKey, isAppAdmin } = useLoaderData();
   const navigate = useNavigate();
 
   // Hidden shortcut: Ctrl + Shift + E (or Cmd + Shift + E) opens internal Email Analytics for anyone who knows it
@@ -53,6 +53,7 @@ export default function App() {
           <s-link href="/app/plans">Plans</s-link>
           <s-link href="/app/guide">Guide & Setup</s-link>
           <s-link href="/app/support">Contact Support</s-link>
+          {isAppAdmin && <s-link href="/app/emails">Email Tracker</s-link>}
         </s-app-nav>
         <Outlet />
 
