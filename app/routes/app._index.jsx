@@ -212,100 +212,152 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId) {
 export const loader = async ({ request }) => {
   const { admin, session, billing } = await authenticate.admin(request);
   const shop = session?.shop ?? "unknown";
-
   const isTest = process.env.BILLING_TEST_MODE !== "false";
-
-  const [billingResult, configResult, instaResult, themeRes, productsRes] = await Promise.allSettled([
-    billing.check({ plans: ["Pro Monthly"], isTest }),
-    withRateLimit(shop, () => fetchShopConfig(admin, shop)),
-    fetchShopInstaData(admin, shop),
-    admin.graphql(`{ themes(first: 25) { nodes { id name role } } }`),
-    admin.graphql(`{
-      products(first: 100, sortKey: UPDATED_AT, reverse: true) {
-        nodes {
-          id
-          title
-          handle
-          tags
-          featuredImage { url }
-          variants(first: 1) {
-            nodes {
-              id
-              price
-            }
-          }
-        }
-      }
-    }`),
-  ]);
-
-  let subscription = null;
-  if (billingResult.status === "fulfilled") {
-    const billingCheck = billingResult.value;
-    if (billingCheck.hasActivePayment) {
-      const activeSub = billingCheck.appSubscriptions.find((s) => s.status === "ACTIVE");
-      if (activeSub) subscription = activeSub;
-    }
-  } else {
-    console.error("Billing check error:", billingResult.reason?.message);
-  }
-
-  const config = configResult.status === "fulfilled" ? configResult.value : null;
-  const instaData = instaResult.status === "fulfilled" ? instaResult.value : null;
-  if (configResult.status === "rejected") console.error("Config fetch error:", configResult.reason);
-
-  let storeProducts = [];
-  if (productsRes.status === "fulfilled") {
-    try {
-      const prodJson = await productsRes.value.json();
-      const nodes = prodJson.data?.products?.nodes || [];
-      storeProducts = nodes.map((p) => ({
-        id: p.id,
-        title: p.title,
-        handle: p.handle,
-        tags: p.tags || [],
-        image: p.featuredImage?.url || "",
-        variantId: p.variants?.nodes?.[0]?.id ? String(p.variants.nodes[0].id).split("/").pop() : "default",
-        price: p.variants?.nodes?.[0]?.price || "0.00",
-      }));
-    } catch (e) {
-      console.warn("Failed to parse store products", e);
-    }
-  }
-
-  trackApiResponse(shop, {});
 
   const requestUrl = new URL(request.url);
   const selectedThemeParam = requestUrl.searchParams.get("selectedThemeId") || requestUrl.searchParams.get("themeId");
-
-  let allThemes = [];
-  let themeId = "current";
-
-  if (themeRes.status === "fulfilled") {
-    try {
-      const themeJson = await themeRes.value.json();
-      const nodes = themeJson.data?.themes?.nodes || [];
-      allThemes = nodes.map((t) => {
-        const numericId = t.id.split("/").pop();
-        const isLive = t.role === "MAIN";
-        return {
-          id: numericId,
-          name: t.name || `Theme #${numericId}`,
-          role: t.role,
-          isLive,
-        };
-      });
-      allThemes.sort((a, b) => (b.isLive ? 1 : 0) - (a.isLive ? 1 : 0));
-
-      const mainTheme = allThemes.find((t) => t.isLive);
-      const matchedSelected = selectedThemeParam ? allThemes.find((t) => t.id === selectedThemeParam) : null;
-      themeId = matchedSelected ? matchedSelected.id : mainTheme ? mainTheme.id : allThemes[0]?.id || "current";
-    } catch (err) {
-      console.warn("Failed to parse themes JSON", err);
-    }
-  }
-
   const clientId = process.env.SHOPIFY_API_KEY;
+
+  // ── Concurrently fetch all cached resources in parallel ──
+  const [
+    subscription,
+    config,
+    instaData,
+    allThemes,
+    storeProducts,
+    analyticsSummary,
+  ] = await Promise.all([
+    // 1. Cached Billing Check
+    cacheGetOrSet(
+      `shopify:billing:${shop}`,
+      async () => {
+        try {
+          const billingCheck = await billing.check({ plans: ["Pro Monthly"], isTest });
+          if (billingCheck.hasActivePayment) {
+            return billingCheck.appSubscriptions.find((s) => s.status === "ACTIVE") || null;
+          }
+        } catch (err) {
+          console.warn("Billing check error:", err.message);
+        }
+        return null;
+      },
+      300
+    ),
+
+    // 2. Cached Config
+    withRateLimit(shop, () => fetchShopConfig(admin, shop)).catch(() => null),
+
+    // 3. Cached Instagram Feed Data
+    fetchShopInstaData(admin, shop).catch(() => null),
+
+    // 4. Cached Themes List
+    cacheGetOrSet(
+      `shopify:themes:${shop}`,
+      async () => {
+        try {
+          const themeRes = await admin.graphql(`{ themes(first: 25) { nodes { id name role } } }`);
+          const themeJson = await themeRes.json();
+          const nodes = themeJson.data?.themes?.nodes || [];
+          const themes = nodes.map((t) => {
+            const numericId = t.id.split("/").pop();
+            const isLive = t.role === "MAIN";
+            return {
+              id: numericId,
+              name: t.name || `Theme #${numericId}`,
+              role: t.role,
+              isLive,
+            };
+          });
+          themes.sort((a, b) => (b.isLive ? 1 : 0) - (a.isLive ? 1 : 0));
+          return themes;
+        } catch (err) {
+          console.warn("Failed to parse themes JSON", err);
+          return [];
+        }
+      },
+      600
+    ),
+
+    // 5. Cached Store Products (for tagging modal)
+    cacheGetOrSet(
+      `shopify:products:${shop}`,
+      async () => {
+        try {
+          const productsRes = await admin.graphql(`{
+            products(first: 100, sortKey: UPDATED_AT, reverse: true) {
+              nodes {
+                id
+                title
+                handle
+                tags
+                featuredImage { url }
+                variants(first: 1) {
+                  nodes {
+                    id
+                    price
+                  }
+                }
+              }
+            }
+          }`);
+          const prodJson = await productsRes.json();
+          const nodes = prodJson.data?.products?.nodes || [];
+          return nodes.map((p) => ({
+            id: p.id,
+            title: p.title,
+            handle: p.handle,
+            tags: p.tags || [],
+            image: p.featuredImage?.url || "",
+            variantId: p.variants?.nodes?.[0]?.id ? String(p.variants.nodes[0].id).split("/").pop() : "default",
+            price: p.variants?.nodes?.[0]?.price || "0.00",
+          }));
+        } catch (e) {
+          console.warn("Failed to parse store products", e);
+          return [];
+        }
+      },
+      600
+    ),
+
+    // 6. Cached Analytics Summary
+    cacheGetOrSet(
+      `analytics:summary:${shop}`,
+      async () => {
+        try {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+          const metrics = await prisma.feedMetric.findMany({
+            where: {
+              shop,
+              date: { gte: thirtyDaysAgo },
+            },
+            orderBy: { date: "desc" },
+          });
+          let views = 0;
+          let clicks = 0;
+          for (const m of metrics) {
+            views += m.views || 0;
+            clicks += m.clicks || 0;
+          }
+          const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : "0.0";
+          return { views, clicks, ctr, recentDaysCount: metrics.length };
+        } catch (err) {
+          console.warn("[app._index] Failed to fetch feed metrics summary:", err.message);
+          return { views: 0, clicks: 0, ctr: "0.0", recentDaysCount: 0 };
+        }
+      },
+      300
+    ),
+  ]);
+
+  trackApiResponse(shop, {});
+
+  // Determine active theme ID
+  const themesList = allThemes || [];
+  const mainTheme = themesList.find((t) => t.isLive);
+  const matchedSelected = selectedThemeParam ? themesList.find((t) => t.id === selectedThemeParam) : null;
+  const themeId = matchedSelected ? matchedSelected.id : mainTheme ? mainTheme.id : themesList[0]?.id || "current";
+
+  // Cached Theme Embed verification
   const { dynamicAppEmbedEnabled, dynamicSections } = await getCachedThemeEmbedStatus(
     session?.shop,
     themeId,
@@ -313,41 +365,19 @@ export const loader = async ({ request }) => {
     clientId
   );
 
-  let analyticsSummary = { views: 0, clicks: 0, ctr: "0.0", recentDaysCount: 0 };
-  try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const metrics = await prisma.feedMetric.findMany({
-      where: {
-        shop,
-        date: { gte: thirtyDaysAgo },
-      },
-      orderBy: { date: "desc" },
-    });
-    let views = 0;
-    let clicks = 0;
-    for (const m of metrics) {
-      views += m.views || 0;
-      clicks += m.clicks || 0;
-    }
-    const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : "0.0";
-    analyticsSummary = { views, clicks, ctr, recentDaysCount: metrics.length };
-  } catch (err) {
-    console.warn("[app._index] Failed to fetch feed metrics summary:", err.message);
-  }
-
   return {
     config: config ? JSON.stringify(config) : null,
     instaData: instaData ? JSON.stringify(instaData) : null,
-    storeProducts,
-    subscription,
+    storeProducts: storeProducts || [],
+    subscription: subscription || null,
     shop,
     themeId,
-    allThemes,
+    allThemes: themesList,
     selectedThemeId: themeId,
     clientId,
-    dynamicAppEmbedEnabled,
-    dynamicSections,
-    analyticsSummary,
+    dynamicAppEmbedEnabled: !!dynamicAppEmbedEnabled,
+    dynamicSections: dynamicSections || { grid: false },
+    analyticsSummary: analyticsSummary || { views: 0, clicks: 0, ctr: "0.0", recentDaysCount: 0 },
   };
 };
 
@@ -628,6 +658,63 @@ const FEED_TYPOGRAPHY_PRESETS = [
     subheading: { size: 13, weight: "500", color: "#c13584" },
   },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SSR & HYDRATION HELPER FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+function getMergedConfig(rawConfig) {
+  let loadedConfig = null;
+  if (rawConfig) {
+    try {
+      loadedConfig = typeof rawConfig === "string" ? JSON.parse(rawConfig) : rawConfig;
+    } catch (e) {}
+  }
+  return {
+    ...DEFAULT_CONFIG,
+    ...loadedConfig,
+    postFeed: {
+      ...DEFAULT_CONFIG.postFeed,
+      ...(loadedConfig?.postFeed || {}),
+      typography: {
+        ...DEFAULT_CONFIG.postFeed.typography,
+        ...(loadedConfig?.postFeed?.typography || {}),
+        heading: {
+          ...DEFAULT_CONFIG.postFeed.typography.heading,
+          ...(loadedConfig?.postFeed?.typography?.heading || {}),
+        },
+        subheading: {
+          ...DEFAULT_CONFIG.postFeed.typography.subheading,
+          ...(loadedConfig?.postFeed?.typography?.subheading || {}),
+        },
+      },
+    },
+    stories: {
+      ...DEFAULT_CONFIG.stories,
+      ...(loadedConfig?.stories || {}),
+      typography: {
+        ...DEFAULT_CONFIG.stories.typography,
+        ...(loadedConfig?.stories?.typography || {}),
+        heading: {
+          ...DEFAULT_CONFIG.stories.typography.heading,
+          ...(loadedConfig?.stories?.typography?.heading || {}),
+        },
+        subheading: {
+          ...DEFAULT_CONFIG.stories.typography.subheading,
+          ...(loadedConfig?.stories?.typography?.subheading || {}),
+        },
+      },
+    },
+  };
+}
+
+function getInitialInstaData(rawInsta) {
+  if (!rawInsta) return null;
+  try {
+    return typeof rawInsta === "string" ? JSON.parse(rawInsta) : rawInsta;
+  } catch (e) {
+    return null;
+  }
+}
 
 const isPresetMatch = (currentConfigSection, preset) => {
   if (!currentConfigSection || !currentConfigSection.typography) return false;
@@ -2470,7 +2557,7 @@ export default function Index() {
   const isPaid = true;
   const planName = "Free Forever";
 
-  const [instaData, setInstaData] = useState(null);
+  const [instaData, setInstaData] = useState(() => getInitialInstaData(loaderData.instaData));
   const [selectedPost, setSelectedPost] = useState(null);
   const [isInfiniteLoading, setIsInfiniteLoading] = useState(false);
   const [extraLoadCount, setExtraLoadCount] = useState(0);
@@ -2599,8 +2686,8 @@ export default function Index() {
     },
   ], []);
 
-  const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const savedConfigRef = useRef(null);
+  const [config, setConfig] = useState(() => getMergedConfig(loaderData.config));
+  const savedConfigRef = useRef(getMergedConfig(loaderData.config));
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEditingDesign, setIsEditingDesign] = useState(false);
   const [isHideMode, setIsHideMode] = useState(false);
@@ -2742,62 +2829,13 @@ export default function Index() {
     setIsHydrated(true);
     if (shopify) setIsAppBridgeReady(true);
 
-    let loadedConfig = null;
-    if (loaderData.config) {
-      try {
-        loadedConfig = typeof loaderData.config === "string" ? JSON.parse(loaderData.config) : loaderData.config;
-      } catch (e) {}
-    }
-
-    const merged = {
-      ...DEFAULT_CONFIG,
-      ...loadedConfig,
-      postFeed: {
-        ...DEFAULT_CONFIG.postFeed,
-        ...(loadedConfig?.postFeed || {}),
-        typography: {
-          ...DEFAULT_CONFIG.postFeed.typography,
-          ...(loadedConfig?.postFeed?.typography || {}),
-          heading: {
-            ...DEFAULT_CONFIG.postFeed.typography.heading,
-            ...(loadedConfig?.postFeed?.typography?.heading || {}),
-          },
-          subheading: {
-            ...DEFAULT_CONFIG.postFeed.typography.subheading,
-            ...(loadedConfig?.postFeed?.typography?.subheading || {}),
-          },
-        },
-      },
-      stories: {
-        ...DEFAULT_CONFIG.stories,
-        ...(loadedConfig?.stories || {}),
-        typography: {
-          ...DEFAULT_CONFIG.stories.typography,
-          ...(loadedConfig?.stories?.typography || {}),
-          heading: {
-            ...DEFAULT_CONFIG.stories.typography.heading,
-            ...(loadedConfig?.stories?.typography?.heading || {}),
-          },
-          subheading: {
-            ...DEFAULT_CONFIG.stories.typography.subheading,
-            ...(loadedConfig?.stories?.typography?.subheading || {}),
-          },
-        },
-      },
-    };
-
+    const merged = getMergedConfig(loaderData.config);
     savedConfigRef.current = JSON.parse(JSON.stringify(merged));
     setConfig(merged);
     setHasUnsavedChanges(false);
 
-    if (loaderData.instaData) {
-      try {
-        const parsedInsta =
-          typeof loaderData.instaData === "string" ? JSON.parse(loaderData.instaData) : loaderData.instaData;
-        setInstaData(parsedInsta);
-      } catch (e) {}
-    }
-  }, [loaderData, shopify]);
+    setInstaData(getInitialInstaData(loaderData.instaData));
+  }, [loaderData.config, loaderData.instaData, shopify]);
 
   const isConnected = useMemo(() => {
     if (!instaData || !config.instagramHandle) return false;
@@ -2849,12 +2887,13 @@ export default function Index() {
   const [wizardStep, setWizardStep] = useState(isConnected ? 2 : 1);
   const [isWizardMode, setIsWizardMode] = useState(!isAllSetupComplete);
   const [isWelcomeExpanded, setIsWelcomeExpanded] = useState(!allTasksDone);
-  const [isOnboardingDismissed, setIsOnboardingDismissed] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("onboarding_widget_dismissed") === "true";
+  const [isOnboardingDismissed, setIsOnboardingDismissed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("onboarding_widget_dismissed") === "true") {
+      setIsOnboardingDismissed(true);
     }
-    return false;
-  });
+  }, []);
   const [isSetupGuideManuallyOpen, setIsSetupGuideManuallyOpen] = useState(false);
 
   // When allTasksDone is true (feed active and displaying on theme), hide checklist by default
@@ -3348,41 +3387,6 @@ export default function Index() {
   };
 
   const isSyncing = fetcher.state !== "idle";
-
-  if (!isHydrated || !isAppBridgeReady) {
-    return (
-      <SkeletonPage primaryAction>
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <SkeletonDisplayText size="small" />
-              <Box paddingBlockStart="400">
-                <SkeletonBodyText lines={3} />
-              </Box>
-            </Card>
-            <Box paddingBlockStart="400">
-              <Card>
-                <SkeletonDisplayText size="small" />
-                <Box paddingBlockStart="400">
-                  <SkeletonBodyText lines={6} />
-                </Box>
-              </Card>
-            </Box>
-          </Layout.Section>
-          <Layout.Section variant="oneThird">
-            <Card>
-              <BlockStack gap="400">
-                <SkeletonDisplayText size="small" />
-                <SkeletonBodyText lines={2} />
-                <SkeletonDisplayText size="small" />
-                <SkeletonBodyText lines={6} />
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </SkeletonPage>
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // MEDIA CARD RENDERER
