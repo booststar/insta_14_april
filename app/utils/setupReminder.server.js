@@ -9,17 +9,39 @@ const APP_HANDLE = "instafeed";
  * Verify if the App Embed and Storefront Sections are enabled on the theme
  */
 export async function verifyThemeEmbedAndSections(shop, themeId, accessToken, clientId = "") {
-  if (!themeId || themeId === "current" || !accessToken) {
+  if (!accessToken) {
     return { dynamicAppEmbedEnabled: false, dynamicSections: { grid: false } };
   }
-  const cacheKey = `theme_embed_status:${shop}:${themeId}`;
+
+  let resolvedThemeId = themeId;
+  const apiVersion = "2024-01";
+
+  if (!resolvedThemeId || resolvedThemeId === "current") {
+    try {
+      const themesUrl = `https://${shop}/admin/api/${apiVersion}/themes.json`;
+      const themesRes = await fetch(themesUrl, {
+        headers: { "X-Shopify-Access-Token": accessToken },
+      }).then((r) => r.json());
+      const liveTheme = themesRes.themes?.find((t) => t.role === "main") || themesRes.themes?.[0];
+      if (liveTheme) {
+        resolvedThemeId = String(liveTheme.id);
+      }
+    } catch (e) {
+      console.warn("[setupReminder] Failed to resolve live theme ID:", e.message);
+    }
+  }
+
+  if (!resolvedThemeId || resolvedThemeId === "current") {
+    return { dynamicAppEmbedEnabled: false, dynamicSections: { grid: false } };
+  }
+
+  const cacheKey = `theme_embed_status:${shop}:${resolvedThemeId}`;
   return cacheGetOrSet(
     cacheKey,
     async () => {
       let dynamicAppEmbedEnabled = false;
       let dynamicSections = { grid: false };
       try {
-        const apiVersion = "2024-01";
         const assetKeys = [
           "config/settings_data.json",
           "templates/index.json",
@@ -29,7 +51,7 @@ export async function verifyThemeEmbedAndSections(shop, themeId, accessToken, cl
         ];
 
         const assetPromises = assetKeys.map((key) => {
-          const url = `https://${shop}/admin/api/${apiVersion}/themes/${themeId}/assets.json?asset[key]=${encodeURIComponent(key)}`;
+          const url = `https://${shop}/admin/api/${apiVersion}/themes/${resolvedThemeId}/assets.json?asset[key]=${encodeURIComponent(key)}`;
           return fetch(url, {
             headers: {
               "X-Shopify-Access-Token": accessToken,
@@ -45,56 +67,79 @@ export async function verifyThemeEmbedAndSections(shop, themeId, accessToken, cl
         if (settingsData?.asset?.value) {
           try {
             const parsedSettings = JSON.parse(settingsData.asset.value);
-            if (parsedSettings.current?.blocks) {
-              dynamicAppEmbedEnabled = Object.values(parsedSettings.current.blocks).some(
-                (b) =>
-                  b.type &&
-                  (b.type.includes(clientId) || b.type.includes(EXT_UUID) || b.type.includes(APP_HANDLE)) &&
-                  b.type.includes("app-embed") &&
-                  !b.disabled
-              );
+            const allBlocks = [];
+            if (parsedSettings.current?.blocks) allBlocks.push(...Object.values(parsedSettings.current.blocks));
+            if (parsedSettings.blocks) allBlocks.push(...Object.values(parsedSettings.blocks));
+            if (parsedSettings.current?.app_embeds) allBlocks.push(...Object.values(parsedSettings.current.app_embeds));
+            if (parsedSettings.app_embeds) allBlocks.push(...Object.values(parsedSettings.app_embeds));
+            if (parsedSettings.presets) {
+              for (const preset of Object.values(parsedSettings.presets)) {
+                if (preset?.blocks) allBlocks.push(...Object.values(preset.blocks));
+              }
+            }
+
+            for (const b of allBlocks) {
+              if (!b || !b.type) continue;
+              const type = String(b.type).toLowerCase();
+              const isInstafeed =
+                type.includes("instafeed") ||
+                type.includes("ai-instafeed") ||
+                type.includes("ai_instafeed") ||
+                (clientId && type.includes(clientId.toLowerCase())) ||
+                type.includes(EXT_UUID.toLowerCase()) ||
+                type.includes("019d9e97");
+
+              const isAppEmbed = type.includes("app-embed") || type.includes("app_embed");
+              const isDisabled = b.disabled === true || b.disabled === "true";
+
+              if (isInstafeed && isAppEmbed && !isDisabled) {
+                dynamicAppEmbedEnabled = true;
+              }
             }
           } catch (e) {}
         }
 
         const templates = [indexData, productData, pageData, collectionData];
         for (const t of templates) {
-          if (t?.asset?.value) {
-            try {
-              const parsedTemplate = JSON.parse(t.asset.value);
-              if (parsedTemplate.sections) {
-                for (const sectionObj of Object.values(parsedTemplate.sections)) {
-                  if (sectionObj.disabled) continue;
+          if (!t?.asset?.value) continue;
+          try {
+            const parsedTemplate = JSON.parse(t.asset.value);
+            if (parsedTemplate.sections) {
+              for (const sectionObj of Object.values(parsedTemplate.sections)) {
+                if (sectionObj.disabled === true || sectionObj.disabled === "true") continue;
 
-                  if (
-                    sectionObj.type &&
-                    (sectionObj.type.includes(EXT_UUID) ||
-                      sectionObj.type.includes(APP_HANDLE) ||
-                      sectionObj.type.includes(clientId))
-                  ) {
-                    if (sectionObj.type.includes("feed-grid")) dynamicSections.grid = true;
-                  }
+                const secType = String(sectionObj.type || "").toLowerCase();
+                const isInstaSec =
+                  (secType.includes("instafeed") ||
+                    secType.includes("ai-instafeed") ||
+                    secType.includes("ai_instafeed") ||
+                    (clientId && secType.includes(clientId.toLowerCase())) ||
+                    secType.includes(EXT_UUID.toLowerCase())) &&
+                  secType.includes("feed-grid");
 
-                  if (sectionObj.blocks) {
-                    for (const blockObj of Object.values(sectionObj.blocks)) {
-                      if (blockObj.disabled) continue;
-                      if (
-                        blockObj.type &&
-                        (blockObj.type.includes(EXT_UUID) ||
-                          blockObj.type.includes(APP_HANDLE) ||
-                          blockObj.type.includes(clientId))
-                      ) {
-                        if (blockObj.type.includes("feed-grid")) dynamicSections.grid = true;
-                      }
-                    }
+                if (isInstaSec) dynamicSections.grid = true;
+
+                if (sectionObj.blocks) {
+                  for (const blockObj of Object.values(sectionObj.blocks)) {
+                    if (blockObj.disabled === true || blockObj.disabled === "true") continue;
+                    const blkType = String(blockObj.type || "").toLowerCase();
+                    const isInstaBlk =
+                      (blkType.includes("instafeed") ||
+                        blkType.includes("ai-instafeed") ||
+                        blkType.includes("ai_instafeed") ||
+                        (clientId && blkType.includes(clientId.toLowerCase())) ||
+                        blkType.includes(EXT_UUID.toLowerCase())) &&
+                      blkType.includes("feed-grid");
+
+                    if (isInstaBlk) dynamicSections.grid = true;
                   }
                 }
               }
-            } catch (err) {}
-          }
+            }
+          } catch (err) {}
         }
       } catch (e) {
-        console.warn("Theme asset verification failed:", e.message);
+        console.warn("[setupReminder] Theme asset verification failed:", e.message);
       }
       return { dynamicAppEmbedEnabled, dynamicSections };
     },

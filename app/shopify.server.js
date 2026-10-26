@@ -1,4 +1,8 @@
 import "@shopify/shopify-app-react-router/adapters/node";
+import dns from "node:dns";
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch (e) {}
 import {
   ApiVersion,
   AppDistribution,

@@ -4,7 +4,7 @@ import { useFetcher, useLoaderData, useNavigate, useSearchParams } from "react-r
 import { authenticate } from "../shopify.server";
 import { fetchShopConfig, fetchShopInstaData, fetchAllInstagramMedia, getFacebookAccessToken } from "../instagramApi.server";
 import { withRateLimit, trackApiResponse } from "../rateLimiter.server";
-import { invalidateResource, cacheGetOrSet } from "../cache.server";
+import { invalidateResource, cacheGetOrSet, getCache } from "../cache.server";
 import { detectProductMatches } from "../utils/productMatcher";
 import { sendSupportEmail, sendSetupReminderEmail } from "../utils/email.server";
 import prisma from "../db.server.js";
@@ -110,102 +110,184 @@ const CarouselMediaIcon = () => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CACHED THEME EMBED & SECTION VERIFIER
+// CACHED THEME EMBED & SECTION VERIFIER (LIVE THEME AUTO-RESOLUTION)
 // ─────────────────────────────────────────────────────────────────────────────
-async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId) {
-  if (!themeId || themeId === "current" || !accessToken) {
-    return { dynamicAppEmbedEnabled: false, dynamicSections: { grid: false } };
+async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, forceFresh = false) {
+  if (!accessToken) {
+    return { dynamicAppEmbedEnabled: false, dynamicSections: { grid: false }, detectedExtensionUuid: null };
   }
-  const cacheKey = `theme_embed_status:${shop}:${themeId}`;
-  return cacheGetOrSet(
-    cacheKey,
-    async () => {
-      let dynamicAppEmbedEnabled = false;
-      let dynamicSections = { grid: false };
+
+  const performCheck = async () => {
+    let resolvedThemeId = themeId;
+    const apiVersion = "2024-01";
+    const extUuid = "eeecd3e9-ddb8-f1f8-6e66-ef13a12c0780e5eb934b";
+
+    // 1. Resolve numeric theme ID if missing or "current"
+    if (!resolvedThemeId || resolvedThemeId === "current") {
       try {
-        const apiVersion = "2024-01";
-        const assetKeys = [
-          "config/settings_data.json",
-          "templates/index.json",
-          "templates/product.json",
-          "templates/page.json",
-          "templates/collection.json",
-        ];
-
-        const assetPromises = assetKeys.map((key) => {
-          const url = `https://${shop}/admin/api/${apiVersion}/themes/${themeId}/assets.json?asset[key]=${encodeURIComponent(key)}`;
-          return fetch(url, {
-            headers: {
-              "X-Shopify-Access-Token": accessToken,
-              "Content-Type": "application/json",
-            },
-          })
-            .then((res) => res.json())
-            .catch(() => null);
-        });
-
-        const [settingsData, indexData, productData, pageData, collectionData] = await Promise.all(assetPromises);
-        const extUuid = "eeecd3e9-ddb8-f1f8-6e66-ef13a12c0780e5eb934b";
-        const appHandle = "instafeed";
-
-        if (settingsData?.asset?.value) {
-          try {
-            const parsedSettings = JSON.parse(settingsData.asset.value);
-            if (parsedSettings.current?.blocks) {
-              dynamicAppEmbedEnabled = Object.values(parsedSettings.current.blocks).some(
-                (b) =>
-                  b.type &&
-                  (b.type.includes(clientId) || b.type.includes(extUuid) || b.type.includes(appHandle)) &&
-                  b.type.includes("app-embed") &&
-                  !b.disabled
-              );
-            }
-          } catch (e) {}
+        const themesUrl = `https://${shop}/admin/api/${apiVersion}/themes.json`;
+        const themesRes = await fetch(themesUrl, {
+          headers: { "X-Shopify-Access-Token": accessToken },
+        }).then((r) => r.json());
+        const liveTheme = themesRes.themes?.find((t) => t.role === "main") || themesRes.themes?.[0];
+        if (liveTheme) {
+          resolvedThemeId = String(liveTheme.id);
         }
+      } catch (e) {
+        console.warn("[ThemeEmbed] Failed to resolve live theme ID:", e.message);
+      }
+    }
 
-        const templates = [indexData, productData, pageData, collectionData];
-        for (const t of templates) {
-          if (t?.asset?.value) {
-            try {
-              const parsedTemplate = JSON.parse(t.asset.value);
-              if (parsedTemplate.sections) {
-                for (const sectionObj of Object.values(parsedTemplate.sections)) {
-                  if (sectionObj.disabled) continue;
+    if (!resolvedThemeId || resolvedThemeId === "current") {
+      return { dynamicAppEmbedEnabled: false, dynamicSections: { grid: false }, detectedExtensionUuid: null };
+    }
 
-                  if (
-                    sectionObj.type &&
-                    (sectionObj.type.includes(extUuid) ||
-                      sectionObj.type.includes(appHandle) ||
-                      sectionObj.type.includes(clientId))
-                  ) {
-                    if (sectionObj.type.includes("feed-grid")) dynamicSections.grid = true;
-                  }
+    let dynamicAppEmbedEnabled = false;
+    let dynamicSections = { grid: false };
+    let detectedExtensionUuid = null;
 
-                  if (sectionObj.blocks) {
-                    for (const blockObj of Object.values(sectionObj.blocks)) {
-                      if (blockObj.disabled) continue;
-                      if (
-                        blockObj.type &&
-                        (blockObj.type.includes(extUuid) ||
-                          blockObj.type.includes(appHandle) ||
-                          blockObj.type.includes(clientId))
-                      ) {
-                        if (blockObj.type.includes("feed-grid")) dynamicSections.grid = true;
-                      }
-                    }
+    try {
+      const assetKeys = [
+        "config/settings_data.json",
+        "templates/index.json",
+        "templates/product.json",
+        "templates/page.json",
+        "templates/collection.json",
+      ];
+
+      const assetPromises = assetKeys.map((key) => {
+        const url = `https://${shop}/admin/api/${apiVersion}/themes/${resolvedThemeId}/assets.json?asset[key]=${encodeURIComponent(key)}`;
+        return fetch(url, {
+          headers: {
+            "X-Shopify-Access-Token": accessToken,
+            "Content-Type": "application/json",
+          },
+        })
+          .then((res) => res.json())
+          .catch(() => null);
+      });
+
+      const [settingsData, indexData, productData, pageData, collectionData] = await Promise.all(assetPromises);
+
+      // ── A. Check App Embed in settings_data.json ──
+      if (settingsData?.asset?.value) {
+        try {
+          const parsedSettings = JSON.parse(settingsData.asset.value);
+          const allBlocks = [];
+          if (parsedSettings.current?.blocks) allBlocks.push(...Object.values(parsedSettings.current.blocks));
+          if (parsedSettings.blocks) allBlocks.push(...Object.values(parsedSettings.blocks));
+          if (parsedSettings.current?.app_embeds) allBlocks.push(...Object.values(parsedSettings.current.app_embeds));
+          if (parsedSettings.app_embeds) allBlocks.push(...Object.values(parsedSettings.app_embeds));
+          if (parsedSettings.presets) {
+            for (const preset of Object.values(parsedSettings.presets)) {
+              if (preset?.blocks) allBlocks.push(...Object.values(preset.blocks));
+            }
+          }
+
+          for (const b of allBlocks) {
+            if (!b || !b.type) continue;
+            const type = String(b.type).toLowerCase();
+            const isInstafeed =
+              type.includes("instafeed") ||
+              type.includes("ai-instafeed") ||
+              type.includes("ai_instafeed") ||
+              (clientId && type.includes(clientId.toLowerCase())) ||
+              type.includes(extUuid.toLowerCase()) ||
+              type.includes("019d9e97");
+
+            const isAppEmbed = type.includes("app-embed") || type.includes("app_embed");
+
+            if (isInstafeed && isAppEmbed) {
+              const parts = b.type.split("/");
+              const lastPart = parts[parts.length - 1];
+              if (lastPart && lastPart.length > 8) {
+                detectedExtensionUuid = lastPart;
+              }
+              const isDisabled = b.disabled === true || b.disabled === "true";
+              if (!isDisabled) {
+                dynamicAppEmbedEnabled = true;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[ThemeEmbed] Failed to parse settings_data.json:", e.message);
+        }
+      }
+
+      // ── B. Check Feed Grid Section in Templates ──
+      const templates = [indexData, productData, pageData, collectionData];
+      for (const t of templates) {
+        if (!t?.asset?.value) continue;
+        try {
+          const parsedTemplate = JSON.parse(t.asset.value);
+          if (parsedTemplate.sections) {
+            for (const sectionObj of Object.values(parsedTemplate.sections)) {
+              if (sectionObj.disabled === true || sectionObj.disabled === "true") continue;
+
+              const secType = String(sectionObj.type || "").toLowerCase();
+              const isInstaSec =
+                (secType.includes("instafeed") ||
+                  secType.includes("ai-instafeed") ||
+                  secType.includes("ai_instafeed") ||
+                  (clientId && secType.includes(clientId.toLowerCase())) ||
+                  secType.includes(extUuid.toLowerCase()) ||
+                  (detectedExtensionUuid && secType.includes(detectedExtensionUuid.toLowerCase()))) &&
+                secType.includes("feed-grid");
+
+              if (isInstaSec) {
+                dynamicSections.grid = true;
+              }
+
+              if (sectionObj.blocks) {
+                for (const blockObj of Object.values(sectionObj.blocks)) {
+                  if (blockObj.disabled === true || blockObj.disabled === "true") continue;
+                  const blkType = String(blockObj.type || "").toLowerCase();
+                  const isInstaBlk =
+                    (blkType.includes("instafeed") ||
+                      blkType.includes("ai-instafeed") ||
+                      blkType.includes("ai_instafeed") ||
+                      (clientId && blkType.includes(clientId.toLowerCase())) ||
+                      blkType.includes(extUuid.toLowerCase()) ||
+                      (detectedExtensionUuid && blkType.includes(detectedExtensionUuid.toLowerCase()))) &&
+                    blkType.includes("feed-grid");
+
+                  if (isInstaBlk) {
+                    dynamicSections.grid = true;
                   }
                 }
               }
-            } catch (err) {}
+            }
           }
+        } catch (err) {
+          console.warn("[ThemeEmbed] Failed to parse template JSON:", err.message);
         }
-      } catch (e) {
-        console.warn("Theme asset verification failed:", e.message);
       }
-      return { dynamicAppEmbedEnabled, dynamicSections };
-    },
-    300
-  );
+    } catch (e) {
+      console.warn("[ThemeEmbed] Theme asset verification failed:", e.message);
+    }
+
+    return {
+      dynamicAppEmbedEnabled,
+      dynamicSections,
+      detectedExtensionUuid,
+      themeId: resolvedThemeId,
+    };
+  };
+
+  const cacheKey = `theme_embed_status:${shop}:${themeId}`;
+  if (forceFresh) {
+    const freshResult = await performCheck();
+    try {
+      const cache = await getCache();
+      await cache.set(cacheKey, freshResult, 300);
+      if (freshResult.themeId && freshResult.themeId !== themeId) {
+        await cache.set(`theme_embed_status:${shop}:${freshResult.themeId}`, freshResult, 300);
+      }
+    } catch (e) {}
+    return freshResult;
+  }
+
+  return cacheGetOrSet(cacheKey, performCheck, 300);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -360,7 +442,7 @@ export const loader = async ({ request }) => {
   const themeId = matchedSelected ? matchedSelected.id : mainTheme ? mainTheme.id : themesList[0]?.id || "current";
 
   // Cached Theme Embed verification
-  const { dynamicAppEmbedEnabled, dynamicSections } = await getCachedThemeEmbedStatus(
+  const { dynamicAppEmbedEnabled, dynamicSections, detectedExtensionUuid } = await getCachedThemeEmbedStatus(
     session?.shop,
     themeId,
     session?.accessToken,
@@ -377,6 +459,7 @@ export const loader = async ({ request }) => {
     allThemes: themesList,
     selectedThemeId: themeId,
     clientId,
+    detectedExtensionUuid: detectedExtensionUuid || null,
     dynamicAppEmbedEnabled: !!dynamicAppEmbedEnabled,
     dynamicSections: dynamicSections || { grid: false },
     analyticsSummary: analyticsSummary || { views: 0, clicks: 0, ctr: "0.0", recentDaysCount: 0 },
@@ -410,15 +493,32 @@ export const action = async ({ request }) => {
   }
 
   if (intent === "verifyEmbed") {
-    const themeId = formData.get("themeId");
+    let themeId = formData.get("themeId");
     try {
-      await invalidateResource(shop, `theme_embed_status:${shop}:${themeId}`);
+      const cache = await getCache();
+      if (themeId) {
+        await cache.del(`theme_embed_status:${shop}:${themeId}`);
+      }
+      await cache.del(`theme_embed_status:${shop}:current`);
+
+      // If themeId is missing or "current", resolve live theme numeric ID directly
+      if (!themeId || themeId === "current") {
+        const themeRes = await admin.graphql(`{ themes(first: 10, roles: [MAIN]) { nodes { id name role } } }`);
+        const themeJson = await themeRes.json();
+        const liveTheme = themeJson.data?.themes?.nodes?.find((t) => t.role === "MAIN") || themeJson.data?.themes?.nodes?.[0];
+        if (liveTheme) {
+          themeId = liveTheme.id.split("/").pop();
+          await cache.del(`theme_embed_status:${shop}:${themeId}`);
+        }
+      }
+
       const clientId = process.env.SHOPIFY_API_KEY;
-      const { dynamicAppEmbedEnabled, dynamicSections } = await getCachedThemeEmbedStatus(
+      const { dynamicAppEmbedEnabled, dynamicSections, detectedExtensionUuid } = await getCachedThemeEmbedStatus(
         shop,
         themeId,
         session?.accessToken,
-        clientId
+        clientId,
+        true // forceFresh: true to bypass cache on manual verify
       );
       const isEmbedOk = !!dynamicAppEmbedEnabled;
       const isSectionOk = !!dynamicSections?.grid;
@@ -427,20 +527,22 @@ export const action = async ({ request }) => {
         verifiedEmbed: true,
         dynamicAppEmbedEnabled: isEmbedOk,
         dynamicSectionActive: isSectionOk,
+        detectedExtensionUuid,
         message: isEmbedOk && isSectionOk
           ? "Everything verified! Both the Feed Section and App Embed are active in your theme."
           : isSectionOk && !isEmbedOk
-          ? "Feed Section found! Please also turn ON the 'Instafeed Activation' app embed in Theme Editor."
+          ? "Feed Section found! Please turn ON the 'Instafeed Activation' app embed in Theme Editor and click Save."
           : !isSectionOk && isEmbedOk
-          ? "App Embed is active! Make sure you've added the 'Instafeed: Feed Grid' section in your Theme Editor."
-          : "Not detected yet. If you just saved in the Theme Editor, wait 5 seconds and click Verify again.",
+          ? "App Embed is active! Make sure you've added the 'Instafeed: Feed Grid' section in your Theme Editor and clicked Save."
+          : "Not detected yet. Make sure you clicked Save in the Theme Editor top right corner, then wait 3 seconds and click Verify again.",
       };
     } catch (e) {
+      console.error("[verifyEmbed action error]:", e);
       return {
         verifiedEmbed: true,
         dynamicAppEmbedEnabled: false,
         dynamicSectionActive: false,
-        message: "Could not verify theme status. Please try again.",
+        message: "Could not verify theme status. Please try again in a few seconds.",
       };
     }
   }
@@ -2590,17 +2692,16 @@ export default function Index() {
 
   useEffect(() => {
     if (verifyEmbedFetcher.data?.verifiedEmbed) {
-      if (verifyEmbedFetcher.data.dynamicAppEmbedEnabled) {
-        setDynamicEmbedActive(true);
-      }
+      setDynamicEmbedActive(!!verifyEmbedFetcher.data.dynamicAppEmbedEnabled);
       if (verifyEmbedFetcher.data.dynamicSectionActive !== undefined) {
-        setDynamicSectionActive(verifyEmbedFetcher.data.dynamicSectionActive);
+        setDynamicSectionActive(!!verifyEmbedFetcher.data.dynamicSectionActive);
       }
-      const isSuccess = verifyEmbedFetcher.data.dynamicAppEmbedEnabled || verifyEmbedFetcher.data.dynamicSectionActive;
+      const isSuccess = !!verifyEmbedFetcher.data.dynamicAppEmbedEnabled;
+      const hasAny = isSuccess || !!verifyEmbedFetcher.data.dynamicSectionActive;
       if (!isSilentVerifyRef.current) {
         shopify?.toast?.show(
           verifyEmbedFetcher.data.message || "Theme verification completed.",
-          { isError: !isSuccess }
+          { isError: !hasAny }
         );
       } else if (isSuccess) {
         shopify?.toast?.show("Theme updated & verified successfully!");
@@ -3012,9 +3113,10 @@ export default function Index() {
     : `https://${shop}/admin`;
   const activeThemeId = loaderData.themeId && loaderData.themeId !== "current" ? loaderData.themeId : "current";
   const appClientId = loaderData.clientId || "";
+  const activeExtensionId = loaderData.detectedExtensionUuid || "eeecd3e9-ddb8-f1f8-6e66-ef13a12c0780e5eb934b";
 
-  const themeAddSectionUrl = `${adminBaseUrl}/themes/${activeThemeId}/editor?template=index&addAppBlockId=${appClientId}/feed-grid&target=newAppsSection`;
-  const themeActivateEmbedUrl = `${adminBaseUrl}/themes/${activeThemeId}/editor?context=apps&activateAppId=${appClientId}/app-embed&activateAppEmbed=${appClientId}/app-embed`;
+  const themeAddSectionUrl = `${adminBaseUrl}/themes/${activeThemeId}/editor?template=index&addAppBlockId=${activeExtensionId}/feed-grid&target=newAppsSection`;
+  const themeActivateEmbedUrl = `${adminBaseUrl}/themes/${activeThemeId}/editor?context=apps&activateAppId=${activeExtensionId}/app-embed&activateAppEmbed=${activeExtensionId}/app-embed`;
   const storefrontPreviewUrl = `https://${shop}`;
 
   const [wizardStep, setWizardStep] = useState(isConnected ? 2 : 1);
