@@ -143,7 +143,13 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
     }
 
     let dynamicAppEmbedEnabled = false;
-    let dynamicSections = { grid: false };
+    let dynamicSections = {
+      grid: false,
+      homepage: false,
+      product: false,
+      page: false,
+      collection: false,
+    };
     let detectedExtensionUuid = null;
 
     try {
@@ -215,8 +221,13 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
       }
 
       // ── B. Check Feed Grid Section in Templates ──
-      const templates = [indexData, productData, pageData, collectionData];
-      for (const t of templates) {
+      const templateEntries = [
+        { key: "homepage", data: indexData },
+        { key: "product", data: productData },
+        { key: "page", data: pageData },
+        { key: "collection", data: collectionData },
+      ];
+      for (const { key, data: t } of templateEntries) {
         if (!t?.asset?.value) continue;
         try {
           const parsedTemplate = JSON.parse(t.asset.value);
@@ -236,6 +247,7 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
 
               if (isInstaSec) {
                 dynamicSections.grid = true;
+                dynamicSections[key] = true;
               }
 
               if (sectionObj.blocks) {
@@ -253,6 +265,7 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
 
                   if (isInstaBlk) {
                     dynamicSections.grid = true;
+                    dynamicSections[key] = true;
                   }
                 }
               }
@@ -527,6 +540,7 @@ export const action = async ({ request }) => {
         verifiedEmbed: true,
         dynamicAppEmbedEnabled: isEmbedOk,
         dynamicSectionActive: isSectionOk,
+        dynamicSections: dynamicSections || { grid: false },
         detectedExtensionUuid,
         message: isEmbedOk && isSectionOk
           ? "Everything verified! Both the Feed Section and App Embed are active in your theme."
@@ -2646,6 +2660,7 @@ export default function Index() {
   const [isAppBridgeReady, setIsAppBridgeReady] = useState(false);
   const [dynamicEmbedActive, setDynamicEmbedActive] = useState(!!loaderData.dynamicAppEmbedEnabled);
   const [dynamicSectionActive, setDynamicSectionActive] = useState(!!loaderData.dynamicSections?.grid);
+  const [dynamicSectionsData, setDynamicSectionsData] = useState(loaderData.dynamicSections || { grid: false });
   const [showAccountSwitchGuide, setShowAccountSwitchGuide] = useState(false);
 
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
@@ -2695,6 +2710,9 @@ export default function Index() {
       setDynamicEmbedActive(!!verifyEmbedFetcher.data.dynamicAppEmbedEnabled);
       if (verifyEmbedFetcher.data.dynamicSectionActive !== undefined) {
         setDynamicSectionActive(!!verifyEmbedFetcher.data.dynamicSectionActive);
+      }
+      if (verifyEmbedFetcher.data.dynamicSections) {
+        setDynamicSectionsData(verifyEmbedFetcher.data.dynamicSections);
       }
       const isSuccess = !!verifyEmbedFetcher.data.dynamicAppEmbedEnabled;
       const hasAny = isSuccess || !!verifyEmbedFetcher.data.dynamicSectionActive;
@@ -3085,8 +3103,8 @@ export default function Index() {
   const onboardingStep1Done = isConnected;
   const onboardingStep2Done = isConnected && hasInteractedDesign;
   const onboardingStep3Done = isConnected && Object.values(config?.taggedProducts || {}).some((pins) => Array.isArray(pins) && pins.length > 0);
-  const onboardingStep4Done = isConnected && !!dynamicEmbedActive;
-  const onboardingStep5Done = isConnected && !!dynamicSectionActive;
+  const onboardingStep4Done = isConnected && !!dynamicSectionActive;
+  const onboardingStep5Done = isConnected && !!dynamicEmbedActive;
 
   // Core requirements to unlock analytics: connect, embed, section
   const allTasksDone = isConnected && !!dynamicSectionActive && !!dynamicEmbedActive;
@@ -5063,87 +5081,6 @@ export default function Index() {
                 {/* Step 4: Add Feed Section */}
                 <Box
                   padding="300"
-                  background={!isConnected ? "bg-surface-secondary" : onboardingStep5Done ? "bg-surface-secondary" : "bg-surface"}
-                  borderRadius="200"
-                  borderWidth="025"
-                  borderColor={onboardingStep5Done ? "border-success" : "border"}
-                  style={{
-                    opacity: !isConnected ? 0.65 : 1,
-                    transition: "opacity 0.2s ease",
-                  }}
-                >
-                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <div
-                        style={{
-                          width: "24px",
-                          height: "24px",
-                          borderRadius: "50%",
-                          background: !isConnected ? "#94a3b8" : onboardingStep5Done ? "#10b981" : "#4f46e5",
-                          color: "#ffffff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: "bold",
-                          fontSize: "12px",
-                        }}
-                      >
-                        {!isConnected ? <Icon source={LockIcon} tone="inherit" /> : onboardingStep5Done ? <Icon source={CheckIcon} tone="inherit" /> : "4"}
-                      </div>
-                      <InlineStack gap="150" blockAlign="baseline" wrap>
-                        <Text variant="bodyMd" as="h3" fontWeight="bold">
-                          4. Add to Homepage
-                        </Text>
-                        <Text variant="bodySm" tone="subdued">
-                          {!isConnected
-                            ? "Connect Instagram first (Step 1) to stage feed section on theme"
-                            : "Stage gallery section on theme · Click Save in Theme Editor, then return here"}
-                        </Text>
-                      </InlineStack>
-                    </InlineStack>
-
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone={!isConnected ? "subdued" : onboardingStep5Done ? "success" : "attention"}>
-                        {!isConnected ? "Locked" : onboardingStep5Done ? "Added" : "Action Needed"}
-                      </Badge>
-                      <Button
-                        variant={!isConnected ? "secondary" : !onboardingStep5Done ? "primary" : "secondary"}
-                        size="slim"
-                        disabled={!isConnected}
-                        icon={!isConnected ? LockIcon : PlusIcon}
-                        onClick={() => {
-                          if (!isConnected) {
-                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
-                            const step1Input = document.querySelector("#welcome-widget-card input");
-                            if (step1Input) step1Input.focus();
-                            return;
-                          }
-                          window.open(themeAddSectionUrl, "_blank");
-                        }}
-                      >
-                        {onboardingStep5Done ? "Edit in Theme ↗" : "Add Section in Theme ↗"}
-                      </Button>
-                      <Button
-                        size="slim"
-                        disabled={!isConnected}
-                        loading={isVerifyingEmbed}
-                        onClick={() => {
-                          if (!isConnected) {
-                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
-                            return;
-                          }
-                          handleVerifyEmbed(false);
-                        }}
-                      >
-                        Verify
-                      </Button>
-                    </InlineStack>
-                  </InlineStack>
-                </Box>
-
-                {/* Step 5: Enable App Embed */}
-                <Box
-                  padding="300"
                   background={!isConnected ? "bg-surface-secondary" : onboardingStep4Done ? "bg-surface-secondary" : "bg-surface"}
                   borderRadius="200"
                   borderWidth="025"
@@ -5169,7 +5106,104 @@ export default function Index() {
                           fontSize: "12px",
                         }}
                       >
-                        {!isConnected ? <Icon source={LockIcon} tone="inherit" /> : onboardingStep4Done ? <Icon source={CheckIcon} tone="inherit" /> : "5"}
+                        {!isConnected ? <Icon source={LockIcon} tone="inherit" /> : onboardingStep4Done ? <Icon source={CheckIcon} tone="inherit" /> : "4"}
+                      </div>
+                      <InlineStack gap="150" blockAlign="baseline" wrap>
+                        <Text variant="bodyMd" as="h3" fontWeight="bold">
+                          {dynamicSectionsData?.homepage
+                            ? "4. Add to Homepage"
+                            : dynamicSectionsData?.product
+                            ? "4. Feed Section (Product Page)"
+                            : "4. Add to Homepage / Theme"}
+                        </Text>
+                        <Text variant="bodySm" tone="subdued">
+                          {!isConnected
+                            ? "Connect Instagram first (Step 1) to stage feed section on theme"
+                            : dynamicSectionsData?.homepage
+                            ? "Feed Grid active on Homepage · Click 'Edit in Theme' to reposition"
+                            : dynamicSectionsData?.product
+                            ? "Feed Grid section active on Product page · Click 'Add to Homepage ↗' to also add to Homepage"
+                            : "Stage gallery section on theme · Click Save in Theme Editor, then return here"}
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
+
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone={!isConnected ? "subdued" : onboardingStep4Done ? "success" : "attention"}>
+                        {!isConnected
+                          ? "Locked"
+                          : dynamicSectionsData?.homepage
+                          ? "Added (Homepage)"
+                          : dynamicSectionsData?.product
+                          ? "Added (Product)"
+                          : onboardingStep4Done
+                          ? "Added"
+                          : "Action Needed"}
+                      </Badge>
+                      <Button
+                        variant={!isConnected ? "secondary" : !onboardingStep4Done ? "primary" : "secondary"}
+                        size="slim"
+                        disabled={!isConnected}
+                        icon={!isConnected ? LockIcon : PlusIcon}
+                        onClick={() => {
+                          if (!isConnected) {
+                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
+                            const step1Input = document.querySelector("#welcome-widget-card input");
+                            if (step1Input) step1Input.focus();
+                            return;
+                          }
+                          window.open(themeAddSectionUrl, "_blank");
+                        }}
+                      >
+                        {dynamicSectionsData?.homepage ? "Edit in Theme ↗" : "Add to Homepage ↗"}
+                      </Button>
+                      <Button
+                        size="slim"
+                        disabled={!isConnected}
+                        loading={isVerifyingEmbed}
+                        onClick={() => {
+                          if (!isConnected) {
+                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
+                            return;
+                          }
+                          handleVerifyEmbed(false);
+                        }}
+                      >
+                        Verify
+                      </Button>
+                    </InlineStack>
+                  </InlineStack>
+                </Box>
+
+                {/* Step 5: Enable App Embed */}
+                <Box
+                  padding="300"
+                  background={!isConnected ? "bg-surface-secondary" : onboardingStep5Done ? "bg-surface-secondary" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={onboardingStep5Done ? "border-success" : "border"}
+                  style={{
+                    opacity: !isConnected ? 0.65 : 1,
+                    transition: "opacity 0.2s ease",
+                  }}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "50%",
+                          background: !isConnected ? "#94a3b8" : onboardingStep5Done ? "#10b981" : "#4f46e5",
+                          color: "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {!isConnected ? <Icon source={LockIcon} tone="inherit" /> : onboardingStep5Done ? <Icon source={CheckIcon} tone="inherit" /> : "5"}
                       </div>
                       <InlineStack gap="150" blockAlign="baseline" wrap>
                         <Text variant="bodyMd" as="h3" fontWeight="bold">
@@ -5178,17 +5212,19 @@ export default function Index() {
                         <Text variant="bodySm" tone="subdued">
                           {!isConnected
                             ? "Connect Instagram first (Step 1) to enable script embed in theme"
+                            : onboardingStep5Done
+                            ? "App Embed is active and script is live on your store"
                             : "Turn on script toggle in theme · Click Save in Theme Editor, then return here"}
                         </Text>
                       </InlineStack>
                     </InlineStack>
 
                     <InlineStack gap="200" blockAlign="center">
-                      <Badge tone={!isConnected ? "subdued" : onboardingStep4Done ? "success" : "attention"}>
-                        {!isConnected ? "Locked" : onboardingStep4Done ? "Active" : "Action Needed"}
+                      <Badge tone={!isConnected ? "subdued" : onboardingStep5Done ? "success" : "attention"}>
+                        {!isConnected ? "Locked" : onboardingStep5Done ? "Active" : "Action Needed"}
                       </Badge>
                       <Button
-                        variant={!isConnected ? "secondary" : onboardingStep5Done && !onboardingStep4Done ? "primary" : "secondary"}
+                        variant={!isConnected ? "secondary" : onboardingStep4Done && !onboardingStep5Done ? "primary" : "secondary"}
                         size="slim"
                         disabled={!isConnected}
                         icon={!isConnected ? LockIcon : ExternalIcon}
