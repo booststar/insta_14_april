@@ -224,6 +224,21 @@ export default function AnalyticsPage() {
       ]}
     >
       <BlockStack gap="500">
+        {!instagramHandle && (
+          <Banner
+            title="Step 1 Pending: Connect Instagram Account"
+            tone="info"
+            action={{
+              content: "Connect Instagram (Step 1)",
+              url: "/app",
+            }}
+          >
+            <p>
+              Connect your Instagram account in the Setup Guide on the Home dashboard to track live storefront impressions, feed views, and product clicks.
+            </p>
+          </Banner>
+        )}
+
         {fetcher.data?.message && (
           <Banner
             tone={fetcher.data.success ? "success" : "critical"}

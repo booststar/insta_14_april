@@ -418,6 +418,21 @@ export default function ProductTaggingPage() {
       ]}
     >
       <BlockStack gap="500">
+        {!instaData?.username && (
+          <Banner
+            title="Step 1 Required: Connect Instagram Account"
+            tone="warning"
+            action={{
+              content: "Connect Instagram in Setup Guide",
+              url: "/app",
+            }}
+          >
+            <p>
+              Product tagging is only available after completing <strong>Step 1 (Connect Instagram)</strong>. Once your Instagram account is connected, your photos and reels will sync here automatically so you can pin shoppable hotspots.
+            </p>
+          </Banner>
+        )}
+
         {hasUnsavedChanges && (
           <Banner
             title="Unsaved tagging changes"
@@ -660,10 +675,22 @@ export default function ProductTaggingPage() {
             {/* Compact Shopify-style List View for Instagram Posts */}
             {filteredMedia.length === 0 ? (
               <EmptyState
-                heading="No posts found matching filter"
+                heading={!instaData?.username ? "Connect your Instagram account to start tagging products" : "No posts found matching filter"}
+                action={
+                  !instaData?.username
+                    ? {
+                        content: "Go to Setup Guide (Step 1)",
+                        url: "/app",
+                      }
+                    : undefined
+                }
                 image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
               >
-                <p>Try clearing your search or switching to another filter tab.</p>
+                <p>
+                  {!instaData?.username
+                    ? "Step 1 of the onboarding checklist is required before you can tag products. Once connected, all your photos and videos will load here."
+                    : "Try clearing your search or switching to another filter tab."}
+                </p>
               </EmptyState>
             ) : (
               <div
