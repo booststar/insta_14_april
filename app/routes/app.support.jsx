@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import whiteLogo from "../image/boost-star-white.png";
 import { useLoaderData, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -27,6 +27,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   ExternalIcon,
+  XIcon,
 } from "@shopify/polaris-icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,9 +109,26 @@ export default function Support() {
   const { supportEmail, whatsappNumber } = useLoaderData();
   const navigate = useNavigate();
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isConsultationCardDismissed, setIsConsultationCardDismissed] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
+    if (typeof window !== "undefined") {
+      const isDismissed =
+        sessionStorage.getItem("support_consultation_dismissed") === "1" ||
+        localStorage.getItem("support_consultation_dismissed") === "1";
+      setIsConsultationCardDismissed(isDismissed);
+    }
+  }, []);
+
+  const handleDismissConsultationCard = useCallback(() => {
+    setIsConsultationCardDismissed(true);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("support_consultation_dismissed", "1");
+        localStorage.setItem("support_consultation_dismissed", "1");
+      } catch (e) {}
+    }
   }, []);
 
   if (!isHydrated) {
@@ -189,43 +207,53 @@ export default function Support() {
     >
       <BlockStack gap="500">
         {/* Expert Consultation Banner Card */}
-        <Card>
-          <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-            <InlineStack align="space-between" blockAlign="center" gap="300" wrap>
-              <InlineStack gap="300" blockAlign="center" wrap={false}>
-                <div
-                  style={{
-                    padding: "10px",
-                    background: "#2563eb",
-                    borderRadius: "10px",
-                    color: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon source={PersonIcon} tone="inherit" />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <Text variant="headingMd" as="h3">
-                    Need a Design Consultation?
-                  </Text>
-                  <Text variant="bodySm" tone="subdued">
-                    Speak directly with our certified Shopify designers to match your Instagram gallery perfectly with your store's branding.
-                  </Text>
-                </div>
+        {!isConsultationCardDismissed && (
+          <Card>
+            <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+              <InlineStack align="space-between" blockAlign="center" gap="300" wrap>
+                <InlineStack gap="300" blockAlign="center" wrap={false}>
+                  <div
+                    style={{
+                      padding: "10px",
+                      background: "#2563eb",
+                      borderRadius: "10px",
+                      color: "white",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon source={PersonIcon} tone="inherit" />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <Text variant="headingMd" as="h3">
+                      Need a Design Consultation?
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Speak directly with our certified Shopify designers to match your Instagram gallery perfectly with your store's branding.
+                    </Text>
+                  </div>
+                </InlineStack>
+                <InlineStack gap="200" blockAlign="center">
+                  <Button
+                    variant="primary"
+                    icon={ExternalIcon}
+                    onClick={() => window.open("https://calendar.app.google/gwUVdD1FrqMc5R5KA", "_blank")}
+                  >
+                    Book 1-on-1 Consultation
+                  </Button>
+                  <Button
+                    variant="plain"
+                    icon={XIcon}
+                    onClick={handleDismissConsultationCard}
+                    accessibilityLabel="Dismiss consultation banner"
+                  />
+                </InlineStack>
               </InlineStack>
-              <Button
-                variant="primary"
-                icon={ExternalIcon}
-                onClick={() => window.open("https://calendar.app.google/gwUVdD1FrqMc5R5KA", "_blank")}
-              >
-                Book 1-on-1 Consultation
-              </Button>
-            </InlineStack>
-          </Box>
-        </Card>
+            </Box>
+          </Card>
+        )}
 
         <Layout>
           {/* Left Column: FAQ Section */}

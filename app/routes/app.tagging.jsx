@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { useLoaderData, useFetcher } from "react-router";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useLoaderData, useFetcher, useBlocker } from "react-router";
 import { authenticate } from "../shopify.server";
 import { fetchShopConfig, fetchShopInstaData } from "../instagramApi.server";
 import { withRateLimit, trackApiResponse } from "../rateLimiter.server";
@@ -194,9 +194,33 @@ export default function ProductTaggingPage() {
     return Object.values(smartMatches).reduce((acc, curr) => acc + (curr?.length || 0), 0);
   }, [smartMatches]);
 
+  const pendingProceedRef = useRef(null);
+
   const hasUnsavedChanges = useMemo(() => {
     return JSON.stringify(taggedProducts) !== initialSavedJson;
   }, [taggedProducts, initialSavedJson]);
+
+  // Blocker for React Router navigation when contextual save bar is active
+  const blocker = useBlocker(
+    useCallback(
+      ({ currentLocation, nextLocation }) =>
+        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+      [hasUnsavedChanges]
+    )
+  );
+
+  // Native browser prompt when reloading or closing tab with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   // Handle action result
   useEffect(() => {
@@ -206,10 +230,16 @@ export default function ProductTaggingPage() {
         if (window.shopify?.toast) {
           window.shopify.toast.show("Product tags saved successfully!");
         }
+        if (pendingProceedRef.current) {
+          const proceedFn = pendingProceedRef.current;
+          pendingProceedRef.current = null;
+          proceedFn();
+        }
       } else if (fetcher.data.error) {
         if (window.shopify?.toast) {
           window.shopify.toast.show(fetcher.data.error, { isError: true });
         }
+        pendingProceedRef.current = null;
       }
     }
   }, [fetcher.data, taggedProducts]);
@@ -235,12 +265,30 @@ export default function ProductTaggingPage() {
     } catch (e) {}
   }, [initialSavedJson]);
 
+  // Handlers for Leave Confirmation Modal (React Router blocker)
+  const handleSaveAndProceed = useCallback(() => {
+    pendingProceedRef.current = blocker.proceed;
+    handleSaveAll();
+  }, [blocker, handleSaveAll]);
+
+  const handleDiscardAndProceed = useCallback(() => {
+    handleDiscard();
+    blocker.proceed?.();
+  }, [blocker, handleDiscard]);
+
+  const handleCancelLeave = useCallback(() => {
+    pendingProceedRef.current = null;
+    blocker.reset?.();
+  }, [blocker]);
+
   // Sync App Bridge save bar
   useEffect(() => {
     const saveBar = document.getElementById("product-tagging-save-bar");
     if (hasUnsavedChanges) {
+      window.shopify?.saveBar?.show("product-tagging-save-bar");
       saveBar?.show?.();
     } else {
+      window.shopify?.saveBar?.hide("product-tagging-save-bar");
       saveBar?.hide?.();
     }
   }, [hasUnsavedChanges]);
@@ -1258,6 +1306,37 @@ export default function ProductTaggingPage() {
           Discard
         </button>
       </ui-save-bar>
+
+      {/* Navigation Blocker Leave Confirmation Modal */}
+      <Modal
+        open={blocker.state === "blocked"}
+        onClose={handleCancelLeave}
+        title="Unsaved changes"
+        primaryAction={{
+          content: "Save tags",
+          loading: isSaving,
+          onAction: handleSaveAndProceed,
+        }}
+        secondaryActions={[
+          {
+            content: "Discard changes",
+            destructive: true,
+            disabled: isSaving,
+            onAction: handleDiscardAndProceed,
+          },
+          {
+            content: "Stay on page",
+            disabled: isSaving,
+            onAction: handleCancelLeave,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            You have unsaved product tags. If you leave this page, your changes will be lost. Would you like to save your product tags or discard your changes before leaving?
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

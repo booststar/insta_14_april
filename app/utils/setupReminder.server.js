@@ -67,18 +67,13 @@ export async function verifyThemeEmbedAndSections(shop, themeId, accessToken, cl
         if (settingsData?.asset?.value) {
           try {
             const parsedSettings = JSON.parse(settingsData.asset.value);
-            const allBlocks = [];
-            if (parsedSettings.current?.blocks) allBlocks.push(...Object.values(parsedSettings.current.blocks));
-            if (parsedSettings.blocks) allBlocks.push(...Object.values(parsedSettings.blocks));
-            if (parsedSettings.current?.app_embeds) allBlocks.push(...Object.values(parsedSettings.current.app_embeds));
-            if (parsedSettings.app_embeds) allBlocks.push(...Object.values(parsedSettings.app_embeds));
-            if (parsedSettings.presets) {
-              for (const preset of Object.values(parsedSettings.presets)) {
-                if (preset?.blocks) allBlocks.push(...Object.values(preset.blocks));
-              }
-            }
+            const activeBlocks = {
+              ...(parsedSettings.current?.blocks || {}),
+              ...(parsedSettings.current?.app_embeds || {}),
+            };
 
-            for (const b of allBlocks) {
+            const matchingBlocks = [];
+            for (const b of Object.values(activeBlocks)) {
               if (!b || !b.type) continue;
               const type = String(b.type).toLowerCase();
               const isInstafeed =
@@ -90,11 +85,17 @@ export async function verifyThemeEmbedAndSections(shop, themeId, accessToken, cl
                 type.includes("019d9e97");
 
               const isAppEmbed = type.includes("app-embed") || type.includes("app_embed");
-              const isDisabled = b.disabled === true || b.disabled === "true";
-
-              if (isInstafeed && isAppEmbed && !isDisabled) {
-                dynamicAppEmbedEnabled = true;
+              if (isInstafeed && isAppEmbed) {
+                matchingBlocks.push(b);
               }
+            }
+
+            if (matchingBlocks.length > 0) {
+              dynamicAppEmbedEnabled = matchingBlocks.some(
+                (b) => b.disabled !== true && b.disabled !== "true"
+              );
+            } else {
+              dynamicAppEmbedEnabled = false;
             }
           } catch (e) {}
         }

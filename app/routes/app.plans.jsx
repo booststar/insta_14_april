@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLoaderData, useFetcher, useNavigation, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -28,6 +28,7 @@ import {
   MegaphoneIcon,
   ColorIcon,
   MagicIcon,
+  XIcon,
 } from "@shopify/polaris-icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,9 +207,26 @@ export default function Plans() {
   const navigation = useNavigation();
   const navigate = useNavigate();
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isReviewRewardCardDismissed, setIsReviewRewardCardDismissed] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
+    if (typeof window !== "undefined") {
+      const isDismissed =
+        sessionStorage.getItem("review_reward_card_dismissed") === "1" ||
+        localStorage.getItem("review_reward_card_dismissed") === "1";
+      setIsReviewRewardCardDismissed(isDismissed);
+    }
+  }, []);
+
+  const handleDismissReviewRewardCard = useCallback(() => {
+    setIsReviewRewardCardDismissed(true);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("review_reward_card_dismissed", "1");
+        localStorage.setItem("review_reward_card_dismissed", "1");
+      } catch (e) {}
+    }
   }, []);
 
   const isPageLoading = navigation.state === "loading" || (fetcher.state === "submitting" && fetcher.formData?.get("planName"));
@@ -355,34 +373,44 @@ export default function Plans() {
         </Card>
 
         {/* Free Forever Guarantee & Review Reward Card */}
-        <Card padding="400">
-          <BlockStack gap="300">
-            <InlineStack gap="200" blockAlign="center" wrap>
-              <Badge tone="magic">100% Free Forever</Badge>
-              <Badge tone="success">Bonus App Credits & AI Perks</Badge>
-            </InlineStack>
+        {!isReviewRewardCardDismissed && (
+          <Card padding="400">
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center" wrap>
+                <InlineStack gap="200" blockAlign="center" wrap>
+                  <Badge tone="magic">100% Free Forever</Badge>
+                  <Badge tone="success">Bonus App Credits & AI Perks</Badge>
+                </InlineStack>
+                <Button
+                  variant="plain"
+                  icon={XIcon}
+                  onClick={handleDismissReviewRewardCard}
+                  accessibilityLabel="Dismiss review incentive banner"
+                />
+              </InlineStack>
 
-            <BlockStack gap="100">
-              <Text variant="headingMd" as="h3" fontWeight="bold">
-                Enjoying the app? Leave a review & claim AI perks!
-              </Text>
-              <Text variant="bodySm" tone="subdued">
-                AI Instafeed is <strong>100% Free Forever</strong>. Leave a quick 5-star review and we'll send free <strong>App Credits</strong> + unlock VIP <strong>AI Smart Tagging & Auto-Detection</strong>!
-              </Text>
+              <BlockStack gap="100">
+                <Text variant="headingMd" as="h3" fontWeight="bold">
+                  Enjoying the app? Leave a review & claim AI perks!
+                </Text>
+                <Text variant="bodySm" tone="subdued">
+                  AI Instafeed is <strong>100% Free Forever</strong>. Leave a quick 5-star review and we'll send free <strong>App Credits</strong> + unlock VIP <strong>AI Smart Tagging & Auto-Detection</strong>!
+                </Text>
+              </BlockStack>
+
+              <div>
+                <Button
+                  variant="primary"
+                  icon={StarIcon}
+                  url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
+                  target="_blank"
+                >
+                  Write a 5-Star Review & Claim Perks
+                </Button>
+              </div>
             </BlockStack>
-
-            <div>
-              <Button
-                variant="primary"
-                icon={StarIcon}
-                url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
-                target="_blank"
-              >
-                Write a 5-Star Review & Claim Perks
-              </Button>
-            </div>
-          </BlockStack>
-        </Card>
+          </Card>
+        )}
 
         {/* Categorized Features Section */}
         <Card>

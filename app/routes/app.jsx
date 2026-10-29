@@ -25,7 +25,38 @@ export const loader = async ({ request }) => {
 };
 
 import { useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
+import { NavMenu } from "@shopify/app-bridge-react";
+
+function CustomLink({ to, url, children, external, ...rest }) {
+  const target = to || url;
+  if (!target) return <button {...rest}>{children}</button>;
+  if (
+    external ||
+    target.startsWith("http:") ||
+    target.startsWith("https:") ||
+    target.startsWith("//") ||
+    target.startsWith("mailto:") ||
+    target.startsWith("tel:") ||
+    target.startsWith("#")
+  ) {
+    return (
+      <a
+        href={target}
+        target={external ? "_blank" : undefined}
+        rel={external ? "noopener noreferrer" : undefined}
+        {...rest}
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link to={target} {...rest}>
+      {children}
+    </Link>
+  );
+}
 
 export default function App() {
   const { apiKey, isAppAdmin } = useLoaderData();
@@ -45,16 +76,16 @@ export default function App() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <PolarisAppProvider i18n={enTranslations}>
-        <s-app-nav>
-          <s-link href="/app" rel="home">Home</s-link>
-          <s-link href="/app/tagging">Product Tagging</s-link>
-          <s-link href="/app/analytics">Analytics</s-link>
-          <s-link href="/app/plans">Plans</s-link>
-          <s-link href="/app/guide">Guide & Setup</s-link>
-          <s-link href="/app/support">Contact Support</s-link>
-          {isAppAdmin && <s-link href="/app/emails">Email Tracker</s-link>}
-        </s-app-nav>
+      <PolarisAppProvider i18n={enTranslations} linkComponent={CustomLink}>
+        <NavMenu>
+          <Link to="/app" rel="home">Home</Link>
+          <Link to="/app/tagging">Product Tagging</Link>
+          <Link to="/app/analytics">Analytics</Link>
+          <Link to="/app/plans">Plans</Link>
+          <Link to="/app/guide">Guide & Setup</Link>
+          <Link to="/app/support">Contact Support</Link>
+          {isAppAdmin && <Link to="/app/emails">Email Tracker</Link>}
+        </NavMenu>
         <Outlet />
 
         {/* ── Secret Hidden Trigger: Bottom-Right Corner ── */}

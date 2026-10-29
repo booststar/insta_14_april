@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, startTransition } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { useFetcher, useLoaderData, useNavigate, useSearchParams } from "react-router";
+import { useFetcher, useLoaderData, useNavigate, useSearchParams, useBlocker } from "react-router";
 import { authenticate } from "../shopify.server";
 import { fetchShopConfig, fetchShopInstaData, fetchAllInstagramMedia, getFacebookAccessToken } from "../instagramApi.server";
 import { withRateLimit, trackApiResponse } from "../rateLimiter.server";
@@ -57,6 +57,7 @@ import {
   SettingsIcon,
   EmailIcon,
   LockIcon,
+  RefreshIcon,
 } from "@shopify/polaris-icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -179,24 +180,21 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
       if (settingsData?.asset?.value) {
         try {
           const parsedSettings = JSON.parse(settingsData.asset.value);
-          const allBlocks = [];
-          if (parsedSettings.current?.blocks) allBlocks.push(...Object.values(parsedSettings.current.blocks));
-          if (parsedSettings.blocks) allBlocks.push(...Object.values(parsedSettings.blocks));
-          if (parsedSettings.current?.app_embeds) allBlocks.push(...Object.values(parsedSettings.current.app_embeds));
-          if (parsedSettings.app_embeds) allBlocks.push(...Object.values(parsedSettings.app_embeds));
-          if (parsedSettings.presets) {
-            for (const preset of Object.values(parsedSettings.presets)) {
-              if (preset?.blocks) allBlocks.push(...Object.values(preset.blocks));
-            }
-          }
+          // Only inspect active theme configuration in current.blocks (and legacy current.app_embeds)
+          // Presets must NEVER be inspected as they contain inactive theme defaults
+          const activeBlocks = {
+            ...(parsedSettings.current?.blocks || {}),
+            ...(parsedSettings.current?.app_embeds || {}),
+          };
 
-          for (const b of allBlocks) {
+          const matchingEmbedBlocks = [];
+          for (const b of Object.values(activeBlocks)) {
             if (!b || !b.type) continue;
             const type = String(b.type).toLowerCase();
             const isInstafeed =
-              type.includes("instafeed") ||
               type.includes("ai-instafeed") ||
               type.includes("ai_instafeed") ||
+              type.includes("instafeed") ||
               (clientId && type.includes(clientId.toLowerCase())) ||
               type.includes(extUuid.toLowerCase()) ||
               type.includes("019d9e97");
@@ -204,28 +202,34 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
             const isAppEmbed = type.includes("app-embed") || type.includes("app_embed");
 
             if (isInstafeed && isAppEmbed) {
+              matchingEmbedBlocks.push(b);
               const parts = b.type.split("/");
               const lastPart = parts[parts.length - 1];
               if (lastPart && lastPart.length > 8) {
                 detectedExtensionUuid = lastPart;
               }
-              const isDisabled = b.disabled === true || b.disabled === "true";
-              if (!isDisabled) {
-                dynamicAppEmbedEnabled = true;
-              }
             }
+          }
+
+          if (matchingEmbedBlocks.length > 0) {
+            // An app embed is enabled ONLY if at least one matching block in current.blocks is not disabled
+            dynamicAppEmbedEnabled = matchingEmbedBlocks.some(
+              (b) => b.disabled !== true && b.disabled !== "true"
+            );
+          } else {
+            dynamicAppEmbedEnabled = false;
           }
         } catch (e) {
           console.warn("[ThemeEmbed] Failed to parse settings_data.json:", e.message);
         }
       }
 
-      // ── B. Check Feed Grid Section in Templates ──
+      // ── B. Check Feed Grid Section & App Blocks in Templates ──
       const templateEntries = [
-        { key: "homepage", data: indexData },
-        { key: "product", data: productData },
-        { key: "page", data: pageData },
-        { key: "collection", data: collectionData },
+        { key: "homepage", label: "Home page", data: indexData },
+        { key: "product", label: "Product pages", data: productData },
+        { key: "page", label: "Custom pages", data: pageData },
+        { key: "collection", label: "Collection pages", data: collectionData },
       ];
       for (const { key, data: t } of templateEntries) {
         if (!t?.asset?.value) continue;
@@ -279,11 +283,34 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
       console.warn("[ThemeEmbed] Theme asset verification failed:", e.message);
     }
 
+    const activeBlockLocations = [];
+    if (dynamicSections.homepage) activeBlockLocations.push("Home page");
+    if (dynamicSections.product) activeBlockLocations.push("Product pages");
+    if (dynamicSections.page) activeBlockLocations.push("Custom pages");
+    if (dynamicSections.collection) activeBlockLocations.push("Collection pages");
+
     return {
       dynamicAppEmbedEnabled,
       dynamicSections,
+      dynamicSectionActive: !!dynamicSections.grid,
+      activeBlockLocations,
       detectedExtensionUuid,
       themeId: resolvedThemeId,
+      appEmbed: {
+        name: "Instafeed Activation",
+        handle: "app-embed",
+        type: "Theme App Embed",
+        enabled: dynamicAppEmbedEnabled,
+        status: dynamicAppEmbedEnabled ? "enabled" : "disabled",
+      },
+      appBlock: {
+        name: "Instafeed: Feed Grid",
+        handle: "feed-grid",
+        type: "Theme App Block",
+        active: !!dynamicSections.grid,
+        status: dynamicSections.grid ? "active" : "inactive",
+        locations: activeBlockLocations,
+      },
     };
   };
 
@@ -292,15 +319,15 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
     const freshResult = await performCheck();
     try {
       const cache = await getCache();
-      await cache.set(cacheKey, freshResult, 300);
+      await cache.set(cacheKey, freshResult, 15);
       if (freshResult.themeId && freshResult.themeId !== themeId) {
-        await cache.set(`theme_embed_status:${shop}:${freshResult.themeId}`, freshResult, 300);
+        await cache.set(`theme_embed_status:${shop}:${freshResult.themeId}`, freshResult, 15);
       }
     } catch (e) {}
     return freshResult;
   }
 
-  return cacheGetOrSet(cacheKey, performCheck, 300);
+  return cacheGetOrSet(cacheKey, performCheck, 15);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -452,14 +479,20 @@ export const loader = async ({ request }) => {
   const themesList = allThemes || [];
   const mainTheme = themesList.find((t) => t.isLive);
   const matchedSelected = selectedThemeParam ? themesList.find((t) => t.id === selectedThemeParam) : null;
-  const themeId = matchedSelected ? matchedSelected.id : mainTheme ? mainTheme.id : themesList[0]?.id || "current";
+  const currentTheme = matchedSelected || mainTheme || themesList[0] || null;
+  const themeId = currentTheme ? currentTheme.id : "current";
+  const themeName = currentTheme?.name || "Live Theme";
+  const isLiveTheme = !!currentTheme?.isLive;
+
+  const forceFreshTheme = requestUrl.searchParams.get("fresh") === "1" || requestUrl.searchParams.get("fresh") === "true";
 
   // Cached Theme Embed verification
-  const { dynamicAppEmbedEnabled, dynamicSections, detectedExtensionUuid } = await getCachedThemeEmbedStatus(
+  const themeEmbedStatus = await getCachedThemeEmbedStatus(
     session?.shop,
     themeId,
     session?.accessToken,
-    clientId
+    clientId,
+    forceFreshTheme
   );
 
   return {
@@ -469,12 +502,18 @@ export const loader = async ({ request }) => {
     subscription: subscription || null,
     shop,
     themeId,
+    themeName,
+    isLiveTheme,
     allThemes: themesList,
     selectedThemeId: themeId,
     clientId,
-    detectedExtensionUuid: detectedExtensionUuid || null,
-    dynamicAppEmbedEnabled: !!dynamicAppEmbedEnabled,
-    dynamicSections: dynamicSections || { grid: false },
+    detectedExtensionUuid: themeEmbedStatus.detectedExtensionUuid || null,
+    dynamicAppEmbedEnabled: !!themeEmbedStatus.dynamicAppEmbedEnabled,
+    dynamicSectionActive: !!themeEmbedStatus.dynamicSectionActive,
+    dynamicSections: themeEmbedStatus.dynamicSections || { grid: false },
+    activeBlockLocations: themeEmbedStatus.activeBlockLocations || [],
+    appEmbed: themeEmbedStatus.appEmbed,
+    appBlock: themeEmbedStatus.appBlock,
     analyticsSummary: analyticsSummary || { views: 0, clicks: 0, ctr: "0.0", recentDaysCount: 0 },
   };
 };
@@ -526,7 +565,15 @@ export const action = async ({ request }) => {
       }
 
       const clientId = process.env.SHOPIFY_API_KEY;
-      const { dynamicAppEmbedEnabled, dynamicSections, detectedExtensionUuid } = await getCachedThemeEmbedStatus(
+      const {
+        dynamicAppEmbedEnabled,
+        dynamicSections,
+        dynamicSectionActive,
+        activeBlockLocations,
+        detectedExtensionUuid,
+        appEmbed,
+        appBlock,
+      } = await getCachedThemeEmbedStatus(
         shop,
         themeId,
         session?.accessToken,
@@ -541,14 +588,17 @@ export const action = async ({ request }) => {
         dynamicAppEmbedEnabled: isEmbedOk,
         dynamicSectionActive: isSectionOk,
         dynamicSections: dynamicSections || { grid: false },
+        activeBlockLocations: activeBlockLocations || [],
         detectedExtensionUuid,
+        appEmbed,
+        appBlock,
         message: isEmbedOk && isSectionOk
-          ? "Everything verified! Both the Feed Section and App Embed are active in your theme."
+          ? "Theme verified! Both the 'Instafeed Activation' app embed and 'Instafeed: Feed Grid' app block are active."
           : isSectionOk && !isEmbedOk
-          ? "Feed Section found! Please turn ON the 'Instafeed Activation' app embed in Theme Editor and click Save."
+          ? "App block is active, but the 'Instafeed Activation' app embed is turned OFF. Please turn it ON in Theme Editor → App Embeds."
           : !isSectionOk && isEmbedOk
-          ? "App Embed is active! Make sure you've added the 'Instafeed: Feed Grid' section in your Theme Editor and clicked Save."
-          : "Not detected yet. Make sure you clicked Save in the Theme Editor top right corner, then wait 3 seconds and click Verify again.",
+          ? "App embed is enabled, but the 'Instafeed: Feed Grid' app block has not been added yet. Please add it to your theme."
+          : "Not detected yet. Make sure you clicked Save in the Theme Editor top right corner, then wait a few seconds and click Verify again.",
       };
     } catch (e) {
       console.error("[verifyEmbed action error]:", e);
@@ -2403,248 +2453,6 @@ function UnifiedConfigurator({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// APP EMBED IS REQUIRED CARD (Matches Reference Illustration & Step Design)
-// ─────────────────────────────────────────────────────────────────────────────
-function AppEmbedRequiredCard({
-  shop,
-  themeId,
-  clientId,
-  onVerify,
-  isVerifying,
-  statusMessage,
-  statusTone,
-}) {
-  const themeEditorUrl = themeId && shop && clientId
-    ? `https://${shop}/admin/themes/${themeId}/editor?context=apps&activateAppId=${clientId}/app-embed&activateAppEmbed=${clientId}/app-embed`
-    : `https://${shop}/admin/themes/current/editor`;
-
-  return (
-    <div
-      style={{
-        maxWidth: "520px",
-        margin: "0 auto",
-        textAlign: "center",
-        padding: "16px 8px",
-      }}
-    >
-      {/* ── Visual Illustration (Matching Reference Graphic) ── */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-        <svg width="220" height="145" viewBox="0 0 220 145" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Soft background arch base */}
-          <path d="M15 145C15 92.5329 57.5329 50 110 50C162.467 50 205 92.5329 205 145H15Z" fill="#F1F5F9" />
-
-          {/* Gradient Definitions */}
-          <defs>
-            <linearGradient id="embedArchGrad" x1="110" y1="16" x2="110" y2="120" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="#4F46E5" />
-              <stop offset="50%" stopColor="#7C3AED" />
-              <stop offset="100%" stopColor="#A855F7" />
-            </linearGradient>
-            <filter id="yellowBadgeShadow" x="38" y="4" width="36" height="36" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-              <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.18" />
-            </filter>
-          </defs>
-
-          {/* Main Arched Purple Pill */}
-          <path d="M60 62C60 34.3858 82.3858 12 110 12C137.614 12 160 34.3858 160 62V105C160 110.523 155.523 115 150 115H70C64.4772 115 60 110.523 60 105V62Z" fill="url(#embedArchGrad)" />
-
-          {/* 4-Point Star Sparkles */}
-          <path d="M146 32C146 32 147.5 36.5 151 36.5C147.5 36.5 146 41 146 41C146 41 144.5 36.5 141 36.5C144.5 36.5 146 32 146 32Z" fill="white" opacity="0.95" />
-          <path d="M126 18C126 18 127.2 21.5 129.5 21.5C127.2 21.5 126 25 126 25C126 25 124.8 21.5 122.5 21.5C124.8 21.5 126 18 126 18Z" fill="white" opacity="0.85" />
-          <circle cx="154" cy="46" r="1.5" fill="white" opacity="0.8" />
-
-          {/* Stacked Disc Platforms at bottom */}
-          <ellipse cx="110" cy="116" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
-          <ellipse cx="110" cy="113" rx="34" ry="7" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="1.5" />
-          <ellipse cx="110" cy="103" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
-          <ellipse cx="110" cy="100" rx="34" ry="7" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1.5" />
-          <ellipse cx="110" cy="90" rx="34" ry="7" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
-          <ellipse cx="110" cy="87" rx="34" ry="7" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1.5" />
-
-          {/* Window / App Embed card icon */}
-          <rect x="80" y="38" width="34" height="26" rx="3" fill="#FFFFFF" opacity="0.35" />
-          <rect x="85" y="43" width="38" height="28" rx="4" fill="#FFFFFF" stroke="#6366F1" strokeWidth="1.5" />
-          <path d="M85 50H123" stroke="#CBD5E1" strokeWidth="1.5" />
-          <circle cx="90" cy="47" r="1.2" fill="#94A3B8" />
-          <circle cx="94" cy="47" r="1.2" fill="#94A3B8" />
-          <circle cx="98" cy="47" r="1.2" fill="#94A3B8" />
-
-          {/* Mouse Cursor Click */}
-          <g transform="translate(112, 54)">
-            <path d="M0 0L4 12L7.5 8.5L12 13L13.5 11.5L9 7L13 5L0 0Z" fill="#6366F1" stroke="#FFFFFF" strokeWidth="1.5" strokeLinejoin="round" />
-          </g>
-
-          {/* Yellow Warning Exclamation Badge Top Left */}
-          <g filter="url(#yellowBadgeShadow)">
-            <circle cx="56" cy="18" r="14" fill="#FDE047" stroke="#FEF08A" strokeWidth="2" />
-            <text x="56" y="23" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontWeight="900" fontSize="16" fill="#854D0E" textAnchor="middle">!</text>
-          </g>
-        </svg>
-      </div>
-
-      {/* ── Title & Subtitle ── */}
-      <div style={{ marginBottom: "20px" }}>
-        <h2
-          style={{
-            margin: "0 0 6px",
-            fontSize: "20px",
-            fontWeight: "700",
-            color: "#18181b",
-            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          }}
-        >
-          App embed is required
-        </h2>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "14px",
-            color: "#64748b",
-            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          }}
-        >
-          Please follow the steps below to activate this feature
-        </p>
-      </div>
-
-      {/* ── Step Container Box ── */}
-      <div
-        style={{
-          border: "1px solid #bae6fd",
-          borderRadius: "12px",
-          background: "#ffffff",
-          padding: "20px 22px",
-          textAlign: "left",
-          marginBottom: "20px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Step 1 */}
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <div
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "50%",
-                background: "#eff6ff",
-                color: "#2563eb",
-                fontWeight: "700",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              1
-            </div>
-            <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
-              Go to{" "}
-              <a
-                href={themeEditorUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "#2563eb", textDecoration: "underline", fontWeight: "600" }}
-              >
-                App embed
-              </a>{" "}
-              in your Theme Editor
-            </div>
-          </div>
-
-          {/* Step 2 */}
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <div
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "50%",
-                background: "#eff6ff",
-                color: "#2563eb",
-                fontWeight: "700",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              2
-            </div>
-            <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
-              Click <strong>Save</strong> at top right corner
-            </div>
-          </div>
-
-          {/* Step 3 */}
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <div
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "50%",
-                background: "#eff6ff",
-                color: "#2563eb",
-                fontWeight: "700",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              3
-            </div>
-            <div style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.4" }}>
-              Click below button to verify your settings
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {statusMessage && (
-        <div style={{ marginBottom: "16px" }}>
-          <Banner tone={statusTone || "info"}>
-            <p>{statusMessage}</p>
-          </Banner>
-        </div>
-      )}
-
-      {/* ── Action Button ── */}
-      <button
-        type="button"
-        onClick={onVerify}
-        disabled={isVerifying}
-        style={{
-          background: isVerifying ? "#52525b" : "#27272a",
-          color: "#ffffff",
-          border: "none",
-          borderRadius: "8px",
-          padding: "10px 28px",
-          fontSize: "14px",
-          fontWeight: "700",
-          cursor: isVerifying ? "not-allowed" : "pointer",
-          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.18)",
-          transition: "all 0.15s ease",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "8px",
-        }}
-        onMouseEnter={(e) => {
-          if (!isVerifying) e.currentTarget.style.background = "#18181b";
-        }}
-        onMouseLeave={(e) => {
-          if (!isVerifying) e.currentTarget.style.background = "#27272a";
-        }}
-      >
-        {isVerifying ? "Verifying..." : "Verify Now"}
-      </button>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Index() {
@@ -2661,6 +2469,9 @@ export default function Index() {
   const [dynamicEmbedActive, setDynamicEmbedActive] = useState(!!loaderData.dynamicAppEmbedEnabled);
   const [dynamicSectionActive, setDynamicSectionActive] = useState(!!loaderData.dynamicSections?.grid);
   const [dynamicSectionsData, setDynamicSectionsData] = useState(loaderData.dynamicSections || { grid: false });
+  const [blockLocations, setBlockLocations] = useState(loaderData.activeBlockLocations || []);
+  const [activeThemeId, setActiveThemeId] = useState(loaderData.themeId || "current");
+  const [currentThemeName, setCurrentThemeName] = useState(loaderData.themeName || "Live Theme");
   const [showAccountSwitchGuide, setShowAccountSwitchGuide] = useState(false);
 
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
@@ -2672,38 +2483,27 @@ export default function Index() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
-  const [isReviewRewardCardDismissed, setIsReviewRewardCardDismissed] = useState(false);
   const reviewFetcher = useFetcher();
 
   const isVerifyingEmbed = verifyEmbedFetcher.state !== "idle";
-  const setupEmailFetcher = useFetcher();
-  const isSendingSetupEmail = setupEmailFetcher.state !== "idle";
-
-  const handleSendSetupEmail = useCallback(() => {
-    const fd = new FormData();
-    fd.append("intent", "sendSetupReminderEmail");
-    setupEmailFetcher.submit(fd, { method: "post" });
-  }, [setupEmailFetcher]);
-
-  useEffect(() => {
-    if (setupEmailFetcher.data?.emailSent) {
-      if (setupEmailFetcher.data.success) {
-        shopify?.toast?.show(setupEmailFetcher.data.message || "Setup guide sent to your email!");
-      } else {
-        shopify?.toast?.show(setupEmailFetcher.data.error || "Failed to send email.", { isError: true });
-      }
-    }
-  }, [setupEmailFetcher.data, shopify]);
-
   const isSilentVerifyRef = useRef(false);
 
-  const handleVerifyEmbed = useCallback((silent = false) => {
+  const handleVerifyEmbed = useCallback((silent = false, overrideThemeId = null) => {
     isSilentVerifyRef.current = silent === true;
     const fd = new FormData();
     fd.append("intent", "verifyEmbed");
-    fd.append("themeId", loaderData.themeId || "current");
+    fd.append("themeId", overrideThemeId || activeThemeId || loaderData.themeId || "current");
     verifyEmbedFetcher.submit(fd, { method: "post" });
-  }, [loaderData.themeId, verifyEmbedFetcher]);
+  }, [activeThemeId, loaderData.themeId, verifyEmbedFetcher]);
+
+  const handleSelectTheme = useCallback((newThemeId) => {
+    setActiveThemeId(newThemeId);
+    const matched = (loaderData.allThemes || []).find((t) => t.id === newThemeId);
+    if (matched) {
+      setCurrentThemeName(matched.name);
+    }
+    handleVerifyEmbed(false, newThemeId);
+  }, [loaderData.allThemes, handleVerifyEmbed]);
 
   useEffect(() => {
     if (verifyEmbedFetcher.data?.verifiedEmbed) {
@@ -2714,8 +2514,11 @@ export default function Index() {
       if (verifyEmbedFetcher.data.dynamicSections) {
         setDynamicSectionsData(verifyEmbedFetcher.data.dynamicSections);
       }
-      const isSuccess = !!verifyEmbedFetcher.data.dynamicAppEmbedEnabled;
-      const hasAny = isSuccess || !!verifyEmbedFetcher.data.dynamicSectionActive;
+      if (verifyEmbedFetcher.data.activeBlockLocations) {
+        setBlockLocations(verifyEmbedFetcher.data.activeBlockLocations);
+      }
+      const isSuccess = !!verifyEmbedFetcher.data.dynamicAppEmbedEnabled && !!verifyEmbedFetcher.data.dynamicSectionActive;
+      const hasAny = !!verifyEmbedFetcher.data.dynamicAppEmbedEnabled || !!verifyEmbedFetcher.data.dynamicSectionActive;
       if (!isSilentVerifyRef.current) {
         shopify?.toast?.show(
           verifyEmbedFetcher.data.message || "Theme verification completed.",
@@ -2730,14 +2533,19 @@ export default function Index() {
 
   // Auto-verify embed/section status when returning from Theme Editor tab
   useEffect(() => {
+    let timer;
     const handleWindowFocus = () => {
-      if (!dynamicSectionActive || !dynamicEmbedActive) {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
         handleVerifyEmbed(true);
-      }
+      }, 500);
     };
     window.addEventListener("focus", handleWindowFocus);
-    return () => window.removeEventListener("focus", handleWindowFocus);
-  }, [dynamicSectionActive, dynamicEmbedActive, handleVerifyEmbed]);
+    return () => {
+      window.removeEventListener("focus", handleWindowFocus);
+      clearTimeout(timer);
+    };
+  }, [handleVerifyEmbed]);
 
   useEffect(() => {
     if (searchParams.get("review") === "true") {
@@ -2750,19 +2558,6 @@ export default function Index() {
       setReviewSubmitted(true);
     }
   }, [reviewFetcher.data]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsReviewRewardCardDismissed(localStorage.getItem("review_reward_card_dismissed") === "1");
-    }
-  }, []);
-
-  const handleDismissReviewRewardCard = useCallback(() => {
-    setIsReviewRewardCardDismissed(true);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("review_reward_card_dismissed", "1");
-    }
-  }, []);
 
   const handleCloseReviewModal = useCallback(() => {
     setIsReviewModalOpen(false);
@@ -3011,6 +2806,31 @@ export default function Index() {
 
   const isSaving = saveFetcher.state !== "idle";
 
+  const pendingProceedRef = useRef(null);
+  const [isCloseEditorModalOpen, setIsCloseEditorModalOpen] = useState(false);
+
+  // Blocker for React Router navigation when contextual save bar is active
+  const blocker = useBlocker(
+    useCallback(
+      ({ currentLocation, nextLocation }) =>
+        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+      [hasUnsavedChanges]
+    )
+  );
+
+  // Native browser prompt when reloading or closing tab with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   const applyChanges = useCallback(() => {
     const fd = new FormData();
     fd.append("intent", "saveConfig");
@@ -3035,6 +2855,41 @@ export default function Index() {
     shopify?.toast?.show("Unsaved changes discarded.");
   }, [shopify]);
 
+  // Handlers for Leave Confirmation Modal (React Router blocker)
+  const handleSaveAndProceed = useCallback(() => {
+    pendingProceedRef.current = blocker.proceed;
+    applyChanges();
+  }, [blocker, applyChanges]);
+
+  const handleDiscardAndProceed = useCallback(() => {
+    discardChanges();
+    blocker.proceed?.();
+  }, [blocker, discardChanges]);
+
+  const handleCancelLeave = useCallback(() => {
+    pendingProceedRef.current = null;
+    blocker.reset?.();
+  }, [blocker]);
+
+  // Handlers for Close Editor Confirmation Modal
+  const handleCloseEditorClick = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setIsCloseEditorModalOpen(true);
+    } else {
+      setIsEditingDesign(false);
+    }
+  }, [hasUnsavedChanges]);
+
+  const handleSaveAndCloseEditor = useCallback(() => {
+    applyChanges();
+  }, [applyChanges]);
+
+  const handleDiscardAndCloseEditor = useCallback(() => {
+    discardChanges();
+    setIsCloseEditorModalOpen(false);
+    setIsEditingDesign(false);
+  }, [discardChanges]);
+
   // Reactive dirty tracking: compare current config with savedConfigRef
   useEffect(() => {
     if (!savedConfigRef.current) return;
@@ -3053,9 +2908,17 @@ export default function Index() {
         saveBar.hide();
       }
       setIsEditingDesign(false);
+      setIsCloseEditorModalOpen(false);
       markDesignInteracted();
+
+      if (pendingProceedRef.current) {
+        const proceedFn = pendingProceedRef.current;
+        pendingProceedRef.current = null;
+        proceedFn();
+      }
     } else if (saveFetcher.data?.error) {
       shopify?.toast?.show(saveFetcher.data.error, { isError: true });
+      pendingProceedRef.current = null;
     }
   }, [saveFetcher.data, shopify, config]);
 
@@ -3129,12 +2992,13 @@ export default function Index() {
   const adminBaseUrl = shopSubdomain
     ? `https://admin.shopify.com/store/${shopSubdomain}`
     : `https://${shop}/admin`;
-  const activeThemeId = loaderData.themeId && loaderData.themeId !== "current" ? loaderData.themeId : "current";
+  const effectiveThemeId = activeThemeId && activeThemeId !== "current" ? activeThemeId : loaderData.themeId || "current";
   const appClientId = loaderData.clientId || "";
   const activeExtensionId = loaderData.detectedExtensionUuid || "eeecd3e9-ddb8-f1f8-6e66-ef13a12c0780e5eb934b";
 
-  const themeAddSectionUrl = `${adminBaseUrl}/themes/${activeThemeId}/editor?template=index&addAppBlockId=${activeExtensionId}/feed-grid&target=newAppsSection`;
-  const themeActivateEmbedUrl = `${adminBaseUrl}/themes/${activeThemeId}/editor?context=apps&activateAppId=${activeExtensionId}/app-embed&activateAppEmbed=${activeExtensionId}/app-embed`;
+  const themeAddSectionUrl = `${adminBaseUrl}/themes/${effectiveThemeId}/editor?template=index&addAppBlockId=${activeExtensionId}/feed-grid&target=newAppsSection`;
+  const themeActivateEmbedUrl = `${adminBaseUrl}/themes/${effectiveThemeId}/editor?context=apps&activateAppId=${activeExtensionId}/app-embed&activateAppEmbed=${activeExtensionId}/app-embed`;
+  const themeEditorGeneralUrl = `${adminBaseUrl}/themes/${effectiveThemeId}/editor`;
   const storefrontPreviewUrl = `https://${shop}`;
 
   const [wizardStep, setWizardStep] = useState(isConnected ? 2 : 1);
@@ -3147,12 +3011,10 @@ export default function Index() {
       setIsOnboardingDismissed(true);
     }
   }, []);
-  const [isSetupGuideManuallyOpen, setIsSetupGuideManuallyOpen] = useState(false);
+  const [isSetupGuideManuallyOpen, setIsSetupGuideManuallyOpen] = useState(true);
 
-  // When allTasksDone is true (feed active and displaying on theme), hide checklist by default
-  const isSetupGuideVisible = allTasksDone
-    ? isSetupGuideManuallyOpen
-    : !isOnboardingDismissed;
+  // Show checklist by default unless explicitly dismissed by merchant
+  const isSetupGuideVisible = !isOnboardingDismissed;
 
   const handleDismissOnboarding = () => {
     setIsOnboardingDismissed(true);
@@ -4665,16 +4527,30 @@ export default function Index() {
         <InlineStack align="space-between" blockAlign="center" wrap gap="200">
           <InlineStack gap="300" blockAlign="center" wrap>
             <Text variant="headingLg" as="h1" fontWeight="bold">
-              Welcome to AI Instafeed Expert!
+              Instagram Feed
             </Text>
-            <Badge tone="success">Free Forever</Badge>
-            {allTasksDone && (
+            {allTasksDone ? (
               <Badge tone="success">Live on Store</Badge>
+            ) : (
+              <Badge tone="attention">Setup Required</Badge>
             )}
           </InlineStack>
 
           <InlineStack gap="200" blockAlign="center">
-            {allTasksDone ? (
+            <Button
+              variant="plain"
+              size="slim"
+              onClick={() => {
+                if (isSetupGuideVisible) {
+                  handleDismissOnboarding();
+                } else {
+                  handleRestoreOnboarding();
+                }
+              }}
+            >
+              {isSetupGuideVisible ? "Hide Checklist" : `Show Checklist (${onboardingCompletedCount}/5)`}
+            </Button>
+            {allTasksDone && (
               <Button
                 variant="plain"
                 icon={ExternalIcon}
@@ -4682,62 +4558,164 @@ export default function Index() {
               >
                 View on Live Store ↗
               </Button>
-            ) : (
-              isOnboardingDismissed && (
-                <Button
-                  variant="plain"
-                  size="slim"
-                  onClick={handleRestoreOnboarding}
-                >
-                  Show Setup Checklist ↗
-                </Button>
-              )
             )}
           </InlineStack>
         </InlineStack>
 
-        {/* ── 2. Active Feed Banner (When activated, checklist is hidden by default; user can open if needed) ── */}
-        {allTasksDone && (
-          <Banner tone="success">
-            <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-              <Text variant="bodySm" fontWeight="medium">
-                Your Instagram feed is active and displaying on your theme.
-              </Text>
-              <InlineStack gap="200" blockAlign="center">
-                <Button
-                  variant="plain"
-                  size="slim"
-                  onClick={() => setIsSetupGuideManuallyOpen((prev) => !prev)}
-                >
-                  {isSetupGuideManuallyOpen ? "Hide Setup Checklist ⌃" : "Show Setup Checklist (5/5) ⌵"}
-                </Button>
-                <Button
-                  variant="primary"
-                  icon={ExternalIcon}
-                  onClick={() => window.open(storefrontPreviewUrl, "_blank")}
-                >
-                  Open Storefront
-                </Button>
-              </InlineStack>
-            </InlineStack>
-          </Banner>
-        )}
+        {/* ── Theme Status (Shopify Mandatory Requirement: App Embed & App Block Status) ── */}
+        <div id="theme-status-card">
+          <Card padding="300">
+            <BlockStack gap="200">
+              <div style={{ marginBottom: "10px" }}>
+                <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                  <InlineStack gap="200" blockAlign="center" wrap>
+                    <Text variant="headingSm" as="h2" fontWeight="bold">
+                      Theme Status
+                    </Text>
+                    <Badge tone={dynamicEmbedActive && dynamicSectionActive ? "success" : "attention"}>
+                      {dynamicEmbedActive && dynamicSectionActive ? "All Active" : "Action Required"}
+                    </Badge>
+                    <Text variant="bodySm" tone="subdued">
+                      Theme: <strong>{currentThemeName || loaderData.themeName || "Live Theme"}</strong>
+                      {loaderData.isLiveTheme !== false ? " (Live)" : ""}
+                    </Text>
+                  </InlineStack>
 
-        {/* ── 3. Unified Quick Setup & Onboarding Guide ── */}
+                  <InlineStack gap="150" blockAlign="center" wrap>
+                    {loaderData.allThemes && loaderData.allThemes.length > 1 && (
+                      <div style={{ width: "160px" }}>
+                        <Select
+                          label="Theme"
+                          labelHidden
+                          options={loaderData.allThemes.map((t) => ({
+                            label: `${t.name}${t.isLive ? " (Live)" : ""}`,
+                            value: t.id,
+                          }))}
+                          value={activeThemeId}
+                          onChange={handleSelectTheme}
+                        />
+                      </div>
+                    )}
+                    <Button
+                      size="slim"
+                      icon={RefreshIcon}
+                      loading={isVerifyingEmbed}
+                      onClick={() => handleVerifyEmbed(false)}
+                    >
+                      Refresh Status
+                    </Button>
+                  </InlineStack>
+                </InlineStack>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                  gap: "10px",
+                }}
+              >
+                {/* 1. App Embed Status */}
+                <Box
+                  padding="200"
+                  background="bg-surface-secondary"
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={dynamicEmbedActive ? "border-success" : "border-critical"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="150">
+                    <InlineStack gap="150" blockAlign="center">
+                      <div
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          background: dynamicEmbedActive ? "#16a34a" : "#dc2626",
+                        }}
+                      />
+                      <Text variant="bodyMd" fontWeight="semibold">
+                        App Embed
+                      </Text>
+                      <Badge tone={dynamicEmbedActive ? "success" : "critical"}>
+                        {dynamicEmbedActive ? "Enabled" : "Disabled"}
+                      </Badge>
+                    </InlineStack>
+
+                    <Button
+                      size="slim"
+                      variant={dynamicEmbedActive ? "plain" : "primary"}
+                      icon={ExternalIcon}
+                      onClick={() => window.open(themeActivateEmbedUrl, "_blank")}
+                    >
+                      {dynamicEmbedActive ? "Configure ↗" : "Enable in Theme ↗"}
+                    </Button>
+                  </InlineStack>
+                </Box>
+
+                {/* 2. App Block Status */}
+                <Box
+                  padding="200"
+                  background="bg-surface-secondary"
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={dynamicSectionActive ? "border-success" : "border-attention"}
+                >
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="150">
+                    <InlineStack gap="150" blockAlign="center">
+                      <div
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          background: dynamicSectionActive ? "#16a34a" : "#d97706",
+                        }}
+                      />
+                      <Text variant="bodyMd" fontWeight="semibold">
+                        App Block
+                      </Text>
+                      <Badge tone={dynamicSectionActive ? "success" : "attention"}>
+                        {dynamicSectionActive
+                          ? blockLocations.length > 0
+                            ? `Active on: ${blockLocations.join(", ")}`
+                            : "Active on: Home page"
+                          : "Inactive / Not Added"}
+                      </Badge>
+                    </InlineStack>
+
+                    <Button
+                      size="slim"
+                      variant={dynamicSectionActive ? "plain" : "primary"}
+                      icon={ExternalIcon}
+                      onClick={() =>
+                        window.open(
+                          dynamicSectionActive ? themeEditorGeneralUrl : themeAddSectionUrl,
+                          "_blank"
+                        )
+                      }
+                    >
+                      {dynamicSectionActive ? "Edit in Theme ↗" : "Add to Theme ↗"}
+                    </Button>
+                  </InlineStack>
+                </Box>
+              </div>
+            </BlockStack>
+          </Card>
+        </div>
+
+        {/* ── Setup & Onboarding Guide ── */}
         {isSetupGuideVisible && (
           <div id="welcome-widget-card">
-            <Card padding="400">
-              <BlockStack gap="300">
+            <Card padding="300">
+              <BlockStack gap="250">
                 {/* Stepper Header */}
                 <InlineStack align="space-between" blockAlign="center" wrap gap="200">
                   <InlineStack gap="200" blockAlign="center" wrap>
                     <Text variant="headingSm" as="h2" fontWeight="bold">
-                      {allTasksDone ? "Setup Checklist" : "Quick Setup & Onboarding Guide"}
+                      Setup Checklist
                     </Text>
                     <Badge tone={allTasksDone ? "success" : onboardingCompletedCount > 0 ? "info" : "attention"}>
-                      {`${onboardingCompletedCount} of 5 completed`}
+                      {`${onboardingCompletedCount} of 5 Completed`}
                     </Badge>
-                    <Badge tone="subdued">Optional steps included</Badge>
                     {isConnected && (instaData?.username || config.instagramHandle) && (
                       <Badge tone="success">
                         {`@${instaData?.username || config.instagramHandle}`}
@@ -4745,211 +4723,153 @@ export default function Index() {
                     )}
                   </InlineStack>
 
-                  <InlineStack gap="200" blockAlign="center">
-                    {!allTasksDone && (
-                      <Button
-                        variant="plain"
-                        icon={EmailIcon}
-                        loading={isSendingSetupEmail}
-                        onClick={handleSendSetupEmail}
-                      >
-                        Email Setup Guide ↗
-                      </Button>
-                    )}
-                    <Button
-                      variant="plain"
-                      icon={ExternalIcon}
-                      onClick={() => window.open(storefrontPreviewUrl, "_blank")}
-                    >
-                      View on Live Store ↗
-                    </Button>
+                  <InlineStack gap="150" blockAlign="center">
                     <Button
                       variant="plain"
                       size="slim"
-                      onClick={() => {
-                        if (allTasksDone) {
-                          setIsSetupGuideManuallyOpen(false);
-                        } else {
-                          handleDismissOnboarding();
-                        }
-                      }}
-                      accessibilityLabel="Dismiss onboarding checklist"
+                      onClick={handleDismissOnboarding}
+                      accessibilityLabel="Hide onboarding checklist"
                     >
-                      {allTasksDone ? "Hide" : "Dismiss"}
+                      Hide
                     </Button>
                   </InlineStack>
                 </InlineStack>
 
-                <ProgressBar
-                  progress={(onboardingCompletedCount / 5) * 100}
-                  tone={allTasksDone ? "success" : "highlight"}
-                  size="small"
-                />
+                <div style={{ marginBottom: "10px" }}>
+                  <ProgressBar
+                    progress={(onboardingCompletedCount / 5) * 100}
+                    tone={allTasksDone ? "success" : "highlight"}
+                    size="small"
+                  />
+                </div>
 
                 {/* Step 1: Connect Instagram Account */}
                 <Box
-                  padding="300"
+                  padding="200"
                   background={onboardingStep1Done ? "bg-surface-secondary" : "bg-surface"}
                   borderRadius="200"
                   borderWidth="025"
                   borderColor={onboardingStep1Done ? "border-success" : "border"}
                 >
-                  <BlockStack gap="200">
-                    <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                      <InlineStack gap="200" blockAlign="center">
-                        <div
-                          style={{
-                            width: "24px",
-                            height: "24px",
-                            borderRadius: "50%",
-                            background: onboardingStep1Done ? "#10b981" : "#4f46e5",
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: "bold",
-                            fontSize: "12px",
-                          }}
-                        >
-                          {onboardingStep1Done ? <Icon source={CheckIcon} tone="inherit" /> : "1"}
-                        </div>
-                        <InlineStack gap="150" blockAlign="baseline" wrap>
-                          <Text variant="bodyMd" as="h3" fontWeight="bold">
-                            1. Connect Instagram
-                          </Text>
-                          <Text variant="bodySm" tone="subdued">
-                            {onboardingStep1Done
-                              ? `@${instaData?.username || config.instagramHandle} (${instaData?.media?.data?.length || 0} posts)`
-                              : "Sync photos, reels & videos"}
-                          </Text>
-                        </InlineStack>
-                      </InlineStack>
-
-                      {onboardingStep1Done ? (
-                        <InlineStack gap="200" blockAlign="center">
-                          <Badge tone="success">Connected</Badge>
-                          <Button
-                            size="slim"
-                            loading={isSyncing}
-                            onClick={() => {
-                              const fd = new FormData();
-                              fd.append("handle", config.instagramHandle || instaData?.username || "");
-                              fetcher.submit(fd, { method: "post" });
-                            }}
-                          >
-                            Sync Feed
-                          </Button>
-                          <Button size="slim" tone="critical" variant="plain" onClick={() => setIsDisconnectConfirmOpen(true)}>
-                            Disconnect
-                          </Button>
-                        </InlineStack>
-                      ) : (
-                        <Badge tone="attention">Step 1 · Required First</Badge>
+                  <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                    <InlineStack gap="150" blockAlign="center">
+                      <div
+                        style={{
+                          width: "22px",
+                          height: "22px",
+                          borderRadius: "50%",
+                          background: onboardingStep1Done ? "#10b981" : "#4f46e5",
+                          color: "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          fontSize: "11px",
+                        }}
+                      >
+                        {onboardingStep1Done ? <Icon source={CheckIcon} tone="inherit" /> : "1"}
+                      </div>
+                      <Text variant="bodyMd" as="h3" fontWeight="bold">
+                        1. Connect Instagram
+                      </Text>
+                      {onboardingStep1Done && (
+                        <Text variant="bodySm" tone="subdued">
+                          {`@${instaData?.username || config.instagramHandle}`}
+                        </Text>
                       )}
                     </InlineStack>
 
-                    {!onboardingStep1Done && (
-                      <BlockStack gap="150">
-                        <Text variant="bodySm" tone="subdued">
-                          Connect your Instagram account below to unlock design customization, product tagging, and live theme setup.
-                        </Text>
-                        <div
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
-                              e.preventDefault();
+                    {onboardingStep1Done ? (
+                      <InlineStack gap="150" blockAlign="center">
+                        <Button
+                          size="slim"
+                          loading={isSyncing}
+                          onClick={() => {
+                            const fd = new FormData();
+                            fd.append("handle", config.instagramHandle || instaData?.username || "");
+                            fetcher.submit(fd, { method: "post" });
+                          }}
+                        >
+                          Sync Feed
+                        </Button>
+                        <Button size="slim" tone="critical" variant="plain" onClick={() => setIsDisconnectConfirmOpen(true)}>
+                          Disconnect
+                        </Button>
+                      </InlineStack>
+                    ) : (
+                      <div
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && config.instagramHandle.trim() && !isSyncing) {
+                            e.preventDefault();
+                            const fd = new FormData();
+                            fd.append("handle", config.instagramHandle);
+                            fetcher.submit(fd, { method: "post" });
+                          }
+                        }}
+                      >
+                        <InlineStack gap="150" wrap={false} blockAlign="center">
+                          <div style={{ width: "240px" }}>
+                            <TextField
+                              label="Instagram handle"
+                              labelHidden
+                              prefix="@"
+                              placeholder="username"
+                              value={config.instagramHandle}
+                              autoComplete="off"
+                              clearButton
+                              onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
+                              onChange={(val) => {
+                                let v = val;
+                                if (v.includes("instagram.com/")) {
+                                  const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
+                                  if (parts.length > 0) v = parts[0];
+                                }
+                                v = v.replace("@", "").split("?")[0].trim();
+                                setConfig((prev) => ({ ...prev, instagramHandle: v }));
+                                setConnectError(null);
+                              }}
+                            />
+                          </div>
+                          <Button
+                            variant="primary"
+                            size="slim"
+                            loading={isSyncing}
+                            disabled={!config.instagramHandle.trim()}
+                            onClick={() => {
                               const fd = new FormData();
                               fd.append("handle", config.instagramHandle);
                               fetcher.submit(fd, { method: "post" });
-                            }
-                          }}
-                        >
-                          <InlineStack gap="200" wrap={false} blockAlign="center">
-                            <div style={{ flex: 1, maxWidth: "340px" }}>
-                              <TextField
-                                label="Instagram username"
-                                labelHidden
-                                prefix="@"
-                                placeholder="yourbrand or profile link"
-                                value={config.instagramHandle}
-                                autoComplete="off"
-                                clearButton
-                                onClearButtonClick={() => setConfig((prev) => ({ ...prev, instagramHandle: "" }))}
-                                onChange={(val) => {
-                                  let v = val;
-                                  if (v.includes("instagram.com/")) {
-                                    const parts = v.split("instagram.com/")[1].split(/[/?#]/).filter(Boolean);
-                                    if (parts.length > 0) v = parts[0];
-                                  }
-                                  v = v.replace("@", "").split("?")[0].trim();
-                                  setConfig((prev) => ({ ...prev, instagramHandle: v }));
-                                  setConnectError(null);
-                                }}
-                              />
-                            </div>
-                            <Button
-                              variant="primary"
-                              loading={isSyncing}
-                              disabled={!config.instagramHandle.trim()}
-                              onClick={() => {
-                                const fd = new FormData();
-                                fd.append("handle", config.instagramHandle);
-                                fetcher.submit(fd, { method: "post" });
-                              }}
-                            >
-                              Connect
-                            </Button>
-                          </InlineStack>
-                        </div>
-
-                        {connectError && (
-                          <Banner tone="critical">
-                            <Text variant="bodySm">{linkifyText(connectError)}</Text>
-                          </Banner>
-                        )}
-
-                        <InlineStack gap="200" blockAlign="center" wrap>
-                          <Button
-                            variant="plain"
-                            size="slim"
-                            onClick={() => setShowAccountSwitchGuide(!showAccountSwitchGuide)}
+                            }}
                           >
-                            {showAccountSwitchGuide ? "▲ Close tip" : "Personal account? Switch to free Creator in 15s"}
+                            Connect
                           </Button>
-                          <Text variant="bodySm" tone="subdued">
-                            • Sample posts active in theme preview
-                          </Text>
                         </InlineStack>
-
-                        <Collapsible open={showAccountSwitchGuide} id="account-switch-guide-collapsible">
-                          <Box padding="200" background="bg-surface-secondary" borderRadius="200">
-                            <Text variant="bodySm">
-                              Open Instagram app → <strong>Settings</strong> → <strong>Account type and tools</strong> → <strong>Switch to professional account</strong> (Select Creator/Business). Make sure account is Public.
-                            </Text>
-                          </Box>
-                        </Collapsible>
-                      </BlockStack>
+                      </div>
                     )}
-                  </BlockStack>
+                  </InlineStack>
+                  {connectError && (
+                    <Box paddingBlockStart="150">
+                      <Banner tone="critical">
+                        <Text variant="bodySm">{linkifyText(connectError)}</Text>
+                      </Banner>
+                    </Box>
+                  )}
                 </Box>
 
                 {/* Step 2: Choose Design & Layout */}
                 <Box
-                  padding="300"
+                  padding="200"
                   background={!isConnected ? "bg-surface-secondary" : onboardingStep2Done ? "bg-surface-secondary" : "bg-surface"}
                   borderRadius="200"
                   borderWidth="025"
                   borderColor={onboardingStep2Done ? "border-success" : "border"}
-                  style={{
-                    opacity: !isConnected ? 0.65 : 1,
-                    transition: "opacity 0.2s ease",
-                  }}
                 >
                   <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
+                    <InlineStack gap="150" blockAlign="center">
                       <div
                         style={{
-                          width: "24px",
-                          height: "24px",
+                          width: "22px",
+                          height: "22px",
                           borderRadius: "50%",
                           background: !isConnected ? "#94a3b8" : onboardingStep2Done ? "#10b981" : "#4f46e5",
                           color: "#ffffff",
@@ -4957,78 +4877,53 @@ export default function Index() {
                           alignItems: "center",
                           justifyContent: "center",
                           fontWeight: "bold",
-                          fontSize: "12px",
+                          fontSize: "11px",
                         }}
                       >
                         {!isConnected ? <Icon source={LockIcon} tone="inherit" /> : onboardingStep2Done ? <Icon source={CheckIcon} tone="inherit" /> : "2"}
                       </div>
-                      <InlineStack gap="150" blockAlign="baseline" wrap>
-                        <Text variant="bodyMd" as="h3" fontWeight="bold">
-                          2. Choose Design & Layout
-                        </Text>
-                        <Text variant="bodySm" tone="subdued">
-                          {!isConnected
-                            ? "Connect Instagram first (Step 1) to unlock layout presets"
-                            : `${config.layoutType || "Grid"} layout selected (12 custom styles)`}
-                        </Text>
-                      </InlineStack>
+                      <Text variant="bodyMd" as="h3" fontWeight="bold">
+                        2. Feed Layout
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {config.layoutType || "Grid"}
+                      </Text>
                     </InlineStack>
 
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone={!isConnected ? "subdued" : onboardingStep2Done ? "success" : "info"}>
-                        {!isConnected ? "Locked" : onboardingStep2Done ? "Customized" : "Ready"}
-                      </Badge>
-                      <Button
-                        size="slim"
-                        disabled={!isConnected}
-                        icon={!isConnected ? LockIcon : undefined}
-                        variant={!isConnected ? "secondary" : !onboardingStep2Done ? "primary" : "secondary"}
-                        onClick={() => {
-                          if (!isConnected) {
-                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
-                            const step1Input = document.querySelector("#welcome-widget-card input");
-                            if (step1Input) step1Input.focus();
-                            return;
-                          }
-                          markDesignInteracted();
-                          setIsEditingDesign(true);
-                          setTimeout(() => {
-                            const el = document.getElementById("unified-configurator-card") || document.getElementById("feed-preview-container");
-                            if (el) {
-                              el.scrollIntoView({ behavior: "smooth", block: "start" });
-                              el.style.transition = "box-shadow 0.3s ease";
-                              el.style.boxShadow = "0 0 0 3px #6366f1";
-                              setTimeout(() => {
-                                if (el) el.style.boxShadow = "";
-                              }, 1500);
-                            }
-                          }, 150);
-                        }}
-                      >
-                        Choose Design & Layout
-                      </Button>
-                    </InlineStack>
+                    <Button
+                      size="slim"
+                      disabled={!isConnected}
+                      icon={!isConnected ? LockIcon : undefined}
+                      variant={!isConnected ? "secondary" : !onboardingStep2Done ? "primary" : "secondary"}
+                      onClick={() => {
+                        if (!isConnected) return;
+                        markDesignInteracted();
+                        setIsEditingDesign(true);
+                        setTimeout(() => {
+                          const el = document.getElementById("unified-configurator-card") || document.getElementById("feed-preview-container");
+                          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 100);
+                      }}
+                    >
+                      Customize Feed
+                    </Button>
                   </InlineStack>
                 </Box>
 
-                {/* Step 3: Tag Products (Optional) */}
+                {/* Step 3: Tag Products */}
                 <Box
-                  padding="300"
+                  padding="200"
                   background={!isConnected ? "bg-surface-secondary" : onboardingStep3Done ? "bg-surface-secondary" : "bg-surface"}
                   borderRadius="200"
                   borderWidth="025"
                   borderColor={onboardingStep3Done ? "border-success" : "border"}
-                  style={{
-                    opacity: !isConnected ? 0.65 : 1,
-                    transition: "opacity 0.2s ease",
-                  }}
                 >
                   <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
+                    <InlineStack gap="150" blockAlign="center">
                       <div
                         style={{
-                          width: "24px",
-                          height: "24px",
+                          width: "22px",
+                          height: "22px",
                           borderRadius: "50%",
                           background: !isConnected ? "#94a3b8" : onboardingStep3Done ? "#10b981" : "#8c9196",
                           color: "#ffffff",
@@ -5036,66 +4931,44 @@ export default function Index() {
                           alignItems: "center",
                           justifyContent: "center",
                           fontWeight: "bold",
-                          fontSize: "12px",
+                          fontSize: "11px",
                         }}
                       >
                         {!isConnected ? <Icon source={LockIcon} tone="inherit" /> : onboardingStep3Done ? <Icon source={CheckIcon} tone="inherit" /> : "3"}
                       </div>
-                      <InlineStack gap="150" blockAlign="baseline" wrap>
-                        <Text variant="bodyMd" as="h3" fontWeight="bold">
-                          3. Tag Products
-                        </Text>
-                        <Badge tone="subdued" size="small">Optional</Badge>
-                        <Text variant="bodySm" tone="subdued">
-                          {!isConnected
-                            ? "Connect Instagram first (Step 1) to tag products on posts"
-                            : "Shoppable hotspot pins to turn posts into sales"}
-                        </Text>
-                      </InlineStack>
+                      <Text variant="bodyMd" as="h3" fontWeight="bold">
+                        3. Product Tagging
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {`${taggingStats.taggedPosts}/${taggingStats.totalPosts} tagged`}
+                      </Text>
                     </InlineStack>
 
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone={!isConnected ? "subdued" : onboardingStep3Done ? "success" : "subdued"}>
-                        {!isConnected ? "Locked" : onboardingStep3Done ? "Tagged" : "Optional"}
-                      </Badge>
-                      <Button
-                        size="slim"
-                        disabled={!isConnected}
-                        icon={!isConnected ? LockIcon : undefined}
-                        onClick={() => {
-                          if (!isConnected) {
-                            shopify?.toast?.show("Connect Instagram first (Step 1) before tagging products", { isError: true });
-                            const step1Input = document.querySelector("#welcome-widget-card input");
-                            if (step1Input) step1Input.focus();
-                            return;
-                          }
-                          navigate("/app/tagging");
-                        }}
-                      >
-                        Tag Products
-                      </Button>
-                    </InlineStack>
+                    <Button
+                      size="slim"
+                      disabled={!isConnected}
+                      icon={!isConnected ? LockIcon : undefined}
+                      onClick={() => navigate("/app/tagging")}
+                    >
+                      Tag Products
+                    </Button>
                   </InlineStack>
                 </Box>
 
-                {/* Step 4: Add Feed Section */}
+                {/* Step 4: Add Feed Block */}
                 <Box
-                  padding="300"
+                  padding="200"
                   background={!isConnected ? "bg-surface-secondary" : onboardingStep4Done ? "bg-surface-secondary" : "bg-surface"}
                   borderRadius="200"
                   borderWidth="025"
                   borderColor={onboardingStep4Done ? "border-success" : "border"}
-                  style={{
-                    opacity: !isConnected ? 0.65 : 1,
-                    transition: "opacity 0.2s ease",
-                  }}
                 >
                   <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
+                    <InlineStack gap="150" blockAlign="center">
                       <div
                         style={{
-                          width: "24px",
-                          height: "24px",
+                          width: "22px",
+                          height: "22px",
                           borderRadius: "50%",
                           background: !isConnected ? "#94a3b8" : onboardingStep4Done ? "#10b981" : "#4f46e5",
                           color: "#ffffff",
@@ -5103,71 +4976,34 @@ export default function Index() {
                           alignItems: "center",
                           justifyContent: "center",
                           fontWeight: "bold",
-                          fontSize: "12px",
+                          fontSize: "11px",
                         }}
                       >
                         {!isConnected ? <Icon source={LockIcon} tone="inherit" /> : onboardingStep4Done ? <Icon source={CheckIcon} tone="inherit" /> : "4"}
                       </div>
-                      <InlineStack gap="150" blockAlign="baseline" wrap>
-                        <Text variant="bodyMd" as="h3" fontWeight="bold">
-                          {dynamicSectionsData?.homepage
-                            ? "4. Add to Homepage"
-                            : dynamicSectionsData?.product
-                            ? "4. Feed Section (Product Page)"
-                            : "4. Add to Homepage / Theme"}
-                        </Text>
-                        <Text variant="bodySm" tone="subdued">
-                          {!isConnected
-                            ? "Connect Instagram first (Step 1) to stage feed section on theme"
-                            : dynamicSectionsData?.homepage
-                            ? "Feed Grid active on Homepage · Click 'Edit in Theme' to reposition"
-                            : dynamicSectionsData?.product
-                            ? "Feed Grid section active on Product page · Click 'Add to Homepage ↗' to also add to Homepage"
-                            : "Stage gallery section on theme · Click Save in Theme Editor, then return here"}
-                        </Text>
-                      </InlineStack>
+                      <Text variant="bodyMd" as="h3" fontWeight="bold">
+                        4. Feed Block
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {dynamicSectionActive ? (blockLocations.length > 0 ? blockLocations.join(", ") : "Active") : "Not added"}
+                      </Text>
                     </InlineStack>
 
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone={!isConnected ? "subdued" : onboardingStep4Done ? "success" : "attention"}>
-                        {!isConnected
-                          ? "Locked"
-                          : dynamicSectionsData?.homepage
-                          ? "Added (Homepage)"
-                          : dynamicSectionsData?.product
-                          ? "Added (Product)"
-                          : onboardingStep4Done
-                          ? "Added"
-                          : "Action Needed"}
-                      </Badge>
+                    <InlineStack gap="150" blockAlign="center">
                       <Button
                         variant={!isConnected ? "secondary" : !onboardingStep4Done ? "primary" : "secondary"}
                         size="slim"
                         disabled={!isConnected}
                         icon={!isConnected ? LockIcon : PlusIcon}
-                        onClick={() => {
-                          if (!isConnected) {
-                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
-                            const step1Input = document.querySelector("#welcome-widget-card input");
-                            if (step1Input) step1Input.focus();
-                            return;
-                          }
-                          window.open(themeAddSectionUrl, "_blank");
-                        }}
+                        onClick={() => window.open(themeAddSectionUrl, "_blank")}
                       >
-                        {dynamicSectionsData?.homepage ? "Edit in Theme ↗" : "Add to Homepage ↗"}
+                        {dynamicSectionActive ? "Edit in Theme ↗" : "Add to Theme ↗"}
                       </Button>
                       <Button
                         size="slim"
                         disabled={!isConnected}
                         loading={isVerifyingEmbed}
-                        onClick={() => {
-                          if (!isConnected) {
-                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
-                            return;
-                          }
-                          handleVerifyEmbed(false);
-                        }}
+                        onClick={() => handleVerifyEmbed(false)}
                       >
                         Verify
                       </Button>
@@ -5177,22 +5013,18 @@ export default function Index() {
 
                 {/* Step 5: Enable App Embed */}
                 <Box
-                  padding="300"
+                  padding="200"
                   background={!isConnected ? "bg-surface-secondary" : onboardingStep5Done ? "bg-surface-secondary" : "bg-surface"}
                   borderRadius="200"
                   borderWidth="025"
                   borderColor={onboardingStep5Done ? "border-success" : "border"}
-                  style={{
-                    opacity: !isConnected ? 0.65 : 1,
-                    transition: "opacity 0.2s ease",
-                  }}
                 >
                   <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                    <InlineStack gap="200" blockAlign="center">
+                    <InlineStack gap="150" blockAlign="center">
                       <div
                         style={{
-                          width: "24px",
-                          height: "24px",
+                          width: "22px",
+                          height: "22px",
                           borderRadius: "50%",
                           background: !isConnected ? "#94a3b8" : onboardingStep5Done ? "#10b981" : "#4f46e5",
                           color: "#ffffff",
@@ -5200,43 +5032,26 @@ export default function Index() {
                           alignItems: "center",
                           justifyContent: "center",
                           fontWeight: "bold",
-                          fontSize: "12px",
+                          fontSize: "11px",
                         }}
                       >
                         {!isConnected ? <Icon source={LockIcon} tone="inherit" /> : onboardingStep5Done ? <Icon source={CheckIcon} tone="inherit" /> : "5"}
                       </div>
-                      <InlineStack gap="150" blockAlign="baseline" wrap>
-                        <Text variant="bodyMd" as="h3" fontWeight="bold">
-                          5. Enable App Embed
-                        </Text>
-                        <Text variant="bodySm" tone="subdued">
-                          {!isConnected
-                            ? "Connect Instagram first (Step 1) to enable script embed in theme"
-                            : onboardingStep5Done
-                            ? "App Embed is active and script is live on your store"
-                            : "Turn on script toggle in theme · Click Save in Theme Editor, then return here"}
-                        </Text>
-                      </InlineStack>
+                      <Text variant="bodyMd" as="h3" fontWeight="bold">
+                        5. App Embed
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {onboardingStep5Done ? "Active" : "Disabled"}
+                      </Text>
                     </InlineStack>
 
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone={!isConnected ? "subdued" : onboardingStep5Done ? "success" : "attention"}>
-                        {!isConnected ? "Locked" : onboardingStep5Done ? "Active" : "Action Needed"}
-                      </Badge>
+                    <InlineStack gap="150" blockAlign="center">
                       <Button
                         variant={!isConnected ? "secondary" : onboardingStep4Done && !onboardingStep5Done ? "primary" : "secondary"}
                         size="slim"
                         disabled={!isConnected}
                         icon={!isConnected ? LockIcon : ExternalIcon}
-                        onClick={() => {
-                          if (!isConnected) {
-                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
-                            const step1Input = document.querySelector("#welcome-widget-card input");
-                            if (step1Input) step1Input.focus();
-                            return;
-                          }
-                          window.open(themeActivateEmbedUrl, "_blank");
-                        }}
+                        onClick={() => window.open(themeActivateEmbedUrl, "_blank")}
                       >
                         Enable Embed ↗
                       </Button>
@@ -5244,13 +5059,7 @@ export default function Index() {
                         size="slim"
                         disabled={!isConnected}
                         loading={isVerifyingEmbed}
-                        onClick={() => {
-                          if (!isConnected) {
-                            shopify?.toast?.show("Please connect your Instagram account first (Step 1)", { isError: true });
-                            return;
-                          }
-                          handleVerifyEmbed(false);
-                        }}
+                        onClick={() => handleVerifyEmbed(false)}
                       >
                         Verify
                       </Button>
@@ -5322,143 +5131,7 @@ export default function Index() {
           </Card>
         )}
 
-        {/* ── Feed Performance & Monitoring (Only when Feed is Active on Live Store) ── */}
-        {allTasksDone && (
-          <Card padding="400">
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                <InlineStack gap="200" blockAlign="center">
-                  <Text variant="headingSm" as="h3" fontWeight="bold">
-                    Feed Performance & Monitoring
-                  </Text>
-                  <Badge tone="info">Last 30 Days</Badge>
-                </InlineStack>
-                <Button
-                  size="slim"
-                  variant="plain"
-                  icon={ViewIcon}
-                  onClick={() => navigate("/app/analytics")}
-                >
-                  View Detailed Analytics & Reports →
-                </Button>
-              </InlineStack>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                  gap: "12px",
-                }}
-              >
-                {/* Metric 1: Storefront Impressions */}
-                <div
-                  style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    padding: "12px 14px",
-                  }}
-                >
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text variant="bodyXs" tone="subdued" fontWeight="medium">
-                      Storefront Views
-                    </Text>
-                    <Icon source={ViewIcon} tone="subdued" />
-                  </InlineStack>
-                  <div style={{ marginTop: "4px" }}>
-                    <Text variant="headingLg" as="p" fontWeight="bold">
-                      {(loaderData.analyticsSummary?.views || 0).toLocaleString()}
-                    </Text>
-                  </div>
-                  <Text variant="bodyXs" tone="subdued">
-                    Feed widget impressions
-                  </Text>
-                </div>
-
-                {/* Metric 2: Product & Tag Clicks */}
-                <div
-                  style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    padding: "12px 14px",
-                  }}
-                >
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text variant="bodyXs" tone="subdued" fontWeight="medium">
-                      Product Clicks
-                    </Text>
-                    <Icon source={StoreIcon} tone="subdued" />
-                  </InlineStack>
-                  <div style={{ marginTop: "4px" }}>
-                    <Text variant="headingLg" as="p" fontWeight="bold">
-                      {(loaderData.analyticsSummary?.clicks || 0).toLocaleString()}
-                    </Text>
-                  </div>
-                  <Text variant="bodyXs" tone="subdued">
-                    Hotspot & popup link taps
-                  </Text>
-                </div>
-
-                {/* Metric 3: Click-Through Rate */}
-                <div
-                  style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    padding: "12px 14px",
-                  }}
-                >
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text variant="bodyXs" tone="subdued" fontWeight="medium">
-                      Click-Through Rate
-                    </Text>
-                    <Badge tone={Number(loaderData.analyticsSummary?.ctr || 0) > 0 ? "success" : "subdued"}>
-                      {loaderData.analyticsSummary?.ctr || "0.0"}% CTR
-                    </Badge>
-                  </InlineStack>
-                  <div style={{ marginTop: "4px" }}>
-                    <Text variant="headingLg" as="p" fontWeight="bold">
-                      {loaderData.analyticsSummary?.ctr || "0.0"}%
-                    </Text>
-                  </div>
-                  <Text variant="bodyXs" tone="subdued">
-                    Clicks per impression
-                  </Text>
-                </div>
-
-                {/* Metric 4: Shoppable Feed Status */}
-                <div
-                  style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    padding: "12px 14px",
-                  }}
-                >
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text variant="bodyXs" tone="subdued" fontWeight="medium">
-                      Shoppable Posts
-                    </Text>
-                    <Badge tone={taggingStats.taggedPosts > 0 ? "success" : "subdued"}>
-                      {taggingStats.shoppableRate}%
-                    </Badge>
-                  </InlineStack>
-                  <div style={{ marginTop: "4px" }}>
-                    <Text variant="headingLg" as="p" fontWeight="bold">
-                      {taggingStats.taggedPosts} / {taggingStats.totalPosts}
-                    </Text>
-                  </div>
-                  <Text variant="bodyXs" tone="subdued">
-                    {taggingStats.totalPins} active product tags
-                  </Text>
-                </div>
-              </div>
-            </BlockStack>
-          </Card>
-        )}
-
-        {/* ── 3. Main Dashboard Layout (Configurator & Live Storefront Preview) ── */}
+        {/* ── Main Dashboard Layout (Configurator & Live Storefront Preview) ── */}
             <div
               style={
                 isEditingDesign
@@ -5500,7 +5173,7 @@ export default function Index() {
                     isSaving={isSaving}
                     hasUnsavedChanges={hasUnsavedChanges}
                     setIsSetupModalOpen={setIsSetupModalOpen}
-                    onCloseEditor={() => setIsEditingDesign(false)}
+                    onCloseEditor={handleCloseEditorClick}
                   />
                 </div>
               )}
@@ -5554,31 +5227,6 @@ export default function Index() {
                           ) : (
                             <Badge tone="success">Saved & Live</Badge>
                           )}
-                          <div
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "2px 8px",
-                              borderRadius: "12px",
-                              background: "#f0fdf4",
-                              border: "1px solid #bbf7d0",
-                              fontSize: "11px",
-                              fontWeight: "600",
-                              color: "#166534",
-                            }}
-                          >
-                            <span
-                              style={{
-                                width: "6px",
-                                height: "6px",
-                                borderRadius: "50%",
-                                background: "#16a34a",
-                                display: "inline-block",
-                              }}
-                            />
-                            Live Sync Active
-                          </div>
                         </InlineStack>
 
                         <InlineStack gap="200" blockAlign="center" wrap>
@@ -5611,48 +5259,17 @@ export default function Index() {
                                 if (step1Input) step1Input.focus();
                                 return;
                               }
-                              setIsEditingDesign(!isEditingDesign);
+                              if (isEditingDesign) {
+                                handleCloseEditorClick();
+                              } else {
+                                setIsEditingDesign(true);
+                              }
                             }}
                           >
                             {!isConnected ? "Connect to Customize" : isEditingDesign ? "Close Editor" : "Customize Feed"}
                           </Button>
                         </InlineStack>
                       </InlineStack>
-
-                      {!isConnected ? (
-                        <Banner tone="attention">
-                          <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                            <Text variant="bodySm">
-                              <strong>Step 1 Pending:</strong> Connect your Instagram account in the checklist above to unlock feed customization and display your posts.
-                            </Text>
-                            <Button
-                              size="slim"
-                              onClick={() => {
-                                const step1Input = document.querySelector("#welcome-widget-card input");
-                                if (step1Input) step1Input.focus();
-                              }}
-                            >
-                              Connect Instagram ↑
-                            </Button>
-                          </InlineStack>
-                        </Banner>
-                      ) : !allTasksDone && (
-                        <Banner tone="info">
-                          <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                            <Text variant="bodySm">
-                              <strong>Theme Setup Pending:</strong> Connected to @{instaData?.username || config.instagramHandle}. Complete Steps 4 &amp; 5 in the checklist above to display your feed to shoppers on your live store.
-                            </Text>
-                            <InlineStack gap="150" blockAlign="center">
-                              <Button size="slim" variant="plain" onClick={() => window.open(themeAddSectionUrl, "_blank")}>
-                                Add Section ↗
-                              </Button>
-                              <Button size="slim" variant="plain" onClick={() => window.open(themeActivateEmbedUrl, "_blank")}>
-                                Enable Embed ↗
-                              </Button>
-                            </InlineStack>
-                          </InlineStack>
-                        </Banner>
-                      )}
 
                       <Divider />
 
@@ -5678,6 +5295,130 @@ export default function Index() {
                 </Card>
               </div>
             </div>
+
+        {/* ── Feed Analytics (Below Live Feed) ── */}
+        {isConnected && (
+          <Card padding="300">
+            <BlockStack gap="250">
+              <InlineStack align="space-between" blockAlign="center" wrap gap="200">
+                <InlineStack gap="200" blockAlign="center">
+                  <Text variant="headingSm" as="h3" fontWeight="bold">
+                    Analytics
+                  </Text>
+                  <Badge tone="info">30 Days</Badge>
+                </InlineStack>
+                <Button
+                  size="slim"
+                  variant="plain"
+                  icon={ViewIcon}
+                  onClick={() => navigate("/app/analytics")}
+                >
+                  View Details →
+                </Button>
+              </InlineStack>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: "12px",
+                }}
+              >
+                {/* Metric 1: Storefront Impressions */}
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                  }}
+                >
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                      Storefront Views
+                    </Text>
+                    <Icon source={ViewIcon} tone="subdued" />
+                  </InlineStack>
+                  <div style={{ marginTop: "4px" }}>
+                    <Text variant="headingLg" as="p" fontWeight="bold">
+                      {(loaderData.analyticsSummary?.views || 0).toLocaleString()}
+                    </Text>
+                  </div>
+                </div>
+
+                {/* Metric 2: Product & Tag Clicks */}
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                  }}
+                >
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                      Product Clicks
+                    </Text>
+                    <Icon source={StoreIcon} tone="subdued" />
+                  </InlineStack>
+                  <div style={{ marginTop: "4px" }}>
+                    <Text variant="headingLg" as="p" fontWeight="bold">
+                      {(loaderData.analyticsSummary?.clicks || 0).toLocaleString()}
+                    </Text>
+                  </div>
+                </div>
+
+                {/* Metric 3: Click-Through Rate */}
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                  }}
+                >
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                      CTR
+                    </Text>
+                    <Badge tone={Number(loaderData.analyticsSummary?.ctr || 0) > 0 ? "success" : "subdued"}>
+                      {loaderData.analyticsSummary?.ctr || "0.0"}%
+                    </Badge>
+                  </InlineStack>
+                  <div style={{ marginTop: "4px" }}>
+                    <Text variant="headingLg" as="p" fontWeight="bold">
+                      {loaderData.analyticsSummary?.ctr || "0.0"}%
+                    </Text>
+                  </div>
+                </div>
+
+                {/* Metric 4: Shoppable Feed Status */}
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                  }}
+                >
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text variant="bodyXs" tone="subdued" fontWeight="medium">
+                      Shoppable Posts
+                    </Text>
+                    <Badge tone={taggingStats.taggedPosts > 0 ? "success" : "subdued"}>
+                      {taggingStats.shoppableRate}%
+                    </Badge>
+                  </InlineStack>
+                  <div style={{ marginTop: "4px" }}>
+                    <Text variant="headingLg" as="p" fontWeight="bold">
+                      {taggingStats.taggedPosts} / {taggingStats.totalPosts}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            </BlockStack>
+          </Card>
+        )}
 
         {/* ── High-Fidelity Instagram Storefront Modal (Identical to Storefront) ── */}
         {selectedPost && (() => {
@@ -6965,49 +6706,10 @@ export default function Index() {
           </Modal.Section>
         </Modal>
 
-        {/* ── Free Forever + Review Reward Card ── */}
-        {isConnected && !isReviewRewardCardDismissed && (
-          <Card padding="400">
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center" wrap>
-                <InlineStack gap="200" blockAlign="center" wrap>
-                  <Badge tone="magic">100% Free Forever</Badge>
-                  <Badge tone="success">Bonus App Credits & AI Perks</Badge>
-                </InlineStack>
-                <Button
-                  variant="plain"
-                  icon={XIcon}
-                  onClick={handleDismissReviewRewardCard}
-                  accessibilityLabel="Dismiss review incentive banner"
-                />
-              </InlineStack>
-
-              <BlockStack gap="100">
-                <Text variant="headingMd" as="h3" fontWeight="bold">
-                  Enjoying the app? Leave a review & claim AI perks!
-                </Text>
-                <Text variant="bodySm" tone="subdued">
-                  AI Instafeed is <strong>100% Free Forever</strong>. Leave a quick 5-star review and we'll send free <strong>App Credits</strong> + unlock VIP <strong>AI Smart Tagging & Auto-Detection</strong>!
-                </Text>
-              </BlockStack>
-
-              <div>
-                <Button
-                  variant="primary"
-                  icon={StarIcon}
-                  url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
-                  target="_blank"
-                >
-                  Write a 5-Star Review & Claim Perks </Button>
-              </div>
-            </BlockStack>
-          </Card>
-        )}
-
         {/* ── Footer ── */}
-        <Box paddingBlock="600">
-          <BlockStack gap="200" align="center" inlineAlign="center">
-            <Text variant="bodySm" tone="subdued">
+        <Box paddingBlock="300">
+          <InlineStack gap="200" align="center" blockAlign="center">
+            <Text variant="bodyXs" tone="subdued">
               © 2026 AI Instafeed by{" "}
               <a
                 href="https://apps.shopify.com/partners/boost-star"
@@ -7018,29 +6720,29 @@ export default function Index() {
                 BOOST STAR Experts
               </a>
             </Text>
-            <InlineStack gap="200" align="center">
-              <Text variant="bodySm" tone="subdued">
-                Terms of Service
-              </Text>
-              {/* Hidden company access link disguised as bullet */}
-              <a
-                href="/app/emails"
-                style={{
-                  color: "#8c9196",
-                  textDecoration: "none",
-                  cursor: "default",
-                  userSelect: "none",
-                  padding: "0 2px",
-                }}
-                title=""
-              >
-                •
-              </a>
-              <Text variant="bodySm" tone="subdued">
-                Privacy Policy
-              </Text>
-            </InlineStack>
-          </BlockStack>
+            <Text variant="bodyXs" tone="subdued">•</Text>
+            <Text variant="bodyXs" tone="subdued">
+              Terms of Service
+            </Text>
+            {/* Hidden company access link disguised as bullet */}
+            <a
+              href="/app/emails"
+              style={{
+                color: "#8c9196",
+                textDecoration: "none",
+                cursor: "default",
+                userSelect: "none",
+                padding: "0 2px",
+                fontSize: "12px",
+              }}
+              title=""
+            >
+              •
+            </a>
+            <Text variant="bodyXs" tone="subdued">
+              Privacy Policy
+            </Text>
+          </InlineStack>
         </Box>
 
         {/* Native Save Bar */}
@@ -7061,6 +6763,68 @@ export default function Index() {
             Discard
           </button>
         </ui-save-bar>
+
+        {/* Navigation Blocker Leave Confirmation Modal */}
+        <Modal
+          open={blocker.state === "blocked"}
+          onClose={handleCancelLeave}
+          title="Unsaved changes"
+          primaryAction={{
+            content: "Save changes",
+            loading: isSaving,
+            onAction: handleSaveAndProceed,
+          }}
+          secondaryActions={[
+            {
+              content: "Discard changes",
+              destructive: true,
+              disabled: isSaving,
+              onAction: handleDiscardAndProceed,
+            },
+            {
+              content: "Stay on page",
+              disabled: isSaving,
+              onAction: handleCancelLeave,
+            },
+          ]}
+        >
+          <Modal.Section>
+            <Text as="p">
+              You have unsaved changes in your feed configuration. If you leave this page, your changes will be lost. Would you like to save your changes or discard them before leaving?
+            </Text>
+          </Modal.Section>
+        </Modal>
+
+        {/* Close Editor Confirmation Modal */}
+        <Modal
+          open={isCloseEditorModalOpen}
+          onClose={() => setIsCloseEditorModalOpen(false)}
+          title="Unsaved changes in editor"
+          primaryAction={{
+            content: "Save and close",
+            loading: isSaving,
+            onAction: handleSaveAndCloseEditor,
+          }}
+          secondaryActions={[
+            {
+              content: "Discard and close",
+              destructive: true,
+              disabled: isSaving,
+              onAction: handleDiscardAndCloseEditor,
+            },
+            {
+              content: "Keep editing",
+              disabled: isSaving,
+              onAction: () => setIsCloseEditorModalOpen(false),
+            },
+          ]}
+        >
+          <Modal.Section>
+            <Text as="p">
+              You have unsaved changes in your feed customizer. Would you like to save your changes or discard them before closing the editor?
+            </Text>
+          </Modal.Section>
+        </Modal>
       </BlockStack>
     </Page>
   );

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useLoaderData, useNavigate, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server.js";
@@ -26,6 +26,7 @@ import {
   ViewIcon,
   CheckCircleIcon,
   StarIcon,
+  XIcon,
 } from "@shopify/polaris-icons";
 
 export const action = async ({ request }) => {
@@ -149,6 +150,42 @@ export default function AnalyticsPage() {
   const fetcher = useFetcher();
 
   const [timeRange, setTimeRange] = useState("30");
+  const [isReviewRewardCardDismissed, setIsReviewRewardCardDismissed] = useState(false);
+  const [isTipsCardDismissed, setIsTipsCardDismissed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isReviewDismissed =
+        sessionStorage.getItem("review_reward_card_dismissed") === "1" ||
+        localStorage.getItem("review_reward_card_dismissed") === "1";
+      setIsReviewRewardCardDismissed(isReviewDismissed);
+
+      const isTipsDismissed =
+        sessionStorage.getItem("analytics_tips_card_dismissed") === "1" ||
+        localStorage.getItem("analytics_tips_card_dismissed") === "1";
+      setIsTipsCardDismissed(isTipsDismissed);
+    }
+  }, []);
+
+  const handleDismissReviewRewardCard = useCallback(() => {
+    setIsReviewRewardCardDismissed(true);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("review_reward_card_dismissed", "1");
+        localStorage.setItem("review_reward_card_dismissed", "1");
+      } catch (e) {}
+    }
+  }, []);
+
+  const handleDismissTipsCard = useCallback(() => {
+    setIsTipsCardDismissed(true);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("analytics_tips_card_dismissed", "1");
+        localStorage.setItem("analytics_tips_card_dismissed", "1");
+      } catch (e) {}
+    }
+  }, []);
 
   const rangeOptions = [
     { label: "Last 7 Days", value: "7" },
@@ -399,92 +436,112 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Free Forever & Review Reward Card */}
-        <Card padding="400">
-          <BlockStack gap="300">
-            <InlineStack gap="200" blockAlign="center" wrap>
-              <Badge tone="magic">100% Free Forever</Badge>
-              <Badge tone="success">Bonus App Credits & AI Perks</Badge>
-            </InlineStack>
+        {!isReviewRewardCardDismissed && (
+          <Card padding="400">
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center" wrap>
+                <InlineStack gap="200" blockAlign="center" wrap>
+                  <Badge tone="magic">100% Free Forever</Badge>
+                  <Badge tone="success">Bonus App Credits & AI Perks</Badge>
+                </InlineStack>
+                <Button
+                  variant="plain"
+                  icon={XIcon}
+                  onClick={handleDismissReviewRewardCard}
+                  accessibilityLabel="Dismiss review incentive banner"
+                />
+              </InlineStack>
 
-            <BlockStack gap="100">
-              <Text variant="headingMd" as="h3" fontWeight="bold">
-                Seeing results? Leave a review & claim AI perks!
-              </Text>
-              <Text variant="bodySm" tone="subdued">
-                AI Instafeed is <strong>100% Free Forever</strong>. Leave a quick 5-star review and we'll send free <strong>App Credits</strong> + unlock VIP <strong>AI Smart Tagging & Auto-Detection</strong>!
-              </Text>
+              <BlockStack gap="100">
+                <Text variant="headingMd" as="h3" fontWeight="bold">
+                  Seeing results? Leave a review & claim AI perks!
+                </Text>
+                <Text variant="bodySm" tone="subdued">
+                  AI Instafeed is <strong>100% Free Forever</strong>. Leave a quick 5-star review and we'll send free <strong>App Credits</strong> + unlock VIP <strong>AI Smart Tagging & Auto-Detection</strong>!
+                </Text>
+              </BlockStack>
+
+              <div>
+                <Button
+                  variant="primary"
+                  icon={StarIcon}
+                  url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
+                  target="_blank"
+                >
+                  Write a 5-Star Review & Claim Perks
+                </Button>
+              </div>
             </BlockStack>
-
-            <div>
-              <Button
-                variant="primary"
-                icon={StarIcon}
-                url="https://apps.shopify.com/ai-instafeed#modal-show=WriteReviewModal"
-                target="_blank"
-              >
-                Write a 5-Star Review & Claim Perks
-              </Button>
-            </div>
-          </BlockStack>
-        </Card>
+          </Card>
+        )}
 
         {/* Quick Tips for Higher Engagement */}
-        <Card>
-          <BlockStack gap="300">
-            <Text variant="headingSm" as="h3">
-              Tips to Increase Conversions & CTR
-            </Text>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
-              <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-                <BlockStack gap="100">
-                  <Text variant="bodySm" fontWeight="bold">
-                    Tag More Products
-                  </Text>
-                  <Text variant="bodyXs" tone="subdued">
-                    Feeds with tagged product hotspots experience up to 3x higher click-through rates compared to regular image galleries.
-                  </Text>
-                  <Box paddingBlockStart="100">
-                    <Button size="micro" variant="plain" onClick={() => navigate("/app")}>
-                      Tag Products Now →
-                    </Button>
-                  </Box>
-                </BlockStack>
-              </Box>
+        {!isTipsCardDismissed && (
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="headingSm" as="h3">
+                  Tips to Increase Conversions & CTR
+                </Text>
+                <Button
+                  variant="plain"
+                  icon={XIcon}
+                  onClick={handleDismissTipsCard}
+                  accessibilityLabel="Dismiss conversion tips"
+                />
+              </InlineStack>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                  <BlockStack gap="100">
+                    <Text variant="bodySm" fontWeight="bold">
+                      Tag More Products
+                    </Text>
+                    <Text variant="bodyXs" tone="subdued">
+                      Feeds with tagged product hotspots experience up to 3x higher click-through rates compared to regular image galleries.
+                    </Text>
+                    <Box paddingBlockStart="100">
+                      <Button size="micro" variant="plain" onClick={() => navigate("/app")}>
+                        Tag Products Now →
+                      </Button>
+                    </Box>
+                  </BlockStack>
+                </Box>
 
-              <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-                <BlockStack gap="100">
-                  <Text variant="bodySm" fontWeight="bold">
-                    Activate Reels & Videos
-                  </Text>
-                  <Text variant="bodyXs" tone="subdued">
-                    Video content captures visitor attention immediately. Enable the Reels video wall layout to showcase auto-looping clips.
-                  </Text>
-                  <Box paddingBlockStart="100">
-                    <Button size="micro" variant="plain" onClick={() => navigate("/app")}>
-                      Explore Layouts →
-                    </Button>
-                  </Box>
-                </BlockStack>
-              </Box>
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                  <BlockStack gap="100">
+                    <Text variant="bodySm" fontWeight="bold">
+                      Activate Reels & Videos
+                    </Text>
+                    <Text variant="bodyXs" tone="subdued">
+                      Video content captures visitor attention immediately. Enable the Reels video wall layout to showcase auto-looping clips.
+                    </Text>
+                    <Box paddingBlockStart="100">
+                      <Button size="micro" variant="plain" onClick={() => navigate("/app")}>
+                        Explore Layouts →
+                      </Button>
+                    </Box>
+                  </BlockStack>
+                </Box>
 
-              <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-                <BlockStack gap="100">
-                  <Text variant="bodySm" fontWeight="bold">
-                    Enable Story Highlights
-                  </Text>
-                  <Text variant="bodyXs" tone="subdued">
-                    Circular story highlights at the top give customers instant access to promo discounts and new drop announcements.
-                  </Text>
-                  <Box paddingBlockStart="100">
-                    <Button size="micro" variant="plain" onClick={() => navigate("/app")}>
-                      Configure Stories →
-                    </Button>
-                  </Box>
-                </BlockStack>
-              </Box>
-            </div>
-          </BlockStack>
-        </Card>
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                  <BlockStack gap="100">
+                    <Text variant="bodySm" fontWeight="bold">
+                      Enable Story Highlights
+                    </Text>
+                    <Text variant="bodyXs" tone="subdued">
+                      Circular story highlights at the top give customers instant access to promo discounts and new drop announcements.
+                    </Text>
+                    <Box paddingBlockStart="100">
+                      <Button size="micro" variant="plain" onClick={() => navigate("/app")}>
+                        Configure Stories →
+                      </Button>
+                    </Box>
+                  </BlockStack>
+                </Box>
+              </div>
+            </BlockStack>
+          </Card>
+        )}
       </BlockStack>
     </Page>
   );
