@@ -4,7 +4,7 @@ import { useFetcher, useLoaderData, useNavigate, useSearchParams, useBlocker } f
 import { authenticate } from "../shopify.server";
 import { fetchShopConfig, fetchShopInstaData, fetchAllInstagramMedia, getFacebookAccessToken } from "../instagramApi.server";
 import { withRateLimit, trackApiResponse } from "../rateLimiter.server";
-import { invalidateResource, cacheGetOrSet, getCache } from "../cache.server";
+import { invalidateResource, cacheGetOrSet, cacheStaleWhileRevalidate, getCache } from "../cache.server";
 import { detectProductMatches } from "../utils/productMatcher";
 import { sendSupportEmail, sendSetupReminderEmail } from "../utils/email.server";
 import prisma from "../db.server.js";
@@ -319,15 +319,16 @@ async function getCachedThemeEmbedStatus(shop, themeId, accessToken, clientId, f
     const freshResult = await performCheck();
     try {
       const cache = await getCache();
-      await cache.set(cacheKey, freshResult, 15);
+      await cache.set(cacheKey, freshResult, 600);
       if (freshResult.themeId && freshResult.themeId !== themeId) {
-        await cache.set(`theme_embed_status:${shop}:${freshResult.themeId}`, freshResult, 15);
+        await cache.set(`theme_embed_status:${shop}:${freshResult.themeId}`, freshResult, 600);
       }
     } catch (e) {}
     return freshResult;
   }
 
-  return cacheGetOrSet(cacheKey, performCheck, 15);
+  const cached = await cacheStaleWhileRevalidate(cacheKey, performCheck, 600, 120);
+  return cached || (await performCheck());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -341,8 +342,14 @@ export const loader = async ({ request }) => {
   const requestUrl = new URL(request.url);
   const selectedThemeParam = requestUrl.searchParams.get("selectedThemeId") || requestUrl.searchParams.get("themeId");
   const clientId = process.env.SHOPIFY_API_KEY;
+  const forceFreshTheme = requestUrl.searchParams.get("fresh") === "1" || requestUrl.searchParams.get("fresh") === "true";
 
-  // ── Concurrently fetch all cached resources in parallel ──
+  // Pre-resolve known theme ID from cache if available so theme embed status can run in parallel
+  const cache = await getCache();
+  const cachedThemes = await cache.get(`shopify:themes:${shop}`);
+  const preResolvedThemeId = selectedThemeParam || cachedThemes?.find((t) => t.isLive)?.id || "current";
+
+  // ── Concurrently fetch all cached resources in parallel (Zero-Waterfall) ──
   const [
     subscription,
     config,
@@ -350,8 +357,9 @@ export const loader = async ({ request }) => {
     allThemes,
     storeProducts,
     analyticsSummary,
+    themeEmbedStatus,
   ] = await Promise.all([
-    // 1. Cached Billing Check
+    // 1. Cached Billing Check (1800s TTL)
     cacheGetOrSet(
       `shopify:billing:${shop}`,
       async () => {
@@ -365,16 +373,16 @@ export const loader = async ({ request }) => {
         }
         return null;
       },
-      300
+      1800
     ),
 
-    // 2. Cached Config
+    // 2. Cached Config (30 min)
     withRateLimit(shop, () => fetchShopConfig(admin, shop)).catch(() => null),
 
-    // 3. Cached Instagram Feed Data
+    // 3. Cached Instagram Feed Data (5 min)
     fetchShopInstaData(admin, shop).catch(() => null),
 
-    // 4. Cached Themes List
+    // 4. Cached Themes List (30 min TTL)
     cacheGetOrSet(
       `shopify:themes:${shop}`,
       async () => {
@@ -399,51 +407,56 @@ export const loader = async ({ request }) => {
           return [];
         }
       },
-      600
+      1800
     ),
 
-    // 5. Cached Store Products (for tagging modal)
-    cacheGetOrSet(
-      `shopify:products:${shop}`,
-      async () => {
-        try {
-          const productsRes = await admin.graphql(`{
-            products(first: 100, sortKey: UPDATED_AT, reverse: true) {
-              nodes {
-                id
-                title
-                handle
-                tags
-                featuredImage { url }
-                variants(first: 1) {
-                  nodes {
-                    id
-                    price
+    // 5. Store Products - Non-blocking for homepage LCP (served from cache or fetched in background)
+    (async () => {
+      try {
+        const cached = await cache.get(`shopify:products:${shop}`);
+        if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+
+        // Background cache fill so 100 products query NEVER blocks the initial page render
+        (async () => {
+          try {
+            const productsRes = await admin.graphql(`{
+              products(first: 50, sortKey: UPDATED_AT, reverse: true) {
+                nodes {
+                  id
+                  title
+                  handle
+                  tags
+                  featuredImage { url }
+                  variants(first: 1) {
+                    nodes {
+                      id
+                      price
+                    }
                   }
                 }
               }
-            }
-          }`);
-          const prodJson = await productsRes.json();
-          const nodes = prodJson.data?.products?.nodes || [];
-          return nodes.map((p) => ({
-            id: p.id,
-            title: p.title,
-            handle: p.handle,
-            tags: p.tags || [],
-            image: p.featuredImage?.url || "",
-            variantId: p.variants?.nodes?.[0]?.id ? String(p.variants.nodes[0].id).split("/").pop() : "default",
-            price: p.variants?.nodes?.[0]?.price || "0.00",
-          }));
-        } catch (e) {
-          console.warn("Failed to parse store products", e);
-          return [];
-        }
-      },
-      600
-    ),
+            }`);
+            const prodJson = await productsRes.json();
+            const nodes = prodJson.data?.products?.nodes || [];
+            const prods = nodes.map((p) => ({
+              id: p.id,
+              title: p.title,
+              handle: p.handle,
+              tags: p.tags || [],
+              image: p.featuredImage?.url || "",
+              variantId: p.variants?.nodes?.[0]?.id ? String(p.variants.nodes[0].id).split("/").pop() : "default",
+              price: p.variants?.nodes?.[0]?.price || "0.00",
+            }));
+            await cache.set(`shopify:products:${shop}`, prods, 1800);
+          } catch (e) {}
+        })();
+        return [];
+      } catch (e) {
+        return [];
+      }
+    })(),
 
-    // 6. Cached Analytics Summary
+    // 6. Cached Analytics Summary (600s TTL)
     cacheGetOrSet(
       `analytics:summary:${shop}`,
       async () => {
@@ -469,31 +482,29 @@ export const loader = async ({ request }) => {
           return { views: 0, clicks: 0, ctr: "0.0", recentDaysCount: 0 };
         }
       },
-      300
+      600
+    ),
+
+    // 7. Theme Embed Status (Run CONCURRENTLY in same Promise.all)
+    getCachedThemeEmbedStatus(
+      shop,
+      preResolvedThemeId,
+      session?.accessToken,
+      clientId,
+      forceFreshTheme
     ),
   ]);
 
   trackApiResponse(shop, {});
 
-  // Determine active theme ID
+  // Determine active theme metadata
   const themesList = allThemes || [];
   const mainTheme = themesList.find((t) => t.isLive);
   const matchedSelected = selectedThemeParam ? themesList.find((t) => t.id === selectedThemeParam) : null;
   const currentTheme = matchedSelected || mainTheme || themesList[0] || null;
-  const themeId = currentTheme ? currentTheme.id : "current";
+  const themeId = currentTheme ? currentTheme.id : (themeEmbedStatus?.themeId || "current");
   const themeName = currentTheme?.name || "Live Theme";
   const isLiveTheme = !!currentTheme?.isLive;
-
-  const forceFreshTheme = requestUrl.searchParams.get("fresh") === "1" || requestUrl.searchParams.get("fresh") === "true";
-
-  // Cached Theme Embed verification
-  const themeEmbedStatus = await getCachedThemeEmbedStatus(
-    session?.shop,
-    themeId,
-    session?.accessToken,
-    clientId,
-    forceFreshTheme
-  );
 
   return {
     config: config ? JSON.stringify(config) : null,
@@ -507,13 +518,13 @@ export const loader = async ({ request }) => {
     allThemes: themesList,
     selectedThemeId: themeId,
     clientId,
-    detectedExtensionUuid: themeEmbedStatus.detectedExtensionUuid || null,
-    dynamicAppEmbedEnabled: !!themeEmbedStatus.dynamicAppEmbedEnabled,
-    dynamicSectionActive: !!themeEmbedStatus.dynamicSectionActive,
-    dynamicSections: themeEmbedStatus.dynamicSections || { grid: false },
-    activeBlockLocations: themeEmbedStatus.activeBlockLocations || [],
-    appEmbed: themeEmbedStatus.appEmbed,
-    appBlock: themeEmbedStatus.appBlock,
+    detectedExtensionUuid: themeEmbedStatus?.detectedExtensionUuid || null,
+    dynamicAppEmbedEnabled: !!themeEmbedStatus?.dynamicAppEmbedEnabled,
+    dynamicSectionActive: !!themeEmbedStatus?.dynamicSectionActive,
+    dynamicSections: themeEmbedStatus?.dynamicSections || { grid: false },
+    activeBlockLocations: themeEmbedStatus?.activeBlockLocations || [],
+    appEmbed: themeEmbedStatus?.appEmbed,
+    appBlock: themeEmbedStatus?.appBlock,
     analyticsSummary: analyticsSummary || { views: 0, clicks: 0, ctr: "0.0", recentDaysCount: 0 },
   };
 };
@@ -2897,6 +2908,39 @@ export default function Index() {
     setHasUnsavedChanges(isDirty);
   }, [config]);
 
+  // Real-time Core Web Vitals (LCP & CLS) performance telemetry
+  useEffect(() => {
+    if (typeof window !== "undefined" && "PerformanceObserver" in window) {
+      try {
+        const lcpObserver = new PerformanceObserver((entryList) => {
+          const entries = entryList.getEntries();
+          const lastEntry = entries[entries.length - 1];
+          if (lastEntry) {
+            const lcpSec = (lastEntry.startTime / 1000).toFixed(2);
+            console.info(`[Core Web Vitals] LCP: ${lcpSec}s (Target: < 2.5s) | Candidate:`, lastEntry.element || lastEntry);
+          }
+        });
+        lcpObserver.observe({ type: "largest-contentful-paint", buffered: true });
+
+        let clsValue = 0;
+        const clsObserver = new PerformanceObserver((entryList) => {
+          for (const entry of entryList.getEntries()) {
+            if (!entry.hadRecentInput) {
+              clsValue += entry.value;
+              console.info(`[Core Web Vitals] CLS: ${clsValue.toFixed(4)} (Target: < 0.1) | Shift entry:`, entry);
+            }
+          }
+        });
+        clsObserver.observe({ type: "layout-shift", buffered: true });
+
+        return () => {
+          lcpObserver.disconnect();
+          clsObserver.disconnect();
+        };
+      } catch (e) {}
+    }
+  }, []);
+
   useEffect(() => {
     if (saveFetcher.data?.success) {
       shopify?.toast?.show("Feed design saved successfully!");
@@ -3005,12 +3049,6 @@ export default function Index() {
   const [isWizardMode, setIsWizardMode] = useState(!isAllSetupComplete);
   const [isWelcomeExpanded, setIsWelcomeExpanded] = useState(!allTasksDone);
   const [isOnboardingDismissed, setIsOnboardingDismissed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("onboarding_widget_dismissed") === "true") {
-      setIsOnboardingDismissed(true);
-    }
-  }, []);
   const [isSetupGuideManuallyOpen, setIsSetupGuideManuallyOpen] = useState(true);
 
   // Show checklist by default unless explicitly dismissed by merchant
@@ -3509,7 +3547,7 @@ export default function Index() {
   const renderMediaCard = (item, i, customAspect, customStyle = {}) => {
     const itemIdentifier = item.id || item.media_url;
     const isHidden = config.postFeed.hiddenPostIds?.includes(itemIdentifier);
-    const aspect = customAspect || (config.postFeed.aspectRatio === "auto" ? "auto" : config.postFeed.aspectRatio || "1/1");
+    const aspect = customAspect || (config.postFeed.aspectRatio && config.postFeed.aspectRatio !== "auto" ? config.postFeed.aspectRatio : "1/1");
 
     const rawType = (item.media_type || "").toUpperCase();
     const isVideo = rawType === "VIDEO" || rawType === "REEL" || (item.media_url && item.media_url.toLowerCase().includes(".mp4"));
@@ -3617,7 +3655,9 @@ export default function Index() {
             />
           ) : item.thumbnail_url ? (
             <img
-              loading="lazy"
+              loading={i < 2 ? "eager" : "lazy"}
+              fetchPriority={i === 0 ? "high" : "auto"}
+              decoding="async"
               src={item.thumbnail_url}
               onError={(e) => {
                 e.currentTarget.onerror = null;
@@ -3638,7 +3678,9 @@ export default function Index() {
           ) : null
         ) : item.media_url ? (
           <img
-            loading="lazy"
+            loading={i < 2 ? "eager" : "lazy"}
+            fetchPriority={i === 0 ? "high" : "auto"}
+            decoding="async"
             src={item.media_url}
             onError={(e) => {
               e.currentTarget.onerror = null;
@@ -5278,6 +5320,7 @@ export default function Index() {
                         id="storefront-feed-frame-wrapper"
                         style={{
                           width: "100%",
+                          minHeight: "420px",
                           maxWidth: previewDevice === "mobile" ? "390px" : "100%",
                           margin: "0 auto",
                           transition: "max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
